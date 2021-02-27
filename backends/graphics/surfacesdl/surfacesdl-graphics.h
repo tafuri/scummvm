@@ -51,7 +51,8 @@ enum {
 	GFX_HQ2X = 8,
 	GFX_HQ3X = 9,
 	GFX_TV2X = 10,
-	GFX_DOTMATRIX = 11
+	GFX_DOTMATRIX = 11,
+	GFX_MMPX = 12
 };
 
 

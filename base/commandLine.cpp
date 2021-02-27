@@ -98,7 +98,7 @@ static const char HELP_STRING[] =
 	"  -F, --no-fullscreen      Force windowed mode\n"
 	"  -g, --gfx-mode=MODE      Select graphics scaler (1x,2x,3x,2xsai,super2xsai,\n"
 	"                           supereagle,advmame2x,advmame3x,hq2x,hq3x,tv2x,\n"
-	"                           dotmatrix)\n"
+	"                           dotmatrix,mmpx)\n"
 	"  --stretch-mode=MODE      Select stretch mode (center, integral, fit, stretch)\n"
 	"  --filtering              Force filtered graphics mode\n"
 	"  --no-filtering           Force unfiltered graphics mode\n"

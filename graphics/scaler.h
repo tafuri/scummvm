@@ -59,6 +59,8 @@ DECLARE_SCALER(HQ2x);
 DECLARE_SCALER(HQ3x);
 #endif
 
+DECLARE_SCALER(MMPX);
+
 #endif // #ifdef USE_SCALERS
 
 // creates a 160x100 thumbnail for 320x200 games

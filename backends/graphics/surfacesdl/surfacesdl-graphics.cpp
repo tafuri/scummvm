@@ -73,7 +73,7 @@ static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 	{"hq3x", "HQ3x", GFX_HQ3X},
 #endif
 	{"tv2x", "TV2x", GFX_TV2X},
-	{"dotmatrix", "DotMatrix", GFX_DOTMATRIX},
+	{"mmpx", "MMPX", GFX_MMPX},
 #endif
 	{0, 0, 0}
 };
@@ -108,6 +108,7 @@ static const int s_gfxModeSwitchTable[][4] = {
 		{ GFX_NORMAL, GFX_SUPER2XSAI, -1, -1 },
 		{ GFX_NORMAL, GFX_SUPEREAGLE, -1, -1 },
 		{ GFX_NORMAL, GFX_TV2X, -1, -1 },
+		{ GFX_NORMAL, GFX_MMPX, -1, -1 },
 		{ GFX_NORMAL, GFX_DOTMATRIX, -1, -1 }
 	};
 
@@ -594,6 +595,7 @@ int SurfaceSdlGraphicsManager::getGraphicsModeScale(int mode) const {
 	case GFX_ADVMAME2X:
 	case GFX_TV2X:
 	case GFX_DOTMATRIX:
+	case GFX_MMPX:
 #ifdef USE_HQ_SCALERS
 	case GFX_HQ2X:
 #endif
@@ -684,6 +686,9 @@ ScalerProc *SurfaceSdlGraphicsManager::getGraphicsScalerProc(int mode) const {
 		newScalerProc = DotMatrix;
 		break;
 #endif // USE_SCALERS
+	case GFX_MMPX:
+		newScalerProc = MMPX;
+		break;
 	default:
 		break;
 	}
@@ -2577,6 +2582,7 @@ bool SurfaceSdlGraphicsManager::notifyEvent(const Common::Event &event) {
 	case kActionSetScaleFilter6:
 	case kActionSetScaleFilter7:
 	case kActionSetScaleFilter8:
+	case kActionSetScaleFilter9:
 		handleScalerHotkeys(_videoMode.scaleFactor, event.customType - kActionSetScaleFilter1);
 		return true;
 

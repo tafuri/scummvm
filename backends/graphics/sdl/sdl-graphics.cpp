@@ -448,7 +448,7 @@ Common::Keymap *SdlGraphicsManager::getKeymap() {
 			{ "FLT5", _s("Switch to Super2xSai scaling")        },
 			{ "FLT6", _s("Switch to SuperEagle scaling")        },
 			{ "FLT7", _s("Switch to TV 2x scaling")             },
-			{ "FLT8", _s("Switch to DotMatrix scaling")         }
+			{ "FLT9", _s("Switch to MMPX scaling")              }
 	};
 
 	for (uint i = 0; i < ARRAYSIZE(filters); i++) {

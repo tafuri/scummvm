@@ -154,7 +154,8 @@ protected:
 		kActionSetScaleFilter5,
 		kActionSetScaleFilter6,
 		kActionSetScaleFilter7,
-		kActionSetScaleFilter8
+		kActionSetScaleFilter8,
+		kActionSetScaleFilter9
 	};
 
 	virtual int getGraphicsModeScale(int mode) const = 0;
