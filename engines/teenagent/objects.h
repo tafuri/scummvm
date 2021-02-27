@@ -165,7 +165,7 @@ struct Object {
 	//19
 	Common::String name, description;
 
-	Object(): _base(NULL) {}
+	Object(): _base(NULL) { id = 0; actorOrientation = 0; enabled = 0;  }
 	void dump(int level = 0) const;
 	void setName(const Common::String &newName);
 	void load(byte *addr);
@@ -205,7 +205,15 @@ struct Walkbox {
 	Rect rect;
 	byte sideHint[4];
 
-	Walkbox() : _base(NULL) {}
+	Walkbox() {
+		_base = nullptr;
+		type = 0;
+		orientation = 0;
+		// rect cleared by Rect constructor
+		for (uint i = 0; i < ARRAYSIZE(sideHint); i++) {
+			sideHint[i] = 0;
+		}
+	}
 	void dump(int level = 0) const;
 	void load(byte *src);
 	void save() const;

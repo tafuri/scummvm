@@ -26,7 +26,11 @@
 #include "sci/engine/kernel.h"
 #include "sci/engine/vm.h"		// for Object
 #include "sci/sound/audio.h"
+#ifdef ENABLE_SCI32
+#include "sci/sound/audio32.h"
+#endif
 #include "sci/sound/soundcmd.h"
+#include "sci/sound/sync.h"
 
 #include "audio/mixer.h"
 #include "common/system.h"
@@ -42,11 +46,10 @@ reg_t kDoSound(EngineState *s, int argc, reg_t *argv) {
 	error("not supposed to call this");
 }
 
-#define CREATE_DOSOUND_FORWARD(_name_) reg_t k##_name_(EngineState *s, int argc, reg_t *argv) { return g_sci->_soundCmd->k##_name_(argc, argv, s->r_acc); }
+#define CREATE_DOSOUND_FORWARD(_name_) reg_t k##_name_(EngineState *s, int argc, reg_t *argv) { return g_sci->_soundCmd->k##_name_(s, argc, argv); }
 
 CREATE_DOSOUND_FORWARD(DoSoundInit)
 CREATE_DOSOUND_FORWARD(DoSoundPlay)
-CREATE_DOSOUND_FORWARD(DoSoundRestore)
 CREATE_DOSOUND_FORWARD(DoSoundDispose)
 CREATE_DOSOUND_FORWARD(DoSoundMute)
 CREATE_DOSOUND_FORWARD(DoSoundStop)
@@ -61,12 +64,56 @@ CREATE_DOSOUND_FORWARD(DoSoundUpdateCues)
 CREATE_DOSOUND_FORWARD(DoSoundSendMidi)
 CREATE_DOSOUND_FORWARD(DoSoundGlobalReverb)
 CREATE_DOSOUND_FORWARD(DoSoundSetHold)
-CREATE_DOSOUND_FORWARD(DoSoundDummy)
 CREATE_DOSOUND_FORWARD(DoSoundGetAudioCapability)
 CREATE_DOSOUND_FORWARD(DoSoundSuspend)
 CREATE_DOSOUND_FORWARD(DoSoundSetVolume)
 CREATE_DOSOUND_FORWARD(DoSoundSetPriority)
 CREATE_DOSOUND_FORWARD(DoSoundSetLoop)
+
+#ifdef ENABLE_SCI32
+reg_t kDoSoundMac32(EngineState *s, int argc, reg_t *argv) {
+	// Several SCI 2.1 Middle Mac games, but not all, contain a modified kDoSound
+	//  in which all but eleven subops were removed, changing their subop values to
+	//  zero through ten. PQSWAT then restored all of the subops, but kept the new
+	//  subop values that removing caused in the first place, and assigned new
+	//  values to the restored subops. It is the only game that does this and it
+	//  only uses two of them.
+	switch (argv[0].toUint16()) {
+	case 0:
+		return g_sci->_soundCmd->kDoSoundMasterVolume(s, argc - 1, argv + 1);
+	case 1:
+		return g_sci->_soundCmd->kDoSoundGetAudioCapability(s, argc - 1, argv + 1);
+	case 2:
+		return g_sci->_soundCmd->kDoSoundInit(s, argc - 1, argv + 1);
+	case 3:
+		return g_sci->_soundCmd->kDoSoundDispose(s, argc - 1, argv + 1);
+	case 4:
+		return g_sci->_soundCmd->kDoSoundPlay(s, argc - 1, argv + 1);
+	case 5:
+		return g_sci->_soundCmd->kDoSoundStop(s, argc - 1, argv + 1);
+	case 6:
+		return g_sci->_soundCmd->kDoSoundPause(s, argc - 1, argv + 1);
+	case 7:
+		return g_sci->_soundCmd->kDoSoundFade(s, argc - 1, argv + 1);
+	case 8:
+		return g_sci->_soundCmd->kDoSoundSetVolume(s, argc - 1, argv + 1);
+	case 9:
+		return g_sci->_soundCmd->kDoSoundSetLoop(s, argc - 1, argv + 1);
+	case 10:
+		return g_sci->_soundCmd->kDoSoundUpdateCues(s, argc - 1, argv + 1);
+	// PQSWAT only
+	case 12: // kDoSoundRestore
+		return kEmpty(s, argc - 1, argv + 1);
+	case 13:
+		return g_sci->_soundCmd->kDoSoundGetPolyphony(s, argc - 1, argv + 1);
+	default:
+		break;
+	}
+
+	error("Unknown kDoSoundMac32 subop %d", argv[0].toUint16());
+	return s->r_acc;
+}
+#endif
 
 reg_t kDoCdAudio(EngineState *s, int argc, reg_t *argv) {
 	switch (argv[0].toUint16()) {
@@ -113,7 +160,8 @@ reg_t kDoCdAudio(EngineState *s, int argc, reg_t *argv) {
 }
 
 /**
- * Used for speech playback and digital soundtracks in CD games
+ * Used for speech playback and digital soundtracks in CD games.
+ * This is the SCI16 version; SCI32 is handled separately.
  */
 reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 	// JonesCD uses different functions based on the cdaudio.map file
@@ -130,6 +178,9 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 		uint32 number;
 
 		g_sci->_audio->stopAudio();
+		// In SSCI, kDoAudio handles all samples, even if started by kDoSound.
+		// We manage samples started by kDoSound in SoundCommandParser. 
+		g_sci->_soundCmd->stopAllSamples();
 
 		if (argc == 2) {
 			module = 65535;
@@ -140,17 +191,13 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 			         ((argv[3].toUint16() & 0xff) << 16) |
 			         ((argv[4].toUint16() & 0xff) <<  8) |
 			          (argv[5].toUint16() & 0xff);
-			// Removed warning because of the high amount of console spam
-			/*if (argc == 8) {
-				// TODO: Handle the extra 2 SCI21 params
-				// argv[6] is always 1
-				// argv[7] is the contents of global 229 (0xE5)
-				warning("kDoAudio: Play called with SCI2.1 extra parameters: %04x:%04x and %04x:%04x",
-						PRINT_REG(argv[6]), PRINT_REG(argv[7]));
-			}*/
 		} else {
 			warning("kDoAudio: Play called with an unknown number of parameters (%d)", argc);
 			return NULL_REG;
+		}
+
+		if (argv[0].toUint16() == kSciAudioPlay) {
+			g_sci->_audio->incrementPlayCounter();
 		}
 
 		debugC(kDebugLevelSound, "kDoAudio: play sample %d, module %d", number, module);
@@ -164,6 +211,9 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 	case kSciAudioStop:
 		debugC(kDebugLevelSound, "kDoAudio: stop");
 		g_sci->_audio->stopAudio();
+		// In SSCI, kDoAudio handles all samples, even if started by kDoSound.
+		// We manage samples started by kDoSound in SoundCommandParser. 
+		g_sci->_soundCmd->stopAllSamples();
 		break;
 	case kSciAudioPause:
 		debugC(kDebugLevelSound, "kDoAudio: pause");
@@ -184,14 +234,6 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 		int16 volume = argv[1].toUint16();
 		volume = CLIP<int16>(volume, 0, AUDIO_VOLUME_MAX);
 		debugC(kDebugLevelSound, "kDoAudio: set volume to %d", volume);
-#ifdef ENABLE_SCI32
-		if (getSciVersion() >= SCI_VERSION_2_1) {
-			int16 volumePrev = mixer->getVolumeForSoundType(Audio::Mixer::kSpeechSoundType) / 2;
-			volumePrev = CLIP<int16>(volumePrev, 0, AUDIO_VOLUME_MAX);
-			mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, volume * 2);
-			return make_reg(0, volumePrev);
-		} else
-#endif
 		mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, volume * 2);
 		break;
 	}
@@ -206,8 +248,15 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 			// athrxx: It seems from disasm that the original KQ5 FM-Towns loads a default language (Japanese) audio map at the beginning
 			// right after loading the video and audio drivers. The -1 language argument in here simply means that the original will stick
 			// with Japanese. Instead of doing that we switch to the language selected in the launcher.
-			if (g_sci->getPlatform() == Common::kPlatformFMTowns && language == -1)
-				language = (g_sci->getLanguage() == Common::JA_JPN) ? K_LANG_JAPANESE : K_LANG_ENGLISH;
+			if (g_sci->getPlatform() == Common::kPlatformFMTowns && language == -1) {
+				// FM-Towns calls us to get the current language / also set the default language
+				// This doesn't just happen right at the start, but also when the user clicks on the Sierra logo in the game menu
+				// It uses the result of this call to either show "English Voices" or "Japanese Voices".
+
+				// Language should have been set by setLauncherLanguage() already (or could have been modified by the scripts).
+				// Get this language setting, so that the chosen language will get set for resource manager.
+				language = g_sci->getSciLanguage();
+			}
 
 			debugC(kDebugLevelSound, "kDoAudio: set language to %d", language);
 
@@ -221,32 +270,44 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 		}
 		break;
 	case kSciAudioCD:
+		debugC(kDebugLevelSound, "kDoAudio: CD audio subop");
+		return kDoCdAudio(s, argc - 1, argv + 1);
 
-		if (getSciVersion() <= SCI_VERSION_1_1) {
-			debugC(kDebugLevelSound, "kDoAudio: CD audio subop");
-			return kDoCdAudio(s, argc - 1, argv + 1);
-#ifdef ENABLE_SCI32
-		} else {
-			// TODO: This isn't CD Audio in SCI32 anymore
-			warning("kDoAudio: Unhandled case 10, %d extra arguments passed", argc - 1);
-			break;
-#endif
-		}
-
-		// 3 new subops in Pharkas. kDoAudio in Pharkas sits at seg026:038C
+	// 3 new subops in Pharkas CD (including CD demo). kDoAudio in Pharkas sits at seg026:038C
 	case 11:
 		// Not sure where this is used yet
 		warning("kDoAudio: Unhandled case 11, %d extra arguments passed", argc - 1);
 		break;
 	case 12:
-		// Seems to be some sort of audio sync, used in Pharkas. Silenced the
-		// warning due to the high level of spam it produces. (takes no params)
-		//warning("kDoAudio: Unhandled case 12, %d extra arguments passed", argc - 1);
-		break;
+		// SSCI calls this function with no parameters from
+		// the TalkRandCycle class and branches on the return
+		// value like a boolean. The conjectured purpose of
+		// this function is to ensure that the talker's mouth
+		// does not move if there is read jitter (slow CD
+		// drive, scratched CD). The old behavior here of not
+		// doing anything caused a nonzero value to be left in
+		// the accumulator by chance. This is equivalent, but
+		// more explicit.
+
+		return make_reg(0, 1);
 	case 13:
-		// Used in Pharkas whenever a speech sample starts (takes no params)
-		//warning("kDoAudio: Unhandled case 13, %d extra arguments passed", argc - 1);
-		break;
+		// SSCI returns a counter that increments each time a sample
+		//  is played. This is used by the PointsSound and Narrator
+		//  classes to detect if their sound was interrupted by
+		//  another sample playing, since only one can play at a time.
+		//  The counter is incremented on each kDoAudio(Play) and on
+		//  each kDoSound(Play) when the sound is a sample, since SSCI
+		//  just passes those on to kDoAudio.
+		//
+		// When awarding points, the icon bar is often disabled, and
+		//  PointsSound:check polls its signal to detect when the
+		//  sound is completed so that it can re-enable the icon bar.
+		//  If the sound is interrupted by another sample then the icon
+		//  bar could remain permanently disabled, so the play counter
+		//  is stored before playing and PointsSound:check polls for
+		//  a change. The Narrator class also does this to detect
+		//  if speech was interrupted so that the game can continue.
+		return make_reg(0, g_sci->_audio->getPlayCounter());
 	case 17:
 		// Seems to be some sort of audio sync, used in SQ6. Silenced the
 		// warning due to the high level of spam it produces. (takes no params)
@@ -260,14 +321,12 @@ reg_t kDoAudio(EngineState *s, int argc, reg_t *argv) {
 }
 
 reg_t kDoSync(EngineState *s, int argc, reg_t *argv) {
-	SegManager *segMan = s->_segMan;
 	switch (argv[0].toUint16()) {
 	case kSciAudioSyncStart: {
 		ResourceId id;
 
-		g_sci->_audio->stopSoundSync();
+		g_sci->_sync->stop();
 
-		// Load sound sync resource and lock it
 		if (argc == 3) {
 			id = ResourceId(kResourceTypeSync, argv[2].toUint16());
 		} else if (argc == 7) {
@@ -278,14 +337,14 @@ reg_t kDoSync(EngineState *s, int argc, reg_t *argv) {
 			return s->r_acc;
 		}
 
-		g_sci->_audio->setSoundSync(id, argv[1], segMan);
+		g_sci->_sync->start(id, argv[1]);
 		break;
 	}
 	case kSciAudioSyncNext:
-		g_sci->_audio->doSoundSync(argv[1], segMan);
+		g_sci->_sync->next(argv[1]);
 		break;
 	case kSciAudioSyncStop:
-		g_sci->_audio->stopSoundSync();
+		g_sci->_sync->stop();
 		break;
 	default:
 		error("DoSync: Unhandled subfunction %d", argv[0].toUint16());
@@ -295,44 +354,138 @@ reg_t kDoSync(EngineState *s, int argc, reg_t *argv) {
 }
 
 #ifdef ENABLE_SCI32
+reg_t kDoAudio32(EngineState *s, int argc, reg_t *argv) {
+	if (!s)
+		return make_reg(0, getSciVersion());
+	error("not supposed to call this");
+}
 
-reg_t kSetLanguage(EngineState *s, int argc, reg_t *argv) {
-	// This is used by script 90 of MUMG Deluxe from the main menu to toggle
-	// the audio language between English and Spanish.
-	// Basically, it instructs the interpreter to switch the audio resources
-	// (resource.aud and associated map files) and load them from the "Spanish"
-	// subdirectory instead.
-	Common::String audioDirectory = s->_segMan->getString(argv[0]);
-	//warning("SetLanguage: set audio resource directory to '%s'", audioDirectory.c_str());
-	g_sci->getResMan()->changeAudioDirectory(audioDirectory);
+reg_t kDoAudioInit(EngineState *s, int argc, reg_t *argv) {
+	return make_reg(0, 0);
+}
 
+reg_t kDoAudioWaitForPlay(EngineState *s, int argc, reg_t *argv) {
+	if (argc == 0) {
+		if (g_sci->_features->hasSci3Audio()) {
+			return make_reg(0, g_sci->_audio32->getNumUnlockedChannels());
+		} else {
+			return make_reg(0, g_sci->_audio32->getNumActiveChannels());
+		}
+	}
+
+	return g_sci->_audio32->kernelPlay(false, s, argc, argv);
+}
+
+reg_t kDoAudioPlay(EngineState *s, int argc, reg_t *argv) {
+	if (argc == 0) {
+		return make_reg(0, g_sci->_audio32->getNumActiveChannels());
+	}
+
+	return g_sci->_audio32->kernelPlay(true, s, argc, argv);
+}
+
+reg_t kDoAudioStop(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelStop(s, argc, argv);
+}
+
+reg_t kDoAudioPause(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelPause(s, argc, argv);
+}
+
+reg_t kDoAudioResume(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelResume(s, argc, argv);
+}
+
+reg_t kDoAudioPosition(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelPosition(s, argc, argv);
+}
+
+reg_t kDoAudioRate(EngineState *s, int argc, reg_t *argv) {
+	if (argc > 0) {
+		const uint16 sampleRate = argv[0].toUint16();
+		if (sampleRate != 0) {
+			g_sci->_audio32->setSampleRate(sampleRate);
+		}
+	}
+
+	return make_reg(0, g_sci->_audio32->getSampleRate());
+}
+
+reg_t kDoAudioVolume(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelVolume(s, argc, argv);
+}
+
+reg_t kDoAudioGetCapability(EngineState *s, int argc, reg_t *argv) {
+	return make_reg(0, 1);
+}
+
+reg_t kDoAudioBitDepth(EngineState *s, int argc, reg_t *argv) {
+	if (argc > 0) {
+		const uint16 bitDepth = argv[0].toUint16();
+		if (bitDepth != 0) {
+			g_sci->_audio32->setBitDepth(bitDepth);
+		}
+	}
+
+	return make_reg(0, g_sci->_audio32->getBitDepth());
+}
+
+reg_t kDoAudioMixing(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelMixing(argc, argv);
+}
+
+reg_t kDoAudioChannels(EngineState *s, int argc, reg_t *argv) {
+	if (argc > 0) {
+		const int16 numChannels = argv[0].toSint16();
+		if (numChannels != 0) {
+			g_sci->_audio32->setNumOutputChannels(numChannels);
+		}
+	}
+
+	return make_reg(0, g_sci->_audio32->getNumOutputChannels());
+}
+
+reg_t kDoAudioPreload(EngineState *s, int argc, reg_t *argv) {
+	if (argc > 0) {
+		g_sci->_audio32->setPreload(argv[0].toUint16());
+	}
+
+	return make_reg(0, g_sci->_audio32->getPreload());
+}
+
+reg_t kDoAudioFade(EngineState *s, int argc, reg_t *argv) {
+	return g_sci->_audio32->kernelFade(s, argc, argv);
+}
+
+reg_t kDoAudioHasSignal(EngineState *s, int argc, reg_t *argv) {
+	return make_reg(0, g_sci->_audio32->hasSignal());
+}
+
+reg_t kDoAudioSetLoop(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_audio32->kernelLoop(s, argc, argv);
 	return s->r_acc;
 }
 
-reg_t kDoSoundPhantasmagoriaMac(EngineState *s, int argc, reg_t *argv) {
-	// Phantasmagoria Mac (and seemingly no other game (!)) uses this
-	// cutdown version of kDoSound.
+reg_t kDoAudioPan(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_audio32->kernelPan(s, argc, argv);
+	return s->r_acc;
+}
 
-	switch (argv[0].toUint16()) {
-	case 0:
-		return g_sci->_soundCmd->kDoSoundMasterVolume(argc - 1, argv + 1, s->r_acc);
-	case 2:
-		return g_sci->_soundCmd->kDoSoundInit(argc - 1, argv + 1, s->r_acc);
-	case 3:
-		return g_sci->_soundCmd->kDoSoundDispose(argc - 1, argv + 1, s->r_acc);
-	case 4:
-		return g_sci->_soundCmd->kDoSoundPlay(argc - 1, argv + 1, s->r_acc);
-	case 5:
-		return g_sci->_soundCmd->kDoSoundStop(argc - 1, argv + 1, s->r_acc);
-	case 8:
-		return g_sci->_soundCmd->kDoSoundSetVolume(argc - 1, argv + 1, s->r_acc);
-	case 9:
-		return g_sci->_soundCmd->kDoSoundSetLoop(argc - 1, argv + 1, s->r_acc);
-	case 10:
-		return g_sci->_soundCmd->kDoSoundUpdateCues(argc - 1, argv + 1, s->r_acc);
+reg_t kDoAudioPanOff(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_audio32->kernelPanOff(s, argc, argv);
+	return s->r_acc;
+}
+
+reg_t kSetLanguage(EngineState *s, int argc, reg_t *argv) {
+	// Used by script 90 of MUMG Deluxe from the main menu to toggle between
+	// English and Spanish in some versions and English and Spanish and
+	// French and German in others.
+	const Common::String audioDirectory = s->_segMan->getString(argv[0]);
+	if (g_sci->getPlatform() == Common::kPlatformMacintosh) {
+		g_sci->getResMan()->changeMacAudioDirectory(audioDirectory);
+	} else {
+		g_sci->getResMan()->changeAudioDirectory(audioDirectory);
 	}
-
-	error("Unknown kDoSound Phantasmagoria Mac subop %d", argv[0].toUint16());
 	return s->r_acc;
 }
 

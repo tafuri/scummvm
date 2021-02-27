@@ -24,9 +24,12 @@
 #define GOB_SOUND_SOUNDBLASTER_H
 
 #include "common/mutex.h"
-#include "audio/mixer.h"
 
 #include "gob/sound/soundmixer.h"
+
+namespace Audio {
+class Mixer;
+}
 
 namespace Gob {
 
@@ -35,7 +38,7 @@ class SoundDesc;
 class SoundBlaster : public SoundMixer {
 public:
 	SoundBlaster(Audio::Mixer &mixer);
-	~SoundBlaster();
+	~SoundBlaster() override;
 
 	void playSample(SoundDesc &sndDesc, int16 repCount,
 			int16 frequency, int16 fadeLength = 0);
@@ -61,9 +64,9 @@ protected:
 	SoundDesc *_curSoundDesc;
 
 	void setSample(SoundDesc &sndDesc, int16 repCount,
-			int16 frequency, int16 fadeLength);
-	void checkEndSample();
-	void endFade();
+			int16 frequency, int16 fadeLength) override;
+	void checkEndSample() override;
+	void endFade() override;
 
 	void nextCompositionPos();
 };

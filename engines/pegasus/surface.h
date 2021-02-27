@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -93,7 +93,7 @@ private:
 class PixelImage : public Surface {
 public:
 	PixelImage();
-	virtual ~PixelImage() {}
+	~PixelImage() override {}
 
 	void drawImage(const Common::Rect &, const Common::Rect &);
 
@@ -106,7 +106,7 @@ protected:
 class Frame : public PixelImage {
 public:
 	Frame() {}
-	virtual ~Frame() {}
+	~Frame() override {}
 
 	virtual void initFromPICTFile(const Common::String &fileName, bool transparent = false);
 	virtual void initFromPICTResource(Common::MacResManager *resFork, uint16 id, bool transparent = false);
@@ -117,7 +117,7 @@ class SpriteFrame : public Frame {
 friend class Sprite;
 public:
 	SpriteFrame() { _referenceCount = 0; }
-	virtual ~SpriteFrame() {}
+	~SpriteFrame() override {}
 
 protected:
 	uint32 _referenceCount;
@@ -126,13 +126,13 @@ protected:
 class Picture : public DisplayElement, public Frame {
 public:
 	Picture(const DisplayElementID id) : DisplayElement(id) {}
-	virtual ~Picture() {}
+	~Picture() override {}
 
-	virtual void initFromPICTFile(const Common::String &fileName, bool transparent = false);
-	virtual void initFromPICTResource(Common::MacResManager *resFork, uint16 id, bool transparent = false);
-	virtual void initFromMovieFrame(Video::VideoDecoder *, TimeValue, bool transparent = false);
+	void initFromPICTFile(const Common::String &fileName, bool transparent = false) override;
+	void initFromPICTResource(Common::MacResManager *resFork, uint16 id, bool transparent = false) override;
+	void initFromMovieFrame(Video::VideoDecoder *, TimeValue, bool transparent = false) override;
 
-	virtual void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 };
 
 } // End of namespace Pegasus

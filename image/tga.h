@@ -26,6 +26,7 @@
 
 /*
  * TGA decoder used in engines:
+ *	- titanic
  *  - wintermute
  *  - zvision
  */
@@ -41,6 +42,14 @@ class SeekableReadStream;
 }
 
 namespace Image {
+
+/**
+ * @defgroup image_tga TGA (TARGA) decoder
+ * @ingroup image
+ *
+ * @brief Decoder for TGA images.
+ * @{
+ */
 
 /** TarGa image-decoder
  * The following variations of TGA are supported:
@@ -94,7 +103,7 @@ private:
 	bool readDataRLE(Common::SeekableReadStream &tga, byte imageType, byte pixelDepth);
 	bool readColorMap(Common::SeekableReadStream &tga, byte imageType, byte pixelDepth);
 };
-
+/** @} */
 } // End of namespace Image
 
 #endif

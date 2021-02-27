@@ -48,7 +48,7 @@ void BlueForceGame::start() {
 	// Check for a savegame to load straight from the launcher
 	if (ConfMan.hasKey("save_slot")) {
 		slot = ConfMan.getInt("save_slot");
-		Common::String file = g_vm->generateSaveName(slot);
+		Common::String file = g_vm->getSaveStateName(slot);
 		Common::InSaveFile *in = g_vm->_system->getSavefileManager()->openForLoading(file);
 		if (in)
 			delete in;
@@ -859,7 +859,7 @@ void SceneExt::endStrip() {
 }
 
 void SceneExt::clearScreen() {
-	BF_GLOBALS._screenSurface.fillRect(BF_GLOBALS._screenSurface.getBounds(), 0);
+	BF_GLOBALS._screen.clear();
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1411,7 +1411,7 @@ void SceneMessage::process(Event &event) {
 
 
 void SceneMessage::draw() {
-	GfxSurface &surface = BF_GLOBALS._screenSurface;
+	GfxSurface &surface = BF_GLOBALS._screen;
 
 	// Clear the game area
 	surface.fillRect(Rect(0, 0, SCREEN_WIDTH, UI_INTERFACE_Y), 0);

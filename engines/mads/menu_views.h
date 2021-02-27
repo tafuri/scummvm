@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,16 +40,16 @@ protected:
 
 	virtual void doFrame() = 0;
 
-	virtual void display();
+	void display() override;
 
 	/**
 	* Event handler
 	*/
-	virtual bool onEvent(Common::Event &event);
+	bool onEvent(Common::Event &event) override;
 public:
 	MenuView(MADSEngine *vm);
 
-	virtual ~MenuView() {}
+	~MenuView() override {}
 
 	virtual void show();
 
@@ -114,13 +114,13 @@ private:
 	 */
 	void resetPalette();
 protected:
-	virtual void display();
+	void display() override;
 
-	virtual void doFrame();
+	void doFrame() override;
 
 	/**
-	* Called when the script is finished
-	*/
+	 * Called when the script is finished
+	 */
 	virtual void scriptDone();
 public:
 	/**
@@ -130,7 +130,7 @@ public:
 
 	TextView(MADSEngine *vm);
 
-	virtual ~TextView();
+	~TextView() override;
 };
 
 enum ResyncMode { NEVER, ALWAYS, BEGINNING };
@@ -191,6 +191,11 @@ private:
 	int _manualFrame2;
 	int _animFrameNumber;
 	bool _nextCyclingActive;
+private:
+	void checkResource(const Common::String &resourceName);
+
+	int scanResourceIndex(const Common::String &resourceName);
+
 	uint _scrollFrameCtr;
 private:
 	void load();
@@ -205,11 +210,11 @@ private:
 
 	void scroll();
 protected:
-	virtual void display();
+	void display() override;
 
-	virtual void doFrame();
+	void doFrame() override;
 
-	virtual bool onEvent(Common::Event &event);
+	bool onEvent(Common::Event &event) override;
 
 	virtual void scriptDone();
 public:
@@ -220,7 +225,7 @@ public:
 
 	AnimationView(MADSEngine *vm);
 
-	virtual ~AnimationView();
+	~AnimationView() override;
 };
 
 } // End of namespace MADS

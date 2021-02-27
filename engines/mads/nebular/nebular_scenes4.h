@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -58,13 +58,13 @@ private:
 
 public:
 	Scene401(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene402 : public Scene4xx {
@@ -119,24 +119,24 @@ private:
 
 public:
 	Scene402(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene405 : public Scene4xx {
 public:
 	Scene405(MADSEngine *vm) : Scene4xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene406 : public Scene4xx {
@@ -145,13 +145,13 @@ private:
 
 public:
 	Scene406(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene407 : public Scene4xx {
@@ -161,44 +161,44 @@ private:
 
 public:
 	Scene407(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene408 : public Scene4xx {
 public:
 	Scene408(MADSEngine *vm) : Scene4xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene409 : public SceneTeleporter {
 public:
 	Scene409(MADSEngine *vm) : SceneTeleporter(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void actions() override;
 };
 
 class Scene410 : public Scene4xx {
 public:
 	Scene410(MADSEngine *vm) : Scene4xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene411 : public Scene4xx {
@@ -228,13 +228,13 @@ private:
 
 public:
 	Scene411(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene413 : public Scene4xx {
@@ -244,13 +244,13 @@ private:
 
 public:
 	Scene413(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 } // End of namespace Nebular
 } // End of namespace MADS

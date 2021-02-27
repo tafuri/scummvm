@@ -39,6 +39,8 @@ namespace Audio {
 //
 // In addition, also MS IMA ADPCM is supported. See
 //   <http://wiki.multimedia.cx/index.php?title=Microsoft_IMA_ADPCM>.
+//
+// XA ADPCM support is based on FFmpeg/libav
 
 ADPCMStream::ADPCMStream(Common::SeekableReadStream *stream, DisposeAfterUse::Flag disposeAfterUse, uint32 size, int rate, int channels, uint32 blockAlign)
 	: _stream(stream, disposeAfterUse),
@@ -113,6 +115,106 @@ int16 Oki_ADPCMStream::decodeOKI(byte code) {
 
 	// * 16 effectively converts 12-bit input to 16-bit output
 	return samp * 16;
+}
+
+
+#pragma mark -
+
+
+int XA_ADPCMStream::readBuffer(int16 *buffer, const int numSamples) {
+	int samples;
+	byte *data = new byte[128];
+
+	for (samples = 0; samples < numSamples && !endOfData(); samples++) {
+		if (_decodedSampleCount == 0) {
+			uint32 bytesLeft = _stream->size() - _stream->pos();
+			if (bytesLeft < 128) {
+				_stream->skip(bytesLeft);
+				memset(&buffer[samples], 0, (numSamples - samples) * sizeof(uint16));
+				samples = numSamples;
+				break;
+			}
+			_stream->read(data, 128);
+			decodeXA(data);
+			_decodedSampleIndex = 0;
+		}
+
+		// _decodedSamples acts as a FIFO of depth 2 or 4;
+		buffer[samples] = _decodedSamples[_decodedSampleIndex++];
+		_decodedSampleCount--;
+	}
+
+	delete[] data;
+	return samples;
+}
+
+static const int s_xaTable[5][2] = {
+   {   0,   0 },
+   {  60,   0 },
+   { 115, -52 },
+   {  98, -55 },
+   { 122, -60 }
+};
+
+void XA_ADPCMStream::decodeXA(const byte *src) {
+	int16 *leftChannel = _decodedSamples;
+	int16 *rightChannel = _decodedSamples + 1;
+
+	for (int i = 0; i < 4; i++) {
+		int shift = 12 - (src[4 + i * 2] & 0xf);
+		int filter = src[4 + i * 2] >> 4;
+		int f0 = s_xaTable[filter][0];
+		int f1 = s_xaTable[filter][1];
+		int16 s_1 = _status.ima_ch[0].sample[0];
+		int16 s_2 = _status.ima_ch[0].sample[1];
+
+		for (int j = 0; j < 28; j++) {
+			byte d = src[16 + i + j * 4];
+			int t = (int8)(d << 4) >> 4;
+			int s = (t << shift) + ((s_1 * f0 + s_2 * f1 + 32) >> 6);
+			s_2 = s_1;
+			s_1 = CLIP<int>(s, -32768, 32767);
+			*leftChannel = s_1;
+			leftChannel += _channels;
+			_decodedSampleCount++;
+		}
+
+		if (_channels == 2) {
+			_status.ima_ch[0].sample[0] = s_1;
+			_status.ima_ch[0].sample[1] = s_2;
+			s_1 = _status.ima_ch[1].sample[0];
+			s_2 = _status.ima_ch[1].sample[1];
+		}
+
+		shift = 12 - (src[5 + i * 2] & 0xf);
+		filter = src[5 + i * 2] >> 4;
+		f0 = s_xaTable[filter][0];
+		f1 = s_xaTable[filter][1];
+
+		for (int j = 0; j < 28; j++) {
+			byte d = src[16 + i + j * 4];
+			int t = (int8)d >> 4;
+			int s = (t << shift) + ((s_1 * f0 + s_2 * f1 + 32) >> 6);
+			s_2 = s_1;
+			s_1 = CLIP<int>(s, -32768, 32767);
+
+			if (_channels == 2) {
+				*rightChannel = s_1;
+				rightChannel += 2;
+			} else {
+				*leftChannel++ = s_1;
+			}
+			_decodedSampleCount++;
+		}
+
+		if (_channels == 2) {
+			_status.ima_ch[1].sample[0] = s_1;
+			_status.ima_ch[1].sample[1] = s_2;
+		} else {
+			_status.ima_ch[0].sample[0] = s_1;
+			_status.ima_ch[0].sample[1] = s_2;
+		}
+	}
 }
 
 
@@ -320,10 +422,11 @@ int MS_ADPCMStream::readBuffer(int16 *buffer, const int numSamples) {
 				_decodedSamples[_decodedSampleCount++] = decodeMS(&_status.ch[0], (data >> 4) & 0x0f);
 				_decodedSamples[_decodedSampleCount++] = decodeMS(&_status.ch[_channels - 1], data & 0x0f);
 			}
+			_decodedSampleIndex = 0;
 		}
 
-		// (1 - (count - 1)) ensures that _decodedSamples acts as a FIFO of depth 2
-		buffer[samples] = _decodedSamples[1 - (_decodedSampleCount - 1)];
+		// _decodedSamples acts as a FIFO of depth 2 or 4;
+		buffer[samples] = _decodedSamples[_decodedSampleIndex++];
 		_decodedSampleCount--;
 	}
 
@@ -333,67 +436,89 @@ int MS_ADPCMStream::readBuffer(int16 *buffer, const int numSamples) {
 
 #pragma mark -
 
-
-#define DK3_READ_NIBBLE() \
+#define DK3_READ_NIBBLE(channelNo) \
 do { \
 	if (_topNibble) { \
 		_nibble = _lastByte >> 4; \
 		_topNibble = false; \
 	} else { \
-		if (_stream->pos() >= _endpos) \
-			break; \
-		if ((_stream->pos() % _blockAlign) == 0) \
-			continue; \
 		_lastByte = _stream->readByte(); \
 		_nibble = _lastByte & 0xf; \
 		_topNibble = true; \
+		--blockBytesLeft; \
+		--audioBytesLeft; \
 	} \
-} while (0)
-
+	decodeIMA(_nibble, channelNo); \
+} while(0)
 
 int DK3_ADPCMStream::readBuffer(int16 *buffer, const int numSamples) {
-	int samples = 0;
-
 	assert((numSamples % 4) == 0);
 
-	while (samples < numSamples && !_stream->eos() && _stream->pos() < _endpos) {
-		if ((_stream->pos() % _blockAlign) == 0) {
-			_stream->readUint16LE(); // Unknown
-			uint16 rate = _stream->readUint16LE(); // Copy of rate
-			_stream->skip(6); // Unknown
+	const uint32 startOffset = _stream->pos() % _blockAlign;
+	uint32 audioBytesLeft = _endpos - _stream->pos();
+	uint32 blockBytesLeft;
+	if (startOffset != 0) {
+		blockBytesLeft = _blockAlign - startOffset;
+	} else {
+		blockBytesLeft = 0;
+	}
+
+	int samples = 0;
+	while (samples < numSamples && audioBytesLeft) {
+		if (blockBytesLeft == 0) {
+			blockBytesLeft = MIN(_blockAlign, audioBytesLeft);
+			_topNibble = false;
+
+			if (blockBytesLeft < 16) {
+				warning("Truncated DK3 ADPCM block header");
+				break;
+			}
+
+			_stream->skip(2);
+			const uint16 rate = _stream->readUint16LE();
+			assert(rate == getRate());
+			_stream->skip(6);
+
 			// Get predictor for both sum/diff channels
 			_status.ima_ch[0].last = _stream->readSint16LE();
 			_status.ima_ch[1].last = _stream->readSint16LE();
+
 			// Get index for both sum/diff channels
 			_status.ima_ch[0].stepIndex = _stream->readByte();
 			_status.ima_ch[1].stepIndex = _stream->readByte();
+			assert(_status.ima_ch[0].stepIndex < ARRAYSIZE(_imaTable));
+			assert(_status.ima_ch[1].stepIndex < ARRAYSIZE(_imaTable));
 
-			if (_stream->eos())
-				break;
-
-			// Sanity check
-			assert(rate == getRate());
+			blockBytesLeft -= 16;
+			audioBytesLeft -= 16;
 		}
 
-		DK3_READ_NIBBLE();
-		decodeIMA(_nibble, 0);
+		DK3_READ_NIBBLE(0);
+		DK3_READ_NIBBLE(1);
 
-		DK3_READ_NIBBLE();
-		decodeIMA(_nibble, 1);
+		*buffer++ = _status.ima_ch[0].last + _status.ima_ch[1].last;
+		*buffer++ = _status.ima_ch[0].last - _status.ima_ch[1].last;
 
-		buffer[samples++] = _status.ima_ch[0].last + _status.ima_ch[1].last;
-		buffer[samples++] = _status.ima_ch[0].last - _status.ima_ch[1].last;
+		DK3_READ_NIBBLE(0);
 
-		DK3_READ_NIBBLE();
-		decodeIMA(_nibble, 0);
+		*buffer++ = _status.ima_ch[0].last + _status.ima_ch[1].last;
+		*buffer++ = _status.ima_ch[0].last - _status.ima_ch[1].last;
 
-		buffer[samples++] = _status.ima_ch[0].last + _status.ima_ch[1].last;
-		buffer[samples++] = _status.ima_ch[0].last - _status.ima_ch[1].last;
+		samples += 4;
+
+		// if the last sample of a block ends on an odd byte, the encoder adds
+		// an extra alignment byte
+		if (!_topNibble && blockBytesLeft == 1) {
+			_stream->skip(1);
+			--blockBytesLeft;
+			--audioBytesLeft;
+		}
 	}
 
 	return samples;
 }
 
+#undef DK3_READ_NIBBLE
 
 #pragma mark -
 
@@ -433,7 +558,7 @@ int16 Ima_ADPCMStream::decodeIMA(byte code, int channel) {
 	return samp;
 }
 
-RewindableAudioStream *makeADPCMStream(Common::SeekableReadStream *stream, DisposeAfterUse::Flag disposeAfterUse, uint32 size, ADPCMType type, int rate, int channels, uint32 blockAlign) {
+SeekableAudioStream *makeADPCMStream(Common::SeekableReadStream *stream, DisposeAfterUse::Flag disposeAfterUse, uint32 size, ADPCMType type, int rate, int channels, uint32 blockAlign) {
 	// If size is 0, report the entire size of the stream
 	if (!size)
 		size = stream->size();
@@ -451,10 +576,43 @@ RewindableAudioStream *makeADPCMStream(Common::SeekableReadStream *stream, Dispo
 		return new Apple_ADPCMStream(stream, disposeAfterUse, size, rate, channels, blockAlign);
 	case kADPCMDK3:
 		return new DK3_ADPCMStream(stream, disposeAfterUse, size, rate, channels, blockAlign);
+	case kADPCMXA:
+		return new XA_ADPCMStream(stream, disposeAfterUse, size, rate, channels, blockAlign);
 	default:
 		error("Unsupported ADPCM encoding");
 		break;
 	}
+}
+
+class PacketizedADPCMStream : public StatelessPacketizedAudioStream {
+public:
+	PacketizedADPCMStream(ADPCMType type, int rate, int channels, uint32 blockAlign) :
+		StatelessPacketizedAudioStream(rate, channels), _type(type), _blockAlign(blockAlign) {}
+
+protected:
+	AudioStream *makeStream(Common::SeekableReadStream *data);
+
+private:
+	ADPCMType _type;
+	uint32 _blockAlign;
+};
+
+AudioStream *PacketizedADPCMStream::makeStream(Common::SeekableReadStream *data) {
+	return makeADPCMStream(data, DisposeAfterUse::YES, data->size(), _type, getRate(), getChannels(), _blockAlign);
+}
+
+PacketizedAudioStream *makePacketizedADPCMStream(ADPCMType type, int rate, int channels, uint32 blockAlign) {
+	// Filter out types we can't support (they're not fully stateless)
+	switch (type) {
+	case kADPCMOki:
+	case kADPCMXA:
+	case kADPCMDVI:
+		return 0;
+	default:
+		break;
+	}
+
+	return new PacketizedADPCMStream(type, rate, channels, blockAlign);
 }
 
 } // End of namespace Audio

@@ -47,7 +47,7 @@ Game &Game::getReference() {
 
 Game::Game() {
 	int_game = this;
-	_debugger = new Debugger();
+	g_engine->setDebugger(new Debugger());
 	_fastTextFlag = false;
 	_preloadFlag = false;
 	_debugFlag = gDebugLevel >= ERROR_BASIC;
@@ -56,7 +56,6 @@ Game::Game() {
 }
 
 Game::~Game() {
-	delete _debugger;
 }
 
 void Game::tick() {
@@ -190,13 +189,6 @@ void Game::execute() {
 				if (events.type() == Common::EVENT_KEYDOWN) {
 					uint16 roomNum = room.roomNumber();
 
-					if ((events.event().kbd.hasFlags(Common::KBD_CTRL)) &&
-						(events.event().kbd.keycode == Common::KEYCODE_d)) {
-						// Activate the debugger
-						_debugger->attach();
-						break;
-					}
-
 					// Handle special keys
 					bool handled = true;
 					switch (events.event().kbd.keycode) {
@@ -276,20 +268,25 @@ void Game::execute() {
 
 			system.updateScreen();
 			system.delayMillis(10);
-
-			_debugger->onFrame();
 		}
 
 		room.leaveRoom();
 
 		// If Skorl catches player, show the catching animation
 		if ((_state & GS_CAUGHT) != 0) {
+			if (!engine.isEGA())
+				screen.paletteFadeOut();
+
 			Palette palette(SKORL_CATCH_PALETTE_ID);
-			AnimationSequence *anim = new AnimationSequence(SKORL_CATCH_ANIM_ID, palette, false);
 			mouse.cursorOff();
-			Sound.addSound(0x33);
+
+			static const AnimSoundSequence catchSound[] = { { 12, 0xFF, 0xFF, 1, false }, { 1, 41, 41, 1, false }, {0, 0, 0, 0, false} };
+			AnimationSequence *anim = new AnimationSequence(SKORL_CATCH_ANIM_ID, palette, true, 5, catchSound);
 			anim->show();
 			delete anim;
+
+			if (!engine.isEGA())
+				screen.paletteFadeOut();
 		}
 
 		// If the Restart/Restore dialog is needed, show it
@@ -333,6 +330,10 @@ void Game::handleMenuResponse(uint8 selection) {
 
 	case MENUITEM_SOUND:
 		doSound();
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -390,44 +391,73 @@ void Game::displayChuteAnimation() {
 	ValueTableData &fields = res.fieldList();
 	Palette palette(CHUTE_PALETTE_ID);
 
+	mouse.setCursorNum(CURSOR_DISK);
+	if (!LureEngine::getReference().isEGA())
+		Screen::getReference().paletteFadeOut();
+
 	debugC(ERROR_INTERMEDIATE, kLureDebugAnimations, "Starting chute animation");
 	mouse.cursorOff();
 
 	Sound.killSounds();
-	Sound.musicInterface_Play(0x40, 0);
 
-	AnimationSequence *anim = new AnimationSequence(CHUTE_ANIM_ID, palette, false);
-	anim->show();
+	AnimationSequence *anim = new AnimationSequence(CHUTE_ANIM_ID, palette, true);
+	Sound.musicInterface_Play(0x40, 0, true);
+	AnimAbortType result = anim->show();
 	delete anim;
 
-	anim = new AnimationSequence(CHUTE2_ANIM_ID, palette, false);
-	anim->show();
-	delete anim;
+	if (result != ABORT_END_INTRO) {
+		anim = new AnimationSequence(CHUTE2_ANIM_ID, palette, true, 5, NULL, 4);
+		result = anim->show();
+		delete anim;
+	}
 
-	anim = new AnimationSequence(CHUTE3_ANIM_ID, palette, false);
-	anim->show();
-	delete anim;
+	if (result != ABORT_END_INTRO) {
+		anim = new AnimationSequence(CHUTE3_ANIM_ID, palette, false);
+		anim->show();
+		delete anim;
+	}
 
 	Sound.killSounds();
 	mouse.cursorOn();
 	fields.setField(AREA_FLAG, 1);
+
+	// WORKAROUND When outside in the town, the game plays an ambient sound
+	// of twittering birds. When first entering town after falling through
+	// the chute, this sound does not play; it starts playing after you
+	// enter and exit a building. Calling removeSounds here triggers the
+	// function which manages the ambient sounds in town, so the bird
+	// sounds start playing. Because all other sounds have already been
+	// removed, this has no side effects.
+	Sound.removeSounds();
 }
 
 void Game::displayBarrelAnimation() {
 	Mouse &mouse = Mouse::getReference();
 	Resources &res = Resources::getReference();
+	LureEngine &engine = LureEngine::getReference();
+	Screen &screen = Screen::getReference();
+
+	mouse.setCursorNum(CURSOR_DISK);
+	if (!engine.isEGA())
+		screen.paletteFadeOut();
 
 	debugC(ERROR_INTERMEDIATE, kLureDebugAnimations, "Starting barrel animation");
 	Palette palette(BARREL_PALETTE_ID);
-	AnimationSequence *anim = new AnimationSequence(BARREL_ANIM_ID, palette, false);
 	mouse.cursorOff();
 
 	Sound.killSounds();
-	Sound.musicInterface_Play(0x3B, 0);
+	Sound.musicInterface_Play(0x3B, 0, true);
 
+	AnimationSequence *anim = new AnimationSequence(BARREL_ANIM_ID, palette, true);
 	anim->show();
 
 	delete anim;
+
+	if (!engine.shouldQuit() && !engine.isEGA())
+		screen.paletteFadeOut();
+
+	Sound.killSounds();
+	mouse.cursorOn();
 
 	// Disable town NPCs that are no longer needed
 	res.deactivateHotspot(SKORL_ID);
@@ -438,9 +468,6 @@ void Game::displayBarrelAnimation() {
 	res.deactivateHotspot(GOEWIN_ID);
 	res.deactivateHotspot(MONK2_ID);
 	res.deactivateHotspot(WAYNE_ID);
-
-	Sound.killSounds();
-	mouse.cursorOn();
 }
 
 void Game::handleClick() {
@@ -538,7 +565,7 @@ void Game::handleRightClickMenu() {
 			hotspot = res.getHotspot(room.hotspotId());
 			assert(hotspot);
 			strings.getString(hotspot->nameId, statusLine);
-			strcat(statusLine, stringList.getString(S_FOR));
+			Common::strlcat(statusLine, stringList.getString(S_FOR), MAX_DESC_SIZE);
 			statusLine += strlen(statusLine);
 
 			itemId = PopupMenu::ShowItems(GET, player->roomNumber());
@@ -549,7 +576,7 @@ void Game::handleRightClickMenu() {
 			hotspot = res.getHotspot(room.hotspotId());
 			assert(hotspot);
 			strings.getString(hotspot->nameId, statusLine);
-			strcat(statusLine, stringList.getString(S_TO));
+			Common::strlcat(statusLine, stringList.getString(S_TO), MAX_DESC_SIZE);
 			breakFlag = GetTellActions();
 			break;
 
@@ -559,7 +586,7 @@ void Game::handleRightClickMenu() {
 		case DRINK:
 			hasItems = (res.numInventoryItems() != 0);
 			if (!hasItems)
-				strcat(statusLine, stringList.getString(S_ACTION_NOTHING));
+				Common::strlcat(statusLine, stringList.getString(S_ACTION_NOTHING), MAX_DESC_SIZE);
 			statusLine += strlen(statusLine);
 
 			room.update();
@@ -579,9 +606,9 @@ void Game::handleRightClickMenu() {
 						assert(useHotspot);
 						strings.getString(useHotspot->nameId, statusLine);
 						if (action == GIVE)
-							strcat(statusLine, stringList.getString(S_TO));
+							Common::strlcat(statusLine, stringList.getString(S_TO), MAX_DESC_SIZE);
 						else
-							strcat(statusLine, stringList.getString(S_ON));
+							Common::strlcat(statusLine, stringList.getString(S_ON), MAX_DESC_SIZE);
 						statusLine += strlen(statusLine);
 					}
 					else if ((action == DRINK) || (action == EXAMINE))
@@ -762,11 +789,11 @@ bool Game::GetTellActions() {
 				// Second parameter
 				action = (Action) commands[_numTellCommands * 3];
 				if (action == ASK)
-					strcat(statusLine, stringList.getString(S_FOR));
+					Common::strlcat(statusLine, stringList.getString(S_FOR), MAX_DESC_SIZE);
 				else if (action == GIVE)
-					strcat(statusLine, stringList.getString(S_TO));
+					Common::strlcat(statusLine, stringList.getString(S_TO), MAX_DESC_SIZE);
 				else if (action == USE)
-					strcat(statusLine, stringList.getString(S_ON));
+					Common::strlcat(statusLine, stringList.getString(S_ON), MAX_DESC_SIZE);
 				else {
 					// All other commads don't need a second parameter
 					++paramIndex;
@@ -834,6 +861,10 @@ bool Game::GetTellActions() {
 						*statusLine = '\0';
 					}
 				}
+				break;
+
+			default:
+				break;
 			}
 		}
 	}
@@ -1000,6 +1031,7 @@ bool Game::getYN() {
 	if (l == Common::FR_FRA) y = Common::KEYCODE_o;
 	else if ((l == Common::DE_DEU) || (l == Common::NL_NLD)) y = Common::KEYCODE_j;
 	else if ((l == Common::ES_ESP) || (l == Common::IT_ITA)) y = Common::KEYCODE_s;
+	else if (l == Common::RU_RUS) y = Common::KEYCODE_l;
 
 	bool vKbdFlag = g_system->hasFeature(OSystem::kFeatureVirtualKeyboard);
 	if (!vKbdFlag)
@@ -1018,7 +1050,12 @@ bool Game::getYN() {
 		while (events.pollEvent()) {
 			if (events.event().type == Common::EVENT_KEYDOWN) {
 				Common::KeyCode key = events.event().kbd.keycode;
-				if ((key == y) || (key == Common::KEYCODE_n) ||
+				if (l == Common::RU_RUS) {
+					if ((key == y) || (key == Common::KEYCODE_y) || (key == Common::KEYCODE_ESCAPE)) {
+						breakFlag = true;
+						result = key == y;
+					}
+				} else if ((key == y) || (key == Common::KEYCODE_n) ||
 					(key == Common::KEYCODE_ESCAPE)) {
 					breakFlag = true;
 					result = key == y;

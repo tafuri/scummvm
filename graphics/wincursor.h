@@ -29,12 +29,19 @@
 #include "graphics/cursor.h"
 
 namespace Common {
-class NEResources;
-class PEResources;
 class SeekableReadStream;
 }
 
 namespace Graphics {
+
+/**
+ * @defgroup graphics_wincursor Windows cursor
+ * @ingroup graphics
+ *
+ * @brief API related to Windows cursors.
+ *
+ * @{
+ */
 
 /**
  * A structure holding an array of cursors from a single Windows Executable cursor group.
@@ -56,10 +63,8 @@ struct WinCursorGroup {
 
 	Common::Array<CursorItem> cursors;
 
-	/** Create a cursor group from an NE EXE, returns 0 on failure */
-	static WinCursorGroup *createCursorGroup(Common::NEResources &exe, const Common::WinResourceID &id);
-	/** Create a cursor group from an PE EXE, returns 0 on failure */
-	static WinCursorGroup *createCursorGroup(Common::PEResources &exe, const Common::WinResourceID &id);
+	/** Create a cursor group from an EXE, returns 0 on failure */
+	static WinCursorGroup *createCursorGroup(Common::WinResources *exe, const Common::WinResourceID &id);
 };
 
 /**
@@ -68,7 +73,7 @@ struct WinCursorGroup {
  * @note The calling code is responsible for deleting the returned pointer.
  */
 Cursor *makeDefaultWinCursor();
-
+/** @} */
 } // End of namespace Graphics
 
 #endif

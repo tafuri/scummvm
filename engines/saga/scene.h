@@ -31,6 +31,9 @@
 #include "saga/puzzle.h"
 #include "saga/events.h"
 
+// Some defines used for detection.
+#include "saga/shared_detection_defines.h"
+
 namespace Saga {
 
 //#define SCENE_DEBUG // for scene debugging
@@ -44,12 +47,6 @@ namespace Saga {
 #define ITE_SCENE_LODGE 21
 #define ITE_SCENE_ENDCREDIT1 295
 #define ITE_SCENE_OVERMAP 226
-
-// Default scenes
-#define ITE_DEFAULT_SCENE 32
-#define IHNM_DEFAULT_SCENE 151
-#define ITEDEMO_DEFAULT_SCENE 68
-#define IHNMDEMO_DEFAULT_SCENE 144
 
 class ObjectMap;
 
@@ -400,12 +397,14 @@ class Scene {
 	static int SC_ITEIntroTreeHouseProc(int param, void *refCon);
 	static int SC_ITEIntroFairePathProc(int param, void *refCon);
 	static int SC_ITEIntroFaireTentProc(int param, void *refCon);
+	static int SC_ITEIntroCaveDemoProc(int param, void *refCon);
 
  private:
 	EventColumns *queueIntroDialogue(EventColumns *eventColumns, int n_dialogues, const IntroDialogue dialogue[]);
 	EventColumns *queueCredits(int delta_time, int duration, int n_credits, const IntroCredit credits[]);
 	int ITEIntroAnimProc(int param);
 	int ITEIntroCaveCommonProc(int param, int caveScene);
+	int ITEIntroCaveDemoProc(int param);
 	int ITEIntroValleyProc(int param);
 	int ITEIntroTreeHouseProc(int param);
 	int ITEIntroFairePathProc(int param);

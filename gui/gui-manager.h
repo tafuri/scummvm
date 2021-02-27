@@ -27,6 +27,7 @@
 #include "common/singleton.h"
 #include "common/stack.h"
 #include "common/str.h"
+#include "common/list.h"
 
 #include "gui/ThemeEngine.h"
 
@@ -38,12 +39,14 @@ class Font;
 
 namespace Common {
 	struct Event;
+	class Keymap;
 }
 
 namespace GUI {
 
 class Dialog;
 class ThemeEval;
+class GuiObject;
 
 #define g_gui	(GUI::GuiManager::instance())
 
@@ -65,14 +68,21 @@ class GuiManager : public Common::Singleton<GuiManager> {
 	friend class Dialog;
 	friend class Common::Singleton<SingletonBaseType>;
 	GuiManager();
-	~GuiManager();
+	~GuiManager() override;
 public:
 
 	// Main entry for the GUI: this will start an event loop that keeps running
 	// until no dialogs are active anymore.
 	void runLoop();
 
+	// If the GUI loop is running close all the dialogs causing the loop to finish.
+	// Typically you may want to use it after setting the ConfMan active domain to
+	// a game domain to cause the game to start.
+	void exitLoop();
+
 	void processEvent(const Common::Event &event, Dialog *const activeDialog);
+	Common::Keymap *getKeymap() const;
+	void scheduleTopDialogRedraw();
 
 	bool isActive() const	{ return ! _dialogStack.empty(); }
 
@@ -84,9 +94,16 @@ public:
 	int getWidth() const { return _width; }
 	int getHeight() const { return _height; }
 
+	bool useRTL() const { return _useRTL; }
+	void setLanguageRTL();
+
+	void setDialogPaddings(int l, int r);
+	int getOverlayOffset() { return _topDialogRightPadding - _topDialogLeftPadding; }
+
 	const Graphics::Font &getFont(ThemeEngine::FontStyle style = ThemeEngine::kFontStyleBold) const { return *(_theme->getFont(style)); }
 	int getFontHeight(ThemeEngine::FontStyle style = ThemeEngine::kFontStyleBold) const { return _theme->getFontHeight(style); }
 	int getStringWidth(const Common::String &str, ThemeEngine::FontStyle style = ThemeEngine::kFontStyleBold) const { return _theme->getStringWidth(str, style); }
+	int getStringWidth(const Common::U32String &str, ThemeEngine::FontStyle style = ThemeEngine::kFontStyleBold) const { return _theme->getStringWidth(str, style); }
 	int getCharWidth(byte c, ThemeEngine::FontStyle style = ThemeEngine::kFontStyleBold) const { return _theme->getCharWidth(c, style); }
 	int getKerningOffset(byte left, byte right, ThemeEngine::FontStyle font = ThemeEngine::kFontStyleBold) const { return _theme->getKerningOffset(left, right, font); }
 
@@ -97,6 +114,18 @@ public:
 	 * @return true if the a screen change indeed occurred, false otherwise
 	 */
 	bool checkScreenChange();
+
+	/**
+	 * Tell the GuiManager to delete the given GuiObject later. If a parent
+	 * dialog is provided and is present in the DialogStack, the object will
+	 * only be deleted when that dialog is the top level dialog.
+	 */
+	void addToTrash(GuiObject*, Dialog* parent = nullptr);
+	void initTextToSpeech();
+
+	bool _launched;
+
+	void redrawFull();
 
 protected:
 	enum RedrawStatus {
@@ -121,21 +150,33 @@ protected:
 
 	bool		_useStdCursor;
 
+	bool		_useRTL;
+
+	int			_topDialogLeftPadding;
+	int			_topDialogRightPadding;
+
 	// position and time of last mouse click (used to detect double clicks)
-	struct {
+	struct MousePos {
+		MousePos() : x(-1), y(-1), count(0) { time = 0; }
 		int16 x, y;	// Position of mouse when the click occurred
 		uint32 time;	// Time
 		int count;	// How often was it already pressed?
-	} _lastClick, _lastMousePosition;
+	} _lastClick, _lastMousePosition, _globalMousePosition;
 
 	// mouse cursor state
 	int		_cursorAnimateCounter;
 	int		_cursorAnimateTimer;
 	byte	_cursor[2048];
 
+	// delayed deletion of GuiObject
+	struct GuiObjectTrashItem {
+		GuiObject* object;
+		Dialog* parent;
+	};
+	Common::List<GuiObjectTrashItem> _guiObjectTrash;
+
 	void initKeymap();
-	void pushKeymap();
-	void popKeymap();
+	void enableKeymap(bool enabled);
 
 	void saveState();
 	void restoreState();
@@ -145,14 +186,15 @@ protected:
 
 	void redraw();
 
-	void loop();
-
 	void setupCursor();
 	void animateCursor();
 
 	Dialog *getTopDialog() const;
 
 	void screenChange();
+
+	void giveFocusToDialog(Dialog *dialog);
+	void setLastMousePos(int16 x, int16 y);
 };
 
 } // End of namespace GUI

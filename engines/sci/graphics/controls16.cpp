@@ -23,6 +23,7 @@
 #include "common/util.h"
 #include "common/stack.h"
 #include "common/system.h"
+#include "common/unicode-bidi.h"
 #include "graphics/primitives.h"
 
 #include "sci/sci.h"
@@ -33,7 +34,7 @@
 #include "sci/graphics/compare.h"
 #include "sci/graphics/ports.h"
 #include "sci/graphics/paint16.h"
-#include "sci/graphics/font.h"
+#include "sci/graphics/scifont.h"
 #include "sci/graphics/screen.h"
 #include "sci/graphics/text16.h"
 #include "sci/graphics/controls16.h"
@@ -52,14 +53,12 @@ GfxControls16::~GfxControls16() {
 const char controlListUpArrow[2]	= { 0x18, 0 };
 const char controlListDownArrow[2]	= { 0x19, 0 };
 
-void GfxControls16::drawListControl(Common::Rect rect, reg_t obj, int16 maxChars, int16 count, const char **entries, GuiResourceId fontId, int16 upperPos, int16 cursorPos, bool isAlias) {
+void GfxControls16::drawListControl(Common::Rect rect, reg_t obj, int16 maxChars, int16 count, const Common::String *entries, GuiResourceId fontId, int16 upperPos, int16 cursorPos, bool isAlias) {
 	Common::Rect workerRect = rect;
 	GuiResourceId oldFontId = _text16->GetFontId();
 	int16 oldPenColor = _ports->_curPort->penClr;
 	uint16 fontSize = 0;
 	int16 i;
-	const char *listEntry;
-	int16 listEntryLen;
 	int16 lastYpos;
 
 	// draw basic window
@@ -92,11 +91,23 @@ void GfxControls16::drawListControl(Common::Rect rect, reg_t obj, int16 maxChars
 	// Write actual text
 	for (i = upperPos; i < count; i++) {
 		_paint16->eraseRect(workerRect);
-		listEntry = entries[i];
+		const Common::String &listEntry = entries[i];
 		if (listEntry[0]) {
-			_ports->moveTo(workerRect.left, workerRect.top);
-			listEntryLen = strlen(listEntry);
-			_text16->Draw(listEntry, 0, MIN(maxChars, listEntryLen), oldFontId, oldPenColor);
+			Common::String textString = listEntry;
+			if (g_sci->isLanguageRTL())
+				textString = Common::convertBiDiString(textString, g_sci->getLanguage());
+
+			if (!g_sci->isLanguageRTL())
+				_ports->moveTo(workerRect.left, workerRect.top);
+			else {
+				// calc width, for right alignment
+				const char *textPtr = textString.c_str();
+				uint16 textWidth = 0;
+				while (*textPtr)
+					textWidth += _text16->_font->getCharWidth((byte)*textPtr++);
+				_ports->moveTo(workerRect.right - textWidth - 1, workerRect.top);
+			}
+			_text16->Draw(textString.c_str(), 0, MIN<int16>(maxChars, listEntry.size()), oldFontId, oldPenColor);
 			if ((!isAlias) && (i == cursorPos)) {
 				_paint16->invertRect(workerRect);
 			}
@@ -116,10 +127,16 @@ void GfxControls16::texteditCursorDraw(Common::Rect rect, const char *text, uint
 		for (i = 0; i < curPos; i++) {
 			textWidth += _text16->_font->getCharWidth((unsigned char)text[i]);
 		}
-		_texteditCursorRect.left = rect.left + textWidth;
+		if (!g_sci->isLanguageRTL())
+			_texteditCursorRect.left = rect.left + textWidth;
+		else
+			_texteditCursorRect.right = rect.right - textWidth;
 		_texteditCursorRect.top = rect.top;
 		_texteditCursorRect.bottom = _texteditCursorRect.top + _text16->_font->getHeight();
-		_texteditCursorRect.right = _texteditCursorRect.left + (text[curPos] == 0 ? 1 : _text16->_font->getCharWidth((unsigned char)text[curPos]));
+		if (!g_sci->isLanguageRTL())
+			_texteditCursorRect.right = _texteditCursorRect.left + (text[curPos] == 0 ? 1 : _text16->_font->getCharWidth((unsigned char)text[curPos]));
+		else
+			_texteditCursorRect.left = _texteditCursorRect.right - (text[curPos] == 0 ? 1 : _text16->_font->getCharWidth((unsigned char)text[curPos]));
 		_paint16->invertRect(_texteditCursorRect);
 		_paint16->bitsShow(_texteditCursorRect);
 		_texteditCursorVisible = true;
@@ -151,7 +168,7 @@ void GfxControls16::kernelTexteditChange(reg_t controlObject, reg_t eventObject)
 	Common::Rect rect;
 
 	if (textReference.isNull())
-		error("kEditControl called on object that doesnt have a text reference");
+		error("kEditControl called on object that doesn't have a text reference");
 	text = _segMan->getString(textReference);
 
 	uint16 oldCursorPos = cursorPos;
@@ -161,50 +178,62 @@ void GfxControls16::kernelTexteditChange(reg_t controlObject, reg_t eventObject)
 		eventType = readSelectorValue(_segMan, eventObject, SELECTOR(type));
 
 		switch (eventType) {
-		case SCI_EVENT_MOUSE_PRESS:
+		case kSciEventMousePress:
 			// TODO: Implement mouse support for cursor change
 			break;
-		case SCI_EVENT_KEYBOARD:
+		case kSciEventKeyDown:
 			eventKey = readSelectorValue(_segMan, eventObject, SELECTOR(message));
 			modifiers = readSelectorValue(_segMan, eventObject, SELECTOR(modifiers));
 			switch (eventKey) {
-			case SCI_KEY_BACKSPACE:
+			case kSciKeyBackspace:
 				if (cursorPos > 0) {
 					cursorPos--; text.deleteChar(cursorPos);
 					textChanged = true;
 				}
 				break;
-			case SCI_KEY_DELETE:
+			case kSciKeyDelete:
 				if (cursorPos < textSize) {
 					text.deleteChar(cursorPos);
 					textChanged = true;
 				}
 				break;
-			case SCI_KEY_HOME: // HOME
+			case kSciKeyHome:
 				cursorPos = 0; textChanged = true;
 				break;
-			case SCI_KEY_END: // END
+			case kSciKeyEnd:
 				cursorPos = textSize; textChanged = true;
 				break;
-			case SCI_KEY_LEFT: // LEFT
-				if (cursorPos > 0) {
-					cursorPos--; textChanged = true;
+			case kSciKeyLeft:
+				if (!g_sci->isLanguageRTL()) {
+					if (cursorPos > 0) {
+						cursorPos--; textChanged = true;
+					}
+				} else {
+					if (cursorPos + 1 <= textSize) {
+						cursorPos++; textChanged = true;
+					}
 				}
 				break;
-			case SCI_KEY_RIGHT: // RIGHT
-				if (cursorPos + 1 <= textSize) {
-					cursorPos++; textChanged = true;
+			case kSciKeyRight:
+				if (!g_sci->isLanguageRTL()) {
+					if (cursorPos + 1 <= textSize) {
+						cursorPos++; textChanged = true;
+					}
+				} else {
+					if (cursorPos > 0) {
+						cursorPos--; textChanged = true;
+					}
 				}
 				break;
-			case 3:	// returned in SCI1 late and newer when Control - C is pressed
-				if (modifiers & SCI_KEYMOD_CTRL) {
+			case kSciKeyEtx:
+				if (modifiers & kSciKeyModCtrl) {
 					// Control-C erases the whole line
 					cursorPos = 0; text.clear();
 					textChanged = true;
 				}
 				break;
 			default:
-				if ((modifiers & SCI_KEYMOD_CTRL) && eventKey == 99) {
+				if ((modifiers & kSciKeyModCtrl) && eventKey == 99) {
 					// Control-C in earlier SCI games (SCI0 - SCI1 middle)
 					// Control-C erases the whole line
 					cursorPos = 0; text.clear();
@@ -216,6 +245,8 @@ void GfxControls16::kernelTexteditChange(reg_t controlObject, reg_t eventObject)
 				}
 				break;
 			}
+			break;
+		default:
 			break;
 		}
 	}
@@ -370,7 +401,7 @@ void GfxControls16::kernelDrawIcon(Common::Rect rect, reg_t obj, GuiResourceId v
 	}
 }
 
-void GfxControls16::kernelDrawList(Common::Rect rect, reg_t obj, int16 maxChars, int16 count, const char **entries, GuiResourceId fontId, int16 style, int16 upperPos, int16 cursorPos, bool isAlias, bool hilite) {
+void GfxControls16::kernelDrawList(Common::Rect rect, reg_t obj, int16 maxChars, int16 count, const Common::String *entries, GuiResourceId fontId, int16 style, int16 upperPos, int16 cursorPos, bool isAlias, bool hilite) {
 	if (!hilite) {
 		drawListControl(rect, obj, maxChars, count, entries, fontId, upperPos, cursorPos, isAlias);
 		rect.grow(1);

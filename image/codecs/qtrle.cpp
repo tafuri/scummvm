@@ -30,7 +30,6 @@
 #include "common/stream.h"
 #include "common/system.h"
 #include "common/textconsole.h"
-#include "graphics/colormasks.h"
 #include "graphics/surface.h"
 
 namespace Image {
@@ -535,7 +534,7 @@ void QTRLEDecoder::createSurface() {
 	if (_surface) {
 		_surface->free();
 		delete _surface;
-	}	
+	}
 
 	_surface = new Graphics::Surface();
 	_surface->create(_paddedWidth, _height, getPixelFormat());

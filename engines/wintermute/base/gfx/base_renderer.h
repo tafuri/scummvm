@@ -41,6 +41,9 @@ class BaseActiveRect;
 class BaseObject;
 class BaseSurface;
 class BasePersistenceManager;
+#ifdef ENABLE_WME3D
+class Camera3D;
+#endif
 
 /**
  * @class BaseRenderer a common interface for the rendering portion of WME
@@ -66,6 +69,7 @@ public:
 	virtual bool setViewport(Rect32 *rect);
 	virtual Rect32 getViewPort() = 0;
 	virtual bool setScreenViewport();
+	virtual void setWindowed(bool windowed) = 0;
 
 	virtual Graphics::PixelFormat getPixelFormat() const = 0;
 	/**
@@ -88,7 +92,7 @@ public:
 	virtual bool drawLine(int x1, int y1, int x2, int y2, uint32 color); 	// Unused outside indicator-display
 	virtual bool drawRect(int x1, int y1, int x2, int y2, uint32 color, int width = 1); 	// Unused outside indicator-display
 	BaseRenderer(BaseGame *inGame = nullptr);
-	virtual ~BaseRenderer();
+	~BaseRenderer() override;
 	virtual bool setProjection() {
 		return STATUS_OK;
 	};
@@ -116,8 +120,12 @@ public:
 	 * essentially, just copies the region defined by the _indicator-variables.
 	 */
 	virtual bool indicatorFlip() = 0;
+	virtual bool forcedFlip() = 0;
 	virtual void initLoop();
 	virtual bool setup2D(bool force = false);
+#ifdef ENABLE_WME3D
+	virtual bool setup3D(Camera3D *camera = nullptr, bool force = false);
+#endif
 	virtual bool setupLines();
 
 	/**
@@ -223,9 +231,17 @@ protected:
 	Rect32 _monitorRect;
 private:
 	Common::Array<BaseActiveRect *> _rectList;
+	bool displaySaveloadImage();
+	bool displaySaveloadLines();
 };
 
 BaseRenderer *makeOSystemRenderer(BaseGame *inGame); // Implemented in BRenderSDL.cpp
+#ifdef ENABLE_WME3D
+class BaseRenderer3D;
+
+BaseRenderer3D *makeOpenGL3DRenderer(BaseGame *inGame);
+BaseRenderer3D *makeOpenGL3DShaderRenderer(BaseGame *inGame);
+#endif
 
 } // End of namespace Wintermute
 

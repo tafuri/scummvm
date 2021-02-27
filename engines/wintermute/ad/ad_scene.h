@@ -44,6 +44,9 @@ class AdPath;
 class AdScaleLevel;
 class AdRotLevel;
 class AdPathPoint;
+#ifdef ENABLE_WME3D
+class AdSceneGeometry;
+#endif
 class AdScene : public BaseObject {
 public:
 
@@ -52,6 +55,21 @@ public:
 	bool getSceneObjects(BaseArray<AdObject *> &objects, bool interactiveOnly);
 	bool getRegionObjects(AdRegion *region, BaseArray<AdObject *> &objects, bool interactiveOnly);
 
+#ifdef ENABLE_WME3D
+	uint32 _ambientLightColor;
+	TShadowType _maxShadowType;
+
+	void setMaxShadowType(TShadowType shadowType);
+
+	bool _2DPathfinding;
+	float _waypointHeight;
+
+	float _fov;
+	float _nearPlane;
+	float _farPlane;
+
+	FogParameters _fogParameters;
+#endif
 	bool afterLoad();
 
 	bool getRegionsAt(int x, int y, AdRegion **regionList, int numRegions);
@@ -87,7 +105,7 @@ public:
 	float getScaleAt(int y);
 	bool sortScaleLevels();
 	bool sortRotLevels();
-	virtual bool saveAsText(BaseDynamicBuffer *buffer, int indent) override;
+	bool saveAsText(BaseDynamicBuffer *buffer, int indent) override;
 	uint32 getAlphaAt(int x, int y, bool colorCheck = false);
 	bool _paralaxScrolling;
 	void skipTo(int offsetX, int offsetY);
@@ -96,7 +114,7 @@ public:
 	void skipToObject(BaseObject *object);
 	void scrollToObject(BaseObject *object);
 	void scrollTo(int offsetX, int offsetY);
-	virtual bool update() override;
+	bool update() override;
 	bool _autoScroll;
 	int32 _targetOffsetTop;
 	int32 _targetOffsetLeft;
@@ -109,7 +127,7 @@ public:
 	uint32 _scrollTimeH;
 	uint32 _lastTimeH;
 
-	virtual bool display();
+	bool display() override;
 	uint32 _pfMaxTime;
 	bool initLoop();
 	void pathFinderStep();
@@ -119,10 +137,14 @@ public:
 	float getZoomAt(int x, int y);
 	bool getPath(const BasePoint &source, const BasePoint &target, AdPath *path, BaseObject *requester = nullptr);
 	AdScene(BaseGame *inGame);
-	virtual ~AdScene();
+	~AdScene() override;
 	BaseArray<AdLayer *> _layers;
 	BaseArray<AdObject *> _objects;
 	BaseArray<AdWaypointGroup *> _waypointGroups;
+#ifdef ENABLE_WME3D
+	AdSceneGeometry* _sceneGeometry;
+	bool _showGeometry;
+#endif
 	bool loadFile(const char *filename);
 	bool loadBuffer(char *buffer, bool complete = true);
 	int32 _width;
@@ -152,15 +174,15 @@ public:
 	BaseArray<AdScaleLevel *> _scaleLevels;
 	BaseArray<AdRotLevel *> _rotLevels;
 
-	virtual bool restoreDeviceObjects();
+	bool restoreDeviceObjects() override;
 	int getPointsDist(const BasePoint &p1, const BasePoint &p2, BaseObject *requester = nullptr);
 
 	// scripting interface
-	virtual ScValue *scGetProperty(const Common::String &name) override;
-	virtual bool scSetProperty(const char *name, ScValue *value) override;
-	virtual bool scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack, const char *name) override;
-	virtual const char *scToString() override;
-
+	ScValue *scGetProperty(const Common::String &name) override;
+	bool scSetProperty(const char *name, ScValue *value) override;
+	bool scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack, const char *name) override;
+	const char *scToString() override;
+	Common::String debuggerToString() const override;
 
 private:
 	bool persistState(bool saving = true);

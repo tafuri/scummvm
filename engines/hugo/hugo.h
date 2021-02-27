@@ -20,23 +20,21 @@
  *
  */
 
-#ifndef HUGO_H
-#define HUGO_H
+#ifndef HUGO_HUGO_H
+#define HUGO_HUGO_H
 
 #include "engines/engine.h"
-#include "common/file.h"
-#include "hugo/console.h"
-#include "hugo/dialogs.h"
 
 // This include is here temporarily while the engine is being refactored.
 #include "hugo/game.h"
-#include "hugo/file.h"
+#include "hugo/detection.h"
 
 #define HUGO_DAT_VER_MAJ 0                          // 1 byte
 #define HUGO_DAT_VER_MIN 42                         // 1 byte
 #define DATAALIGNMENT    4
 
 namespace Common {
+class SeekableReadStream;
 class RandomSource;
 }
 
@@ -93,23 +91,6 @@ typedef byte Icondib[kXPix * kInvDy];               // Icon bar dib
 typedef byte Viewdib[(long)kXPix * kYPix];          // Viewport dib
 typedef byte Overlay[kOvlSize];                     // Overlay file
 
-enum GameType {
-	kGameTypeNone  = 0,
-	kGameTypeHugo1,
-	kGameTypeHugo2,
-	kGameTypeHugo3
-};
-
-enum GameVariant {
-	kGameVariantH1Win = 0,
-	kGameVariantH2Win,
-	kGameVariantH3Win,
-	kGameVariantH1Dos,
-	kGameVariantH2Dos,
-	kGameVariantH3Dos,
-	kGameVariantNone
-};
-
 enum HugoDebugChannels {
 	kDebugSchedule  = 1 <<  0,
 	kDebugEngine    = 1 <<  1,
@@ -160,16 +141,10 @@ enum Dupdate {kDisplayInit, kDisplayAdd, kDisplayDisplay, kDisplayRestore};
  */
 enum Priority {kSoundPriorityLow, kSoundPriorityMedium, kSoundPriorityHigh};
 
-enum HugoGameFeatures {
-	GF_PACKED = (1 << 0) // Database
-};
-
 // Strings used by the engine
 enum seqTextEngine {
 	kEsAdvertise = 0
 };
-
-struct HugoGameDescription;
 
 struct Status {                                     // Game status (not saved)
 	bool     _storyModeFl;                          // Game is telling story - no commands
@@ -209,11 +184,13 @@ class SoundHandler;
 class IntroHandler;
 class ObjectHandler;
 class TextHandler;
+class TopMenu;
+class HugoConsole;
 
 class HugoEngine : public Engine {
 public:
 	HugoEngine(OSystem *syst, const HugoGameDescription *gd);
-	~HugoEngine();
+	~HugoEngine() override;
 
 	OSystem *_system;
 
@@ -240,8 +217,6 @@ public:
 	Maze      _maze;                                // Maze control structure
 	hugoBoot  _boot;                                // Boot info structure
 
-	GUI::Debugger *getDebugger();
-
 	Common::RandomSource *_rnd;
 
 	const char *_episode;
@@ -264,8 +239,8 @@ public:
 		return *s_Engine;
 	}
 
-	virtual bool canLoadGameStateCurrently();
-	virtual bool canSaveGameStateCurrently();
+	bool canLoadGameStateCurrently() override;
+	bool canSaveGameStateCurrently() override;
 	bool loadHugoDat();
 
 	int8 getTPS() const;
@@ -278,7 +253,7 @@ public:
 	void readScreenFiles(const int screen);
 	void setNewScreen(const int screen);
 	void shutdown();
-	void syncSoundSettings();
+	void syncSoundSettings() override;
 
 	Status &getGameStatus();
 	int getScore() const;
@@ -286,12 +261,12 @@ public:
 	void adjustScore(const int adjustment);
 	int getMaxScore() const;
 	void setMaxScore(const int newScore);
-	Common::Error saveGameState(int slot, const Common::String &desc);
-	Common::Error loadGameState(int slot);
-	bool hasFeature(EngineFeature f) const;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	Common::Error loadGameState(int slot) override;
+	bool hasFeature(EngineFeature f) const override;
 	const char *getCopyrightString() const;
 
-	Common::String getSavegameFilename(int slot);
+	virtual Common::String getSaveStateName(int slot) const override;
 	uint16 **loadLongArray(Common::SeekableReadStream &in);
 
 	FileManager *_file;
@@ -310,7 +285,7 @@ public:
 protected:
 
 	// Engine APIs
-	Common::Error run();
+	Common::Error run() override;
 
 private:
 	static const int kTurboTps = 16;                // This many in turbo mode
@@ -320,8 +295,6 @@ private:
 	uint32 _curTime;
 
 	static HugoEngine *s_Engine;
-
-	HugoConsole *_console;
 
 	GameType _gameType;
 	Common::Platform _platform;
@@ -342,4 +315,4 @@ private:
 
 } // End of namespace Hugo
 
-#endif // Hugo_H
+#endif // HUGO_HUGO_H

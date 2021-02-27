@@ -34,7 +34,7 @@
 
 namespace Tinsel {
 
-// FIXME: Avoid non-const global vars
+// These vars are reset upon engine destruction
 
 #ifdef DEBUG
 // Diagnostic number
@@ -42,7 +42,7 @@ int g_newestString;
 #endif
 
 // buffer for resource strings
-static uint8 *g_textBuffer = 0;
+static uint8 *g_textBuffer = nullptr;
 
 static struct {
 	bool		bPresent;
@@ -77,6 +77,12 @@ LANGUAGE g_textLanguage, g_sampleLanguage = TXT_ENGLISH;
 
 //----------------- FUNCTIONS --------------------------------
 
+void ResetVarsStrRes() {
+	g_textBuffer = nullptr;
+	g_bMultiByte = false;
+	g_textLanguage = g_sampleLanguage = TXT_ENGLISH;
+}
+
 /**
  * Called to load a resource file for a different language
  * @param newLang			The new language
@@ -90,7 +96,7 @@ void ChangeLanguage(LANGUAGE newLang) {
 
 	// free the previous buffer
 	free(g_textBuffer);
-	g_textBuffer = NULL;
+	g_textBuffer = nullptr;
 
 	// Try and open the specified language file. If it fails, and the language
 	// isn't English, try falling back on opening 'english.txt' - some foreign
@@ -137,8 +143,9 @@ void ChangeLanguage(LANGUAGE newLang) {
 
 		// close the file
 		f.close();
-	} else {	// the file must be compressed
-		error("Compression handling has been removed");
+	} else {
+		// the file must be compressed
+		error("Compression handling for text file has been removed");
 	}
 }
 
@@ -354,7 +361,7 @@ int SubStringCount(int id) {
 
 void FreeTextBuffer() {
 	free(g_textBuffer);
-	g_textBuffer = NULL;
+	g_textBuffer = nullptr;
 }
 
 /**
@@ -390,40 +397,6 @@ int NumberOfLanguages() {
 			count++;
 	}
 	return count;
-}
-
-LANGUAGE NextLanguage(LANGUAGE thisOne) {
-	int i;
-
-	for (i = thisOne+1; i < NUM_LANGUAGES; i++) {
-		if (g_languages[i].bPresent)
-			return (LANGUAGE)i;
-	}
-
-	for (i = 0; i < thisOne; i++) {
-		if (g_languages[i].bPresent)
-			return (LANGUAGE)i;
-	}
-
-	// No others!
-	return thisOne;
-}
-
-LANGUAGE PrevLanguage(LANGUAGE thisOne) {
-	int i;
-
-	for (i = thisOne-1; i >= 0; i--) {
-		if (g_languages[i].bPresent)
-			return (LANGUAGE)i;
-	}
-
-	for (i = NUM_LANGUAGES-1; i > thisOne; i--) {
-		if (g_languages[i].bPresent)
-			return (LANGUAGE)i;
-	}
-
-	// No others!
-	return thisOne;
 }
 
 SCNHANDLE LanguageDesc(LANGUAGE thisOne) {

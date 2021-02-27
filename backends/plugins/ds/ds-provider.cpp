@@ -20,6 +20,10 @@
  *
  */
 
+// Allow use of stuff in <nds.h>
+#define FORBIDDEN_SYMBOL_EXCEPTION_printf
+#define FORBIDDEN_SYMBOL_EXCEPTION_unistd_h
+
 #include "common/scummsys.h"
 
 #if defined(DYNAMIC_MODULES) && defined(__DS__)
@@ -40,6 +44,10 @@ protected:
 
 Plugin *DSPluginProvider::createPlugin(const Common::FSNode &node) const {
 	return new TemplatedELFPlugin<DSDLObject>(node.getPath());
+}
+
+void DSPluginProvider::addCustomDirectories(Common::FSList &dirs) const {
+	dirs.push_back(Common::FSNode("nitro:/plugins"));
 }
 
 #endif // defined(DYNAMIC_MODULES) && defined(__DS__)

@@ -20,6 +20,8 @@
  *
  */
 
+#include "common/translation.h"
+
 namespace TsAGE {
 
 static const tSageGameDescription gameDescriptions[] = {
@@ -95,23 +97,22 @@ static const tSageGameDescription gameDescriptions[] = {
 		GType_Ringworld,
 		GF_FLOPPY | GF_DEMO | GF_ALT_REGIONS
 	},
-#if 0
-	// FIXME: Compute new MD5s based on 5000 bytes instead of 0 (unlimited)
-	// Blue Force floppy
+
+	// Blue Force floppy, uninstalled
 	{
 		{
 			"blueforce",
-			"Floppy",
-			AD_ENTRY1s("blue.rlb", "17c3993415e8a2cf93040eef7e88ec93", 1156508),
+			"Floppy, Uninstalled",
+			AD_ENTRY1s("blue.rlb", "0625e9f985e52bf221107f50672bd4c3", 1156508),
 			Common::EN_ANY,
 			Common::kPlatformDOS,
 			ADGF_UNSTABLE,
 			GUIO2(GUIO_NOSPEECH, GUIO_NOSFX)
 		},
 		GType_BlueForce,
-		GF_FLOPPY
+		GF_FLOPPY | GF_UNINSTALLED
 	},
-#endif
+
 	// Blue Force
 	{
 		{
@@ -140,23 +141,23 @@ static const tSageGameDescription gameDescriptions[] = {
 		GType_BlueForce,
 		GF_CD | GF_ALT_REGIONS
 	},
-#if 0
+
 	// Blue Force Spanish doesn't yet work
 	// Blue Force Spanish CD
 	{
 		{
 			"blueforce",
-			"CD",
+			_s("Spanish CD version is not yet supported"),
 			AD_ENTRY1s("blue.rlb", "5b2b35c51b62e82d82b0791540bfae2d", 10082565),
 			Common::ES_ESP,
 			Common::kPlatformDOS,
-			ADGF_CD | ADGF_UNSTABLE,
+			ADGF_CD | ADGF_UNSUPPORTED,
 			GUIO2(GUIO_NOSPEECH, GUIO_NOSFX)
 		},
 		GType_BlueForce,
 		GF_CD | GF_ALT_REGIONS
 	},
-#endif
+
 	// Return to Ringworld
 	{
 		{
@@ -165,7 +166,7 @@ static const tSageGameDescription gameDescriptions[] = {
 			AD_ENTRY1s("r2rw.rlb", "df6c25622387007788ca36d99362c1f0", 47586928),
 			Common::EN_ANY,
 			Common::kPlatformDOS,
-			ADGF_CD | ADGF_TESTING,
+			ADGF_CD,
 			GUIO0()
 		},
 		GType_Ringworld2,
@@ -179,12 +180,45 @@ static const tSageGameDescription gameDescriptions[] = {
 			AD_ENTRY1s("r2rw.rlb", "c8e1a82c67c3caf57368eadde13dc15f", 32384464),
 			Common::EN_ANY,
 			Common::kPlatformDOS,
-			ADGF_CD | ADGF_TESTING,
+			ADGF_CD,
 			GUIO0()
 		},
 		GType_Ringworld2,
 		GF_CD | GF_ALT_REGIONS | GF_DEMO
 	},
+
+	// Return to Ringworld. Spanish fan translation.
+	{
+		{
+			"ringworld2",
+			"CD",
+			AD_ENTRY1s("r2rw.rlb", "05f9af7b0153a0c5727022dc0122d02b", 47678672),
+			Common::ES_ESP,
+			Common::kPlatformDOS,
+			ADGF_CD,
+			GUIO0()
+		},
+		GType_Ringworld2,
+		GF_CD | GF_ALT_REGIONS
+	},
+
+#ifdef TSAGE_SHERLOCK_ENABLED
+	// The Lost Files of Sherlock Holmes - The Case of the Serrated Scalpel (Logo)
+	{
+		{
+			"sherlock-logo",
+			"",
+			AD_ENTRY1s("sf3.rlb", "153f9b93eda4e95578e31be30e69b5e5", 50419),
+			Common::EN_ANY,
+			Common::kPlatformDOS,
+			ADGF_NO_FLAGS,
+			GUIO0()
+		},
+		GType_Sherlock1,
+		GF_FLOPPY
+	},
+#endif
+
 	{ AD_TABLE_END_MARKER, 0, 0 }
 };
 

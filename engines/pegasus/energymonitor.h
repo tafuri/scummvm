@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -35,13 +35,13 @@ class Sprite;
 class Blinker : private IdlerTimeBase {
 public:
 	Blinker();
-	virtual ~Blinker() {}
+	~Blinker() override {}
 
 	void startBlinking(Sprite *sprite, int32 frame1, int32 frame2, uint32 numBlinks, TimeValue blinkDuration, TimeScale blinkScale);
 	void stopBlinking();
 
 protected:
-	virtual void timeChanged(const TimeValue);
+	void timeChanged(const TimeValue) override;
 
 	Sprite *_sprite;
 	int32 _frame1;
@@ -76,7 +76,7 @@ static const int kWSCPoisonEnergyDrainNoDart = 10;
 class EnergyMonitor : private IdlerAnimation {
 public:
 	EnergyMonitor();
-	virtual ~EnergyMonitor();
+	~EnergyMonitor() override;
 
 	void setEnergyValue(const uint32);
 	void startEnergyDraining();
@@ -92,9 +92,9 @@ public:
 	void calibrateEnergyBar();
 
 protected:
-	void timeChanged(const TimeValue);
+	void timeChanged(const TimeValue) override;
 	void calcLevelRect(Common::Rect &);
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
 	uint32 _barColor;
 	Common::Rect _levelRect;

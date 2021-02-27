@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -78,7 +78,7 @@ void AIArea::saveAIState() {
 
 	delete vm->_aiSaveStream;
 
-	Common::MemoryWriteStreamDynamic out;
+	Common::MemoryWriteStreamDynamic out(DisposeAfterUse::NO);
 	writeAIRules(&out);
 
 	vm->_aiSaveStream = new Common::MemoryReadStream(out.getData(), out.size(), DisposeAfterUse::YES);
@@ -197,6 +197,8 @@ void AIArea::setAIAreaToTime(const LowerClientSignature client, const LowerAreaS
 			setRightMovieTime(time);
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -268,6 +270,8 @@ void AIArea::playAIAreaSequence(const LowerClientSignature, const LowerAreaSigna
 		_rightAreaMovie.stop();
 		vm->_cursor->hideUntilMoved();
 		setAIAreaToTime(_rightAreaOwner, kRightAreaSignature, _rightBiochipTime);
+		break;
+	default:
 		break;
 	}
 
@@ -454,6 +458,8 @@ void AIArea::activateHotspots() {
 			case kOpticalBiochip:
 				((OpticalChip *)currentBiochip)->activateOpticalHotspots();
 				break;
+			default:
+				break;
 			}
 	} else if (_middleAreaOwner == kInventorySignature) {
 		InventoryItem *currentItem = ((PegasusEngine *)g_engine)->getCurrentInventoryItem();
@@ -492,6 +498,8 @@ void AIArea::clickInHotspot(const Input &input, const Hotspot *hotspot) {
 					handled = true;
 				}
 				break;
+			default:
+				break;
 			}
 		}
 	} else if (_middleAreaOwner == kInventorySignature) {
@@ -504,6 +512,8 @@ void AIArea::clickInHotspot(const Input &input, const Hotspot *hotspot) {
 					((AirMask *)currentItem)->clickInAirMaskHotspot();
 					handled = true;
 				}
+				break;
+			default:
 				break;
 			}
 		}
@@ -569,6 +579,8 @@ void AIArea::checkMiddleArea() {
 			case kPegasusBiochip:
 				((PegasusChip *)currentBiochip)->setUpPegasusChip();
 				break;
+			default:
+				break;
 			}
 		} else {
 			switch (currentBiochip->getObjectID()) {
@@ -577,6 +589,8 @@ void AIArea::checkMiddleArea() {
 				break;
 			case kPegasusBiochip:
 				((PegasusChip *)currentBiochip)->setUpPegasusChipRude();
+				break;
+			default:
 				break;
 			}
 		}

@@ -66,20 +66,6 @@ public:
 		Common::String _filename;
 	};
 
-	class CScBreakpoint {
-	public:
-		CScBreakpoint(const char *filename) {
-			_filename = filename;
-		}
-
-		~CScBreakpoint() {
-			_lines.clear();
-		}
-
-		Common::String _filename;
-		BaseArray<int> _lines;
-	};
-
 public:
 	bool clearGlobals(bool includingNatives = false);
 	bool tickUnbreakable();
@@ -100,10 +86,11 @@ public:
 	bool tick();
 	ScValue *_globals;
 	ScScript *runScript(const char *filename, BaseScriptHolder *owner = nullptr);
+	bool isRunningScript(const char *filename);
 	static const bool _compilerAvailable = false;
 
 	ScEngine(BaseGame *inGame);
-	virtual ~ScEngine();
+	~ScEngine() override;
 	static byte *loadFile(void *data, char *filename, uint32 *size);
 	static void closeFile(void *data, byte *buffer);
 	static void parseElement(void *data, int line, int type, void *elementData);

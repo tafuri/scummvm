@@ -46,12 +46,6 @@ enum AudioCommands {
 	kSciAudioCD = 10 /* Plays SCI1.1 CD audio */
 };
 
-enum AudioSyncCommands {
-	kSciAudioSyncStart = 0,
-	kSciAudioSyncNext = 1,
-	kSciAudioSyncStop = 2
-};
-
 #define AUDIO_VOLUME_MAX 127
 
 class Resource;
@@ -67,7 +61,6 @@ public:
 	void setAudioRate(uint16 rate) { _audioRate = rate; }
 	Audio::SoundHandle *getAudioHandle() { return &_audioHandle; }
 	Audio::RewindableAudioStream *getAudioStream(uint32 number, uint32 volume, int *sampleLen);
-	byte *getDecodedRobotAudioFrame(Common::SeekableReadStream *str, uint32 encodedSize);
 	int getAudioPosition();
 	int startAudio(uint16 module, uint32 tuple);
 	int wPlayAudio(uint16 module, uint32 tuple);
@@ -77,10 +70,6 @@ public:
 
 	void handleFanmadeSciAudio(reg_t sciAudioObject, SegManager *segMan);
 
-	void setSoundSync(ResourceId id, reg_t syncObjAddr, SegManager *segMan);
-	void doSoundSync(reg_t syncObjAddr, SegManager *segMan);
-	void stopSoundSync();
-
 	int audioCdPlay(int track, int start, int duration);
 	void audioCdStop();
 	void audioCdUpdate();
@@ -88,15 +77,18 @@ public:
 
 	void stopAllAudio();
 
+	void incrementPlayCounter();
+	uint16 getPlayCounter();
+
 private:
 	ResourceManager *_resMan;
 	uint16 _audioRate;
 	Audio::SoundHandle _audioHandle;
 	Audio::Mixer *_mixer;
-	Resource *_syncResource; /**< Used by kDoSync for speech syncing in CD talkie games */
-	uint _syncOffset;
 	uint32 _audioCdStart;
 	bool _wPlayFlag;
+	bool _initCD;
+	uint16 _playCounter;
 };
 
 } // End of namespace Sci

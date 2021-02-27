@@ -644,6 +644,9 @@ int Actor::getFrameType(ActorFrameTypes frameType) {
 			return kFrameITEPickUp;
 		case kFrameLook:
 			return kFrameITELook;
+		default:
+			error("Actor::getFrameType() unknown frame type %d", frameType);
+			return kFrameITEStand;		// for compilers that don't support NORETURN
 		}
 #ifdef ENABLE_IHNM
 	} else if (_vm->getGameId() == GID_IHNM) {
@@ -661,12 +664,14 @@ int Actor::getFrameType(ActorFrameTypes frameType) {
 		case kFrameGive:
 		case kFramePickUp:
 		case kFrameLook:
+		default:
 			error("Actor::getFrameType() unknown frame type %d", frameType);
 			return kFrameIHNMStand;		// for compilers that don't support NORETURN
 		}
 #endif
 	}
 	error("Actor::getFrameType() unknown frame type %d", frameType);
+	return kFrameITEStand;		// for compilers that don't support NORETURN
 }
 
 ActorFrameRange *Actor::getActorFrameRange(uint16 actorId, int frameType) {
@@ -796,6 +801,8 @@ void Actor::handleSpeech(int msec) {
 				break;
 			case 0:
 				_activeSpeech.playingTime = 0x7fffff;
+				break;
+			default:
 				break;
 			}
 		} else {
@@ -1129,7 +1136,11 @@ void Actor::drawSpeech() {
 				_activeSpeech.speechColor[i], _activeSpeech.outlineColor[i], _activeSpeech.getFontFlags(i));
 		}
 	} else {
-		_vm->_font->textDrawRect(kKnownFontScript, &outputString.front(), _activeSpeech.drawRect, _activeSpeech.speechColor[0],
+		Common::Rect drawRect(_activeSpeech.drawRect);
+		// The PC-98 version does a vertical center alignment which we have to imitate for pixel exact text output.
+		if (_vm->getPlatform() == Common::kPlatformPC98)
+			drawRect.top -= (_vm->_font->getHeight(kKnownFontScript, &outputString.front(), drawRect.width(), _activeSpeech.getFontFlags(0)) >> 1);
+		_vm->_font->textDrawRect(kKnownFontScript, &outputString.front(), drawRect, _activeSpeech.speechColor[0],
 			_activeSpeech.outlineColor[0], _activeSpeech.getFontFlags(0));
 	}
 }
@@ -1158,7 +1169,7 @@ void Actor::actorSpeech(uint16 actorId, const char **strings, int stringsCount, 
 	dist = MIN(actor->_screenPosition.x - 10, _vm->getDisplayInfo().width - 10 - actor->_screenPosition.x);
 
 	if (_vm->getGameId() == GID_ITE)
-		dist = CLIP<int16>(dist, 60, 150);
+		dist = (_vm->getPlatform() == Common::kPlatformPC98) ? CLIP<int16>(dist, 110, 200) : CLIP<int16>(dist, 60, 150);
 	else
 		dist = CLIP<int16>(dist, 120, 300);
 
@@ -1166,29 +1177,13 @@ void Actor::actorSpeech(uint16 actorId, const char **strings, int stringsCount, 
 	_activeSpeech.speechBox.right = actor->_screenPosition.x + dist;
 
 	if (_activeSpeech.speechBox.left < 10) {
-		_activeSpeech.speechBox.right += 10 - _activeSpeech.speechBox.left;
+		_activeSpeech.speechBox.right += (10 - _activeSpeech.speechBox.left);
 		_activeSpeech.speechBox.left = 10;
 	}
 	if (_activeSpeech.speechBox.right > _vm->getDisplayInfo().width - 10) {
-		_activeSpeech.speechBox.left -= _activeSpeech.speechBox.right - _vm->getDisplayInfo().width - 10;
+		_activeSpeech.speechBox.left -= _activeSpeech.speechBox.right - (_vm->getDisplayInfo().width - 10);
 		_activeSpeech.speechBox.right = _vm->getDisplayInfo().width - 10;
 	}
-
-	// HACK for the compact disk in Ellen's chapter
-	// Once Ellen starts saying that "Something is different", bring the compact disk in the
-	// scene. After speaking with AM, the compact disk is visible. She always says this line
-	// when entering room 59, after speaking with AM, if the compact disk is not picked up yet
-	// Check Script::sfDropObject for the other part of this hack
-	if (_vm->getGameId() == GID_IHNM && _vm->_scene->currentChapterNumber() == 3 &&
-		_vm->_scene->currentSceneNumber() == 59 && _activeSpeech.sampleResourceId == 286) {
-		for (ObjectDataArray::iterator obj = _objs.begin(); obj != _objs.end(); ++obj) {
-			if (obj->_id == 16385) {	// the compact disk
-				obj->_sceneNumber = 59;
-				break;
-			}
-		}
-	}
-
 }
 
 void Actor::nonActorSpeech(const Common::Rect &box, const char **strings, int stringsCount, int sampleResourceId, int speechFlags) {

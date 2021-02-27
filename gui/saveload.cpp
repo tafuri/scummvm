@@ -25,19 +25,18 @@
 
 #include "gui/saveload.h"
 #include "gui/saveload-dialog.h"
-#include "gui/gui-manager.h"
 
 #include "engines/metaengine.h"
 
 namespace GUI {
 
-SaveLoadChooser::SaveLoadChooser(const String &title, const String &buttonLabel, bool saveMode)
-	: _impl(0), _title(title), _buttonLabel(buttonLabel), _saveMode(saveMode) {
+SaveLoadChooser::SaveLoadChooser(const U32String &title, const U32String &buttonLabel, bool saveMode)
+	: _impl(nullptr), _title(title), _buttonLabel(buttonLabel), _saveMode(saveMode) {
 }
 
 SaveLoadChooser::~SaveLoadChooser() {
 	delete _impl;
-	_impl = 0;
+	_impl = nullptr;
 }
 
 void SaveLoadChooser::selectChooser(const MetaEngine &engine) {
@@ -45,13 +44,15 @@ void SaveLoadChooser::selectChooser(const MetaEngine &engine) {
 	const SaveLoadChooserType requestedType = getRequestedSaveLoadDialog(engine);
 	if (!_impl || _impl->getType() != requestedType) {
 		delete _impl;
-		_impl = 0;
+		_impl = nullptr;
 
 		switch (requestedType) {
 		case kSaveLoadDialogGrid:
 			_impl = new SaveLoadChooserGrid(_title, _saveMode);
 			break;
 
+		default:
+			// fallthrough intended
 		case kSaveLoadDialogList:
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 			_impl = new SaveLoadChooserSimple(_title, _buttonLabel, _saveMode);
@@ -68,25 +69,38 @@ Common::String SaveLoadChooser::createDefaultSaveDescription(const int slot) con
 	g_system->getTimeAndDate(curTime);
 	curTime.tm_year += 1900; // fixup year
 	curTime.tm_mon++; // fixup month
-	return Common::String::format("%04d.%02d.%02d / %02d:%02d:%02d", curTime.tm_year, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
+	return Common::String::format("%04d-%02d-%02d / %02d:%02d:%02d", curTime.tm_year, curTime.tm_mon, curTime.tm_mday, curTime.tm_hour, curTime.tm_min, curTime.tm_sec);
 #else
 	return Common::String::format("Save %d", slot + 1);
 #endif
 }
 
 int SaveLoadChooser::runModalWithCurrentTarget() {
-	const Common::String gameId = ConfMan.get("gameid");
+	const Plugin *plugin = EngineMan.findPlugin(ConfMan.get("engineid"));
+	const Plugin *enginePlugin = nullptr;
+	if (!plugin) {
+		error("SaveLoadChooser::runModalWithCurrentTarget(): Cannot find plugin");
+	} else {
+		enginePlugin = PluginMan.getEngineFromMetaEngine(plugin);
 
-	const EnginePlugin *plugin = 0;
-	EngineMan.findGame(gameId, &plugin);
-
-	return runModalWithPluginAndTarget(plugin, ConfMan.getActiveDomainName());
+		if (!enginePlugin) {
+			error("SaveLoadChooser::runModalWithCurrentTarget(): Couldn't match a Engine from the MetaEngine. \
+				You will not be able to see savefiles until you have the necessary plugins.");
+		}
+	}
+	return runModalWithPluginAndTarget(enginePlugin, ConfMan.getActiveDomainName());
 }
 
-int SaveLoadChooser::runModalWithPluginAndTarget(const EnginePlugin *plugin, const String &target) {
-	selectChooser(**plugin);
+int SaveLoadChooser::runModalWithPluginAndTarget(const Plugin *plugin, const String &target) {
+	assert(plugin->getType() == PLUGIN_TYPE_ENGINE);
+
+	selectChooser(plugin->get<MetaEngine>());
 	if (!_impl)
 		return -1;
+
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	_impl->runSaveSync(ConfMan.hasKey("savepath", target));
+#endif
 
 	// Set up the game domain as newly active domain, so
 	// target specific savepath will be checked
@@ -95,10 +109,10 @@ int SaveLoadChooser::runModalWithPluginAndTarget(const EnginePlugin *plugin, con
 
 	int ret;
 	do {
-		ret = _impl->run(target, &(**plugin));
+		ret = _impl->run(target, &plugin->get<MetaEngine>());
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
 		if (ret == kSwitchSaveLoadDialog) {
-			selectChooser(**plugin);
+			selectChooser(plugin->get<MetaEngine>());
 		}
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 	} while (ret < -1);
@@ -109,7 +123,7 @@ int SaveLoadChooser::runModalWithPluginAndTarget(const EnginePlugin *plugin, con
 	return ret;
 }
 
-const Common::String &SaveLoadChooser::getResultString() const {
+const Common::U32String &SaveLoadChooser::getResultString() const {
 	assert(_impl);
 	return _impl->getResultString();
 }

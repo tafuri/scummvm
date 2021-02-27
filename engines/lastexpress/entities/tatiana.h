@@ -32,7 +32,7 @@ class LastExpressEngine;
 class Tatiana : public Entity {
 public:
 	Tatiana(LastExpressEngine *engine);
-	~Tatiana() {}
+	~Tatiana() override {}
 
 	/**
 	 * Resets the entity
@@ -44,7 +44,7 @@ public:
 	 *
 	 * @param filename The sound filename
 	 */
-	DECLARE_FUNCTION_1(playSound, const char *filename)
+	DECLARE_VFUNCTION_1(playSound, const char *filename)
 
 	/**
 	 * Draws the entity
@@ -68,7 +68,7 @@ public:
 	 * @param sequence    The sequence to draw
 	 * @param compartment The compartment
 	 */
-	DECLARE_FUNCTION_2(enterExitCompartment, const char *sequence, ObjectIndex compartment)
+	DECLARE_VFUNCTION_2(enterExitCompartment, const char *sequence, ObjectIndex compartment)
 
 	/**
 	 * Handles entering/exiting a compartment and updates position/play animation
@@ -119,7 +119,7 @@ public:
 	 * @param savegameType The type of the savegame
 	 * @param param        The param for the savegame (EventIndex or TimeValue)
 	 */
-	DECLARE_FUNCTION_2(savegame, SavegameType savegameType, uint32 param)
+	DECLARE_VFUNCTION_2(savegame, SavegameType savegameType, uint32 param)
 
 	/**
 	 * Updates the entity
@@ -127,16 +127,16 @@ public:
 	 * @param car            The car
 	 * @param entityPosition The entity position
 	 */
-	DECLARE_FUNCTION_2(updateEntity, CarIndex car, EntityPosition entityPosition)
+	DECLARE_VFUNCTION_2(updateEntity, CarIndex car, EntityPosition entityPosition)
 
-	DECLARE_FUNCTION(function14)
-	DECLARE_FUNCTION(function15)
-	DECLARE_FUNCTION_1(function16, uint32)
+	DECLARE_FUNCTION(enterCompartment)
+	DECLARE_FUNCTION(exitCompartment)
+	DECLARE_FUNCTION_1(handleCompartment, uint32)
 
 	/**
 	 * Setup Chapter 1
 	 */
-	DECLARE_FUNCTION(chapter1)
+	DECLARE_VFUNCTION(chapter1)
 
 	DECLARE_FUNCTION(function18)
 
@@ -145,46 +145,42 @@ public:
 	 */
 	DECLARE_FUNCTION(chapter1Handler)
 
-	DECLARE_FUNCTION(function20)
-	DECLARE_FUNCTION(function21)
-	DECLARE_FUNCTION(function22)
-	DECLARE_FUNCTION(function23)
+	DECLARE_FUNCTION(exitDining)
+	DECLARE_FUNCTION(returnToCompartment)
+	DECLARE_FUNCTION(getSomeAir)
+	DECLARE_FUNCTION(returnToCompartmentAgain)
 	DECLARE_FUNCTION(function24)
 
 	/**
 	 * Setup Chapter 2
 	 */
-	DECLARE_FUNCTION(chapter2)
+	DECLARE_VFUNCTION(chapter2)
 
 	/**
 	 * Handle Chapter 2 events
 	 */
 	DECLARE_FUNCTION(chapter2Handler)
 
-	DECLARE_FUNCTION(function27)
-	DECLARE_FUNCTION(function28)
-	DECLARE_FUNCTION(function29)
-	DECLARE_FUNCTION(function30)
+	DECLARE_FUNCTION(breakfastClick)
+	DECLARE_FUNCTION(joinAlexei)
+	DECLARE_FUNCTION(leaveBreakfast)
+	DECLARE_FUNCTION(returnToCompartment2)
 
 	/**
 	 * Setup Chapter 3
 	 */
-	DECLARE_FUNCTION(chapter3)
+	DECLARE_VFUNCTION(chapter3)
 
-	/**
-	 * Handle Chapter 3 events
-	 */
-	DECLARE_FUNCTION(chapter3Handler)
-
-	DECLARE_FUNCTION(function33)
-	DECLARE_FUNCTION(function34)
-	DECLARE_FUNCTION(function35)
-	DECLARE_FUNCTION(function36)
-	DECLARE_FUNCTION(function37)
-	DECLARE_FUNCTION(function38)
+	DECLARE_FUNCTION(playChess)
+	DECLARE_FUNCTION(returnToCompartment3)
+	DECLARE_FUNCTION(beforeConcert)
+	DECLARE_FUNCTION(concert)
+	DECLARE_FUNCTION(leaveConcert)
+	DECLARE_FUNCTION(afterConcert)
+	DECLARE_FUNCTION(cryAnna)
 	DECLARE_FUNCTION(function39)
 	DECLARE_FUNCTION(function40)
-	DECLARE_FUNCTION(function41)
+	DECLARE_FUNCTION(trapCath)
 
 	/**
 	 * ???
@@ -197,32 +193,28 @@ public:
 	/**
 	 * Setup Chapter 4
 	 */
-	DECLARE_FUNCTION(chapter4)
+	DECLARE_VFUNCTION(chapter4)
 
-	/**
-	 * Handle Chapter 4 events
-	 */
-	DECLARE_FUNCTION(chapter4Handler)
-
-	DECLARE_FUNCTION(function45)
-	DECLARE_FUNCTION(function46)
-	DECLARE_FUNCTION(function47)
-	DECLARE_FUNCTION(function48)
+	DECLARE_FUNCTION(inCompartment4)
+	DECLARE_FUNCTION(meetAlexei)
+	DECLARE_FUNCTION(withAlexei)
+	DECLARE_FUNCTION(thinking)
+	DECLARE_FUNCTION(seekCath)
 	DECLARE_FUNCTION(function49)
-	DECLARE_FUNCTION(function50)
+	DECLARE_FUNCTION(alexeiDead)
 	DECLARE_FUNCTION(function51)
 
 	/**
 	 * Setup Chapter 5
 	 */
-	DECLARE_FUNCTION(chapter5)
+	DECLARE_VFUNCTION(chapter5)
 
 	/**
 	 * Handle Chapter 5 events
 	 */
 	DECLARE_FUNCTION(chapter5Handler)
 
-	DECLARE_FUNCTION(function54)
+	DECLARE_FUNCTION(autistic)
 	DECLARE_FUNCTION(function55)
 };
 

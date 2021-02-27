@@ -32,7 +32,7 @@ class LastExpressEngine;
 class Vassili : public Entity {
 public:
 	Vassili(LastExpressEngine *engine);
-	~Vassili() {}
+	~Vassili() override {}
 
 	/**
 	 * Resets the entity
@@ -52,19 +52,19 @@ public:
 	 * @param savegameType The type of the savegame
 	 * @param param        The param for the savegame (EventIndex or TimeValue)
 	 */
-	DECLARE_FUNCTION_2(savegame, SavegameType savegameType, uint32 param)
+	DECLARE_VFUNCTION_2(savegame, SavegameType savegameType, uint32 param)
 
 	/**
 	 * Setup Chapter 1
 	 */
-	DECLARE_FUNCTION(chapter1)
+	DECLARE_VFUNCTION(chapter1)
 
 	/**
 	 * Handle Chapter 1 events
 	 */
 	DECLARE_FUNCTION(chapter1Handler)
 
-	DECLARE_FUNCTION(function6)
+	DECLARE_FUNCTION(inBed)
 	DECLARE_FUNCTION(function7)
 	DECLARE_FUNCTION(function8)
 	DECLARE_FUNCTION(function9)
@@ -74,21 +74,21 @@ public:
 	/**
 	 * Setup Chapter 2
 	 */
-	DECLARE_FUNCTION(chapter2)
+	DECLARE_VFUNCTION(chapter2)
 
 	DECLARE_FUNCTION(sleeping)
 
 	/**
 	 * Setup Chapter 3
 	 */
-	DECLARE_FUNCTION(chapter3)
+	DECLARE_VFUNCTION(chapter3)
 
 	DECLARE_FUNCTION(stealEgg)
 
 	/**
 	 * Setup Chapter 4
 	 */
-	DECLARE_FUNCTION(chapter4)
+	DECLARE_VFUNCTION(chapter4)
 
 	/**
 	 * Handle Chapter 4 events
@@ -98,7 +98,7 @@ public:
 	/**
 	 * Setup Chapter 5
 	 */
-	DECLARE_FUNCTION(chapter5)
+	DECLARE_VFUNCTION(chapter5)
 };
 
 } // End of namespace LastExpress

@@ -20,16 +20,6 @@
  *
  */
 
-/**
- * @file
- * Image decoder used in engines:
- *  - groovie
- *  - mohawk
- *  - wintermute
- *
- * Used by PICT/QuickTime.
- */
-
 #ifndef IMAGE_JPEG_H
 #define IMAGE_JPEG_H
 
@@ -42,6 +32,19 @@ class SeekableReadStream;
 }
 
 namespace Image {
+
+/**
+ * @defgroup image_jpeg JPEG decoder
+ * @ingroup image
+ *
+ * @brief Decoder for JPEG images.
+ *
+ * Used in engines:
+ * - Groovie
+ * - Mohawk
+ * - Wintermute
+ * @{
+ */
 
 class JPEGDecoder : public ImageDecoder, public Codec {
 public:
@@ -60,11 +63,11 @@ public:
 	// Special API for JPEG
 	enum ColorSpace {
 		/**
-		 * Output 32bit RGBA data.
+		 * Output RGB data in the pixel format specified using `setOutputPixelFormat`.
 		 *
 		 * This is the default output.
 		 */
-		kColorSpaceRGBA,
+		kColorSpaceRGB,
 
 		/**
 		 * Output (interleaved) YUV data.
@@ -86,17 +89,27 @@ public:
 	 * Request the output color space. This can be used to obtain raw YUV
 	 * data from the JPEG file. But this might not work for all files!
 	 *
-	 * The decoder itself defaults to RGBA.
+	 * The decoder itself defaults to RGB.
 	 *
 	 * @param outSpace The color space to output.
 	 */
 	void setOutputColorSpace(ColorSpace outSpace) { _colorSpace = outSpace; }
 
+	/**
+	 * Request the output pixel format. The JPEG decoder provides high performance
+	 * color conversion routines for some pixel formats. This setting allows to use
+	 * them and avoid costly subsequent color conversion.
+	 */
+	void setOutputPixelFormat(const Graphics::PixelFormat &format) { _requestedPixelFormat = format; }
+
 private:
 	Graphics::Surface _surface;
 	ColorSpace _colorSpace;
-};
+	Graphics::PixelFormat _requestedPixelFormat;
 
+	Graphics::PixelFormat getByteOrderRgbPixelFormat() const;
+};
+/** @} */
 } // End of namespace Image
 
 #endif

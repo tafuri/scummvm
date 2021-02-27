@@ -27,12 +27,12 @@
 
 #include "backends/graphics/surfacesdl/surfacesdl-graphics.h"
 
-class MaemoSdlGraphicsManager : public SurfaceSdlGraphicsManager {
+class MaemoSdlGraphicsManager final : public SurfaceSdlGraphicsManager {
 public:
 	MaemoSdlGraphicsManager(SdlEventSource *sdlEventSource, SdlWindow *window);
 
 protected:
-	virtual bool loadGFXMode();
+	virtual bool loadGFXMode() override;
 };
 
 #endif

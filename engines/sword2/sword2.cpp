@@ -25,16 +25,10 @@
 #include "base/plugins.h"
 
 #include "common/config-manager.h"
-#include "common/events.h"
-#include "common/file.h"
-#include "common/fs.h"
-#include "common/gui_options.h"
-#include "common/savefile.h"
-#include "common/system.h"
 #include "common/textconsole.h"
 #include "common/translation.h"
+#include "common/error.h"
 
-#include "engines/metaengine.h"
 #include "engines/util.h"
 
 #include "sword2/sword2.h"
@@ -50,251 +44,10 @@
 #include "sword2/router.h"
 #include "sword2/screen.h"
 #include "sword2/sound.h"
-#include "sword2/saveload.h"
 
 namespace Sword2 {
 
 Common::Platform Sword2Engine::_platform;
-
-struct GameSettings {
-	const char *gameid;
-	const char *description;
-	uint32 features;
-	const char *detectname;
-};
-
-static const GameSettings sword2_settings[] = {
-	/* Broken Sword II */
-	{"sword2", "Broken Sword II: The Smoking Mirror", 0, "players.clu" },
-	{"sword2alt", "Broken Sword II: The Smoking Mirror (alt)", 0, "r2ctlns.ocx" },
-	{"sword2psx", "Broken Sword II: The Smoking Mirror (PlayStation)", 0, "screens.clu"},
-	{"sword2psxdemo", "Broken Sword II: The Smoking Mirror (PlayStation/Demo)", Sword2::GF_DEMO, "screens.clu"},
-	{"sword2demo", "Broken Sword II: The Smoking Mirror (Demo)", Sword2::GF_DEMO, "players.clu" },
-	{NULL, NULL, 0, NULL}
-};
-
-} // End of namespace Sword2
-
-static const ExtraGuiOption sword2ExtraGuiOption = {
-	_s("Show object labels"),
-	_s("Show labels for objects on mouse hover"),
-	"object_labels",
-	false
-};
-
-class Sword2MetaEngine : public MetaEngine {
-public:
-	virtual const char *getName() const {
-		return "Sword2";
-	}
-	virtual const char *getOriginalCopyright() const {
-		return "Broken Sword Games (C) Revolution";
-	}
-
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual GameList getSupportedGames() const;
-	virtual const ExtraGuiOptions getExtraGuiOptions(const Common::String &target) const;
-	virtual GameDescriptor findGame(const char *gameid) const;
-	virtual GameList detectGames(const Common::FSList &fslist) const;
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const;
-	virtual void removeSaveState(const char *target, int slot) const;
-
-	virtual Common::Error createInstance(OSystem *syst, Engine **engine) const;
-};
-
-bool Sword2MetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves) ||
-		(f == kSupportsLoadingDuringStartup) ||
-		(f == kSupportsDeleteSave);
-}
-
-bool Sword2::Sword2Engine::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL) ||
-		(f == kSupportsSubtitleOptions) ||
-		(f == kSupportsSavingDuringRuntime) ||
-		(f == kSupportsLoadingDuringRuntime);
-}
-
-GameList Sword2MetaEngine::getSupportedGames() const {
-	const Sword2::GameSettings *g = Sword2::sword2_settings;
-	GameList games;
-	while (g->gameid) {
-		games.push_back(GameDescriptor(g->gameid, g->description));
-		g++;
-	}
-	return games;
-}
-
-const ExtraGuiOptions Sword2MetaEngine::getExtraGuiOptions(const Common::String &target) const {
-	ExtraGuiOptions options;
-	options.push_back(sword2ExtraGuiOption);
-	return options;
-}
-
-GameDescriptor Sword2MetaEngine::findGame(const char *gameid) const {
-	const Sword2::GameSettings *g = Sword2::sword2_settings;
-	while (g->gameid) {
-		if (0 == scumm_stricmp(gameid, g->gameid))
-			break;
-		g++;
-	}
-	return GameDescriptor(g->gameid, g->description);
-}
-
-bool isFullGame(const Common::FSList &fslist) {
-	Common::FSList::const_iterator file;
-
-	// We distinguish between the two versions by the presense of paris.clu
-	for (file = fslist.begin(); file != fslist.end(); ++file) {
-		if (!file->isDirectory()) {
-			if (file->getName().equalsIgnoreCase("paris.clu"))
-				return true;
-		}
-	}
-
-	return false;
-}
-
-GameList detectGamesImpl(const Common::FSList &fslist, bool recursion = false) {
-	GameList detectedGames;
-	const Sword2::GameSettings *g;
-	Common::FSList::const_iterator file;
-	bool isFullVersion = isFullGame(fslist);
-
-	for (g = Sword2::sword2_settings; g->gameid; ++g) {
-		// Iterate over all files in the given directory
-		for (file = fslist.begin(); file != fslist.end(); ++file) {
-			if (!file->isDirectory()) {
-				// The required game data files can be located in the game directory, or in
-				// a subdirectory called "clusters". In the latter case, we don't want to
-				// detect the game in that subdirectory, as this will detect the game twice
-				// when mass add is searching inside a directory. In this case, the first
-				// result (the game directory) will be correct, but the second result (the
-				// clusters subdirectory) will be wrong, as the optional speech, music and
-				// video data files will be ignored. Note that this fix will skip the game
-				// data files if the user has placed them inside a "clusters" subdirectory,
-				// or if he/she points ScummVM directly to the "clusters" directory of the
-				// game CD. Fixes bug #3049336.
-				Common::String directory = file->getParent().getName();
-				directory.toLowercase();
-				if (directory.hasPrefix("clusters") && directory.size() <= 9 && !recursion)
-					continue;
-
-				if (file->getName().equalsIgnoreCase(g->detectname)) {
-					// Make sure that the sword2 demo is not mixed up with the
-					// full version, since they use the same filename for detection
-					if ((g->features == Sword2::GF_DEMO && isFullVersion) ||
-						(g->features == 0 && !isFullVersion))
-						continue;
-
-					// Match found, add to list of candidates, then abort inner loop.
-					detectedGames.push_back(GameDescriptor(g->gameid, g->description, Common::UNK_LANG, Common::kPlatformUnknown, GUIO2(GUIO_NOMIDI, GUIO_NOASPECT)));
-					break;
-				}
-			}
-		}
-	}
-
-
-	if (detectedGames.empty()) {
-		// Nothing found -- try to recurse into the 'clusters' subdirectory,
-		// present e.g. if the user copied the data straight from CD.
-		for (file = fslist.begin(); file != fslist.end(); ++file) {
-			if (file->isDirectory()) {
-				if (file->getName().equalsIgnoreCase("clusters")) {
-					Common::FSList recList;
-					if (file->getChildren(recList, Common::FSNode::kListAll)) {
-						GameList recGames(detectGamesImpl(recList, true));
-						if (!recGames.empty()) {
-							detectedGames.push_back(recGames);
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-
-
-	return detectedGames;
-}
-
-GameList Sword2MetaEngine::detectGames(const Common::FSList &fslist) const {
-	return detectGamesImpl(fslist);
-}
-
-SaveStateList Sword2MetaEngine::listSaves(const char *target) const {
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	Common::StringArray filenames;
-	char saveDesc[SAVE_DESCRIPTION_LEN];
-	Common::String pattern = target;
-	pattern += ".???";
-
-	filenames = saveFileMan->listSavefiles(pattern);
-	sort(filenames.begin(), filenames.end());	// Sort (hopefully ensuring we are sorted numerically..)
-
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		// Obtain the last 3 digits of the filename, since they correspond to the save slot
-		int slotNum = atoi(file->c_str() + file->size() - 3);
-
-		if (slotNum >= 0 && slotNum <= 999) {
-			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
-			if (in) {
-				in->readUint32LE();
-				in->read(saveDesc, SAVE_DESCRIPTION_LEN);
-				saveList.push_back(SaveStateDescriptor(slotNum, saveDesc));
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-int Sword2MetaEngine::getMaximumSaveSlot() const { return 999; }
-
-void Sword2MetaEngine::removeSaveState(const char *target, int slot) const {
-	Common::String filename = target;
-	filename += Common::String::format(".%03d", slot);
-
-	g_system->getSavefileManager()->removeSavefile(filename);
-}
-
-Common::Error Sword2MetaEngine::createInstance(OSystem *syst, Engine **engine) const {
-	assert(syst);
-	assert(engine);
-
-	Common::FSList fslist;
-	Common::FSNode dir(ConfMan.get("path"));
-	if (!dir.getChildren(fslist, Common::FSNode::kListAll)) {
-		return Common::kNoGameDataFoundError;
-	}
-
-	// Invoke the detector
-	Common::String gameid = ConfMan.get("gameid");
-	GameList detectedGames = detectGames(fslist);
-
-	for (uint i = 0; i < detectedGames.size(); i++) {
-		if (detectedGames[i].gameid() == gameid) {
-			*engine = new Sword2::Sword2Engine(syst);
-			return Common::kNoError;
-		}
-	}
-
-	return Common::kNoGameDataFoundError;
-}
-
-#if PLUGIN_ENABLED_DYNAMIC(SWORD2)
-	REGISTER_PLUGIN_DYNAMIC(SWORD2, PLUGIN_TYPE_ENGINE, Sword2MetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(SWORD2, PLUGIN_TYPE_ENGINE, Sword2MetaEngine);
-#endif
-
-namespace Sword2 {
 
 Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst), _rnd("sword2") {
 	// Add default file directories
@@ -307,6 +60,8 @@ Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst), _rnd("sword2") {
 
 	if (!scumm_stricmp(ConfMan.get("gameid").c_str(), "sword2demo") || !scumm_stricmp(ConfMan.get("gameid").c_str(), "sword2psxdemo"))
 		_features = GF_DEMO;
+	else if (!scumm_stricmp(ConfMan.get("gameid").c_str(), "sword2demo-es"))
+		_features = GF_DEMO | GF_SPANISHDEMO;
 	else
 		_features = 0;
 
@@ -340,7 +95,7 @@ Sword2Engine::Sword2Engine(OSystem *syst) : Engine(syst), _rnd("sword2") {
 }
 
 Sword2Engine::~Sword2Engine() {
-	delete _debugger;
+	//_debugger is deleted by Engine
 	delete _sound;
 	delete _fontRenderer;
 	delete _screen;
@@ -348,10 +103,6 @@ Sword2Engine::~Sword2Engine() {
 	delete _logic;
 	delete _resman;
 	delete _memory;
-}
-
-GUI::Debugger *Sword2Engine::getDebugger() {
-	return _debugger;
 }
 
 void Sword2Engine::registerDefaultSettings() {
@@ -440,7 +191,7 @@ Common::Error Sword2Engine::run() {
 	_resman = NULL;
 	_memory = NULL;
 
-	initGraphics(640, 480, true);
+	initGraphics(640, 480);
 	_screen = new Screen(this, 640, 480);
 
 	// Create the debugger as early as possible (but not before the
@@ -449,6 +200,7 @@ Common::Error Sword2Engine::run() {
 	// visible to the user.
 
 	_debugger = new Debugger(this);
+	setDebugger(_debugger);
 
 	_memory = new MemoryManager();
 	_resman = new ResourceManager(this);
@@ -512,8 +264,6 @@ Common::Error Sword2Engine::run() {
 	_screen->initializeRenderCycle();
 
 	while (1) {
-		_debugger->onFrame();
-
 		// Handle GMM Loading
 		if (_gmmLoadSlot != -1) {
 
@@ -537,16 +287,14 @@ Common::Error Sword2Engine::run() {
 		KeyboardEvent *ke = keyboardEvent();
 
 		if (ke) {
-			if ((ke->kbd.hasFlags(Common::KBD_CTRL) && ke->kbd.keycode == Common::KEYCODE_d) || ke->kbd.ascii == '#' || ke->kbd.ascii == '~') {
-				_debugger->attach();
-			} else if (ke->kbd.hasFlags(0) || ke->kbd.hasFlags(Common::KBD_SHIFT)) {
+			if (ke->kbd.hasFlags(0) || ke->kbd.hasFlags(Common::KBD_SHIFT)) {
 				switch (ke->kbd.keycode) {
 				case Common::KEYCODE_p:
 					if (isPaused()) {
 						_screen->dimPalette(false);
-						pauseEngine(false);
+						_gamePauseToken.clear();
 					} else {
-						pauseEngine(true);
+						_gamePauseToken = pauseEngine();
 						_screen->dimPalette(true);
 					}
 					break;
@@ -822,7 +570,7 @@ uint32 Sword2Engine::getMillis() {
 	return _system->getMillis();
 }
 
-Common::Error Sword2Engine::saveGameState(int slot, const Common::String &desc) {
+Common::Error Sword2Engine::saveGameState(int slot, const Common::String &desc, bool isAutosave) {
 	uint32 saveVal = saveGame(slot, (const byte *)desc.c_str());
 
 	if (saveVal == SR_OK)

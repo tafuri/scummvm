@@ -253,6 +253,7 @@ void DreamWebEngine::transferText(uint8 from, uint8 to) {
 	char *dst = _exText._text + _vars._exTextPos;
 
 	size_t len = strlen(src);
+	assert(_vars._exTextPos + len + 1 <= kExtextlen);
 	memcpy(dst, src, len + 1);
 	_vars._exTextPos += len + 1;
 }
@@ -293,9 +294,14 @@ void DreamWebEngine::openOb() {
 
 	copyName(_openedType, _openedOb, commandLine);
 
-	printMessage(kInventx, kInventy+86, 62, 240, false);
+	if (getLanguage() != Common::RU_RUS) {
+		printMessage(kInventx, kInventy+86, 62, 240, false);
 
-	printDirect(commandLine, _lastXPos + 5, kInventy+86, 220, false);
+		printDirect(commandLine, _lastXPos + 5, kInventy+86, 220, false);
+	} else {
+		printDirect(commandLine, kInventx, kInventy+86, 220, false);
+		printMessage(_lastXPos, kInventy+86, 62, 240, false);
+	}
 
 	fillOpen();
 	_openChangeSize = getOpenedSlotCount() * kItempicsize + kInventx;
@@ -1010,7 +1016,7 @@ ObjectRef DreamWebEngine::findOpenPos() {
 }
 
 byte DreamWebEngine::transferToEx(uint8 from) {
-	emergencyPurge();
+	emergencyPurge(from);
 
 	byte pos = getExPos();
 	DynObject *exObject = getExAd(pos);
@@ -1128,11 +1134,18 @@ void DreamWebEngine::incRyanPage() {
 	delPointer();
 }
 
-void DreamWebEngine::emergencyPurge() {
+void DreamWebEngine::emergencyPurge(uint8 from) {
 	debug(2, "Ex memory: frames %d/%d, text %d/%d", _vars._exFramePos, kExframeslen, _vars._exTextPos, kExtextlen);
 
-	while (_vars._exFramePos + 4000 >= kExframeslen ||
-		   _vars._exTextPos + 400 >= kExtextlen)
+	uint16 frameBytesNeeded = 0;
+	for (int offset = 0; offset <= 1; ++offset) {
+		const Frame &freeFrame = _freeFrames._frames[3 * from + offset];
+		frameBytesNeeded += freeFrame.width * freeFrame.height;
+	}
+	const uint16 textBytesNeeded = strlen(_freeDesc.getString(from)) + 1;
+
+	while (_vars._exFramePos + frameBytesNeeded > kExframeslen ||
+		   _vars._exTextPos + textBytesNeeded > kExtextlen)
 	{
 		purgeAnItem();
 		debug(2, "Ex memory after purging: frames %d/%d, text %d/%d", _vars._exFramePos, kExframeslen, _vars._exTextPos, kExtextlen);

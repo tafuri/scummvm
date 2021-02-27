@@ -17,11 +17,11 @@ MODULE_OBJS := \
 	converse.o \
 	core.o \
 	debugger.o \
-	detection.o \
 	dialogs.o \
 	events.o \
 	globals.o \
 	graphics.o \
+	metaengine.o \
 	resources.o \
 	ringworld/ringworld_demo.o \
 	ringworld/ringworld_dialogs.o \
@@ -47,6 +47,8 @@ MODULE_OBJS := \
 	ringworld2/ringworld2_vampire.o \
 	saveload.o \
 	scenes.o \
+	screen.o \
+	sherlock/sherlock_logo.o \
 	sound.o \
 	staticres.o \
 	tsage.o \
@@ -59,3 +61,6 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o

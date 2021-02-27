@@ -3,9 +3,10 @@ MODULE := engines/composer
 MODULE_OBJS = \
 	console.o \
 	composer.o \
-	detection.o \
 	graphics.o \
+	metaengine.o \
 	resource.o \
+	saveload.o \
 	scripting.o
 
 # This module can be built as a plugin
@@ -15,3 +16,6 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o

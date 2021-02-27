@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -25,48 +25,8 @@
 #include "engines/advancedDetector.h"
 #include "common/config-manager.h"
 #include "common/file.h"
-#include "common/savefile.h"
 
-#include "pegasus/pegasus.h"
-
-namespace Pegasus {
-
-struct PegasusGameDescription {
-	ADGameDescription desc;
-};
-
-enum {
-	GF_DVD = (1 << 1)
-};
-
-bool PegasusEngine::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL)
-		|| (f == kSupportsLoadingDuringRuntime)
-		|| (f == kSupportsSavingDuringRuntime);
-}
-
-bool PegasusEngine::isDemo() const {
-	return (_gameDescription->desc.flags & ADGF_DEMO) != 0;
-}
-
-bool PegasusEngine::isDVD() const {
-	return (_gameDescription->desc.flags & GF_DVD) != 0;
-}
-
-bool PegasusEngine::isDVDDemo() const {
-	return isDemo() && isDVD();
-}
-
-bool PegasusEngine::isOldDemo() const {
-	return isDemo() && !isDVD();
-}
-
-bool PegasusEngine::isWindows() const {
-	return _gameDescription->desc.platform == Common::kPlatformWindows;
-}
-
-} // End of namespace Pegasus
+#include "pegasus/detection.h"
 
 static const PlainGameDescriptor pegasusGames[] = {
 	{"pegasus", "The Journeyman Project: Pegasus Prime"},
@@ -85,7 +45,7 @@ static const PegasusGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformMacintosh,
 			ADGF_MACRESFORK,
-			GUIO0()
+			GUIO1(GUIO_NOMIDI)
 		},
 	},
 
@@ -97,7 +57,7 @@ static const PegasusGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformMacintosh,
 			ADGF_MACRESFORK | ADGF_DEMO,
-			GUIO1(GUIO_NOLAUNCHLOAD)
+			GUIO2(GUIO_NOLAUNCHLOAD, GUIO_NOMIDI)
 		},
 	},
 
@@ -109,7 +69,7 @@ static const PegasusGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformMacintosh,
 			ADGF_MACRESFORK | ADGF_DEMO | GF_DVD,
-			GUIO1(GUIO_NOLAUNCHLOAD)
+			GUIO2(GUIO_NOLAUNCHLOAD, GUIO_NOMIDI)
 		},
 	},
 
@@ -121,7 +81,7 @@ static const PegasusGameDescription gameDescriptions[] = {
 			Common::EN_ANY,
 			Common::kPlatformWindows,
 			ADGF_MACRESFORK | ADGF_DEMO | GF_DVD,
-			GUIO1(GUIO_NOLAUNCHLOAD)
+			GUIO2(GUIO_NOLAUNCHLOAD, GUIO_NOMIDI)
 		},
 	},
 
@@ -131,71 +91,22 @@ static const PegasusGameDescription gameDescriptions[] = {
 } // End of namespace Pegasus
 
 
-class PegasusMetaEngine : public AdvancedMetaEngine {
+class PegasusMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	PegasusMetaEngine() : AdvancedMetaEngine(Pegasus::gameDescriptions, sizeof(Pegasus::PegasusGameDescription), pegasusGames) {
-		_singleid = "pegasus";
+	PegasusMetaEngineDetection() : AdvancedMetaEngineDetection(Pegasus::gameDescriptions, sizeof(Pegasus::PegasusGameDescription), pegasusGames) {
 	}
 
-	virtual const char *getName() const {
+	const char *getEngineId() const override {
+		return "pegasus";
+	}
+
+	const char *getName() const override {
 		return "The Journeyman Project: Pegasus Prime";
 	}
 
-	virtual const char *getOriginalCopyright() const {
+	const char *getOriginalCopyright() const override {
 		return "The Journeyman Project: Pegasus Prime (C) Presto Studios";
 	}
-
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const;
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const { return 999; }
-	virtual void removeSaveState(const char *target, int slot) const;
 };
 
-bool PegasusMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves)
-		|| (f == kSupportsLoadingDuringStartup)
-		|| (f == kSupportsDeleteSave);
-}
-
-SaveStateList PegasusMetaEngine::listSaves(const char *target) const {
-	// The original had no pattern, so the user must rename theirs
-	// Note that we ignore the target because saves are compatible between
-	// all versions
-	Common::StringArray fileNames = Pegasus::PegasusEngine::listSaveFiles();
-
-	SaveStateList saveList;
-	for (uint32 i = 0; i < fileNames.size(); i++) {
-		// Isolate the description from the file name
-		Common::String desc = fileNames[i].c_str() + 8;
-		for (int j = 0; j < 4; j++)
-			desc.deleteLastChar();
-
-		saveList.push_back(SaveStateDescriptor(i, desc));
-	}
-
-	return saveList;
-}
-
-void PegasusMetaEngine::removeSaveState(const char *target, int slot) const {
-	// See listSaves() for info on the pattern
-	Common::StringArray fileNames = Pegasus::PegasusEngine::listSaveFiles();
-	g_system->getSavefileManager()->removeSavefile(fileNames[slot].c_str());
-}
-
-bool PegasusMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	const Pegasus::PegasusGameDescription *gd = (const Pegasus::PegasusGameDescription *)desc;
-
-	if (gd)
-		*engine = new Pegasus::PegasusEngine(syst, gd);
-
-	return (gd != 0);
-}
-
-#if PLUGIN_ENABLED_DYNAMIC(PEGASUS)
-	REGISTER_PLUGIN_DYNAMIC(PEGASUS, PLUGIN_TYPE_ENGINE, PegasusMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(PEGASUS, PLUGIN_TYPE_ENGINE, PegasusMetaEngine);
-#endif
-
+REGISTER_PLUGIN_STATIC(PEGASUS_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, PegasusMetaEngineDetection);

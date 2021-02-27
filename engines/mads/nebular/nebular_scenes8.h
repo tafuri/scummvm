@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -58,35 +58,35 @@ private:
 
 public:
 	Scene801(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene802 : public Scene8xx{
 public:
 	Scene802(MADSEngine *vm) : Scene8xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene803 : public Scene8xx{
 public:
 	Scene803(MADSEngine *vm) : Scene8xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene804 : public Scene8xx {
@@ -103,33 +103,33 @@ private:
 
 public:
 	Scene804(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void actions() override;
 };
 
 class Scene805 : public Scene8xx{
 public:
 	Scene805(MADSEngine *vm) : Scene8xx(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void preActions();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void preActions() override;
+	void actions() override;
 };
 
 class Scene807 : public SceneTeleporter {
 public:
 	Scene807(MADSEngine *vm) : SceneTeleporter(vm) {}
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void actions() override;
 };
 
 class Scene808 : public Scene8xx{
@@ -138,11 +138,11 @@ private:
 
 public:
 	Scene808(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void actions();
+	void setup() override;
+	void enter() override;
+	void actions() override;
 };
 
 class Scene810 : public Scene8xx{
@@ -151,12 +151,12 @@ private:
 
 public:
 	Scene810(MADSEngine *vm);
-	void synchronize(Common::Serializer &s);
+	void synchronize(Common::Serializer &s) override;
 
-	virtual void setup();
-	virtual void enter();
-	virtual void step();
-	virtual void actions() {};
+	void setup() override;
+	void enter() override;
+	void step() override;
+	void actions() override {};
 };
 
 } // End of namespace Nebular

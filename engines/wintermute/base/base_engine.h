@@ -34,7 +34,7 @@
 #include "common/random.h"
 #include "common/language.h"
 
-#include "engines/wintermute/game_description.h"
+#include "engines/wintermute/detection.h"
 
 namespace Wintermute {
 
@@ -56,10 +56,11 @@ class BaseEngine : public Common::Singleton<Wintermute::BaseEngine> {
 	SystemClassRegistry *_classReg;
 	Common::Language _language;
 	WMETargetExecutable _targetExecutable;
+	uint32 _flags;
 public:
 	BaseEngine();
-	~BaseEngine();
-	static void createInstance(const Common::String &targetName, const Common::String &gameId, Common::Language lang, WMETargetExecutable targetExecutable = LATEST_VERSION);
+	~BaseEngine() override;
+	static void createInstance(const Common::String &targetName, const Common::String &gameId, Common::Language lang, WMETargetExecutable targetExecutable, uint32 flags);
 
 	void setGameRef(BaseGame *gameRef) { _gameRef = gameRef; }
 
@@ -74,12 +75,20 @@ public:
 	static const Timer *getTimer();
 	static const Timer *getLiveTimer();
 	static void LOG(bool res, const char *fmt, ...);
-	const char *getGameTargetName() const { return _targetName.c_str(); }
+	Common::String getGameTargetName() const { return _targetName; }
 	Common::String getGameId() const { return _gameId; }
 	Common::Language getLanguage() const { return _language; }
+	uint32 getFlags() const { return _flags; }
 	WMETargetExecutable getTargetExecutable() const {
 		return _targetExecutable;
 	}
+	static bool isFoxTailCheck(WMETargetExecutable t, WMETargetExecutable v1=FOXTAIL_OLDEST_VERSION, WMETargetExecutable v2=FOXTAIL_LATEST_VERSION) {
+		return t >= v1 && t <= v2;
+	}
+	bool isFoxTail(WMETargetExecutable v1=FOXTAIL_OLDEST_VERSION, WMETargetExecutable v2=FOXTAIL_LATEST_VERSION) const {
+		return isFoxTailCheck(_targetExecutable, v1, v2);
+	}
+	void addFlags(uint32 flags) { _flags |= flags; }
 };
 
 } // End of namespace Wintermute

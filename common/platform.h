@@ -27,6 +27,14 @@
 
 namespace Common {
 
+/**
+ * @defgroup common_platform Game platforms
+ * @ingroup common
+ *
+ * @brief API for managing game platforms.
+ * @{
+ */
+
 class String;
 
 /**
@@ -38,6 +46,7 @@ class String;
 enum Platform {
 	kPlatformDOS,
 	kPlatformAmiga,
+	kPlatformAtari8Bit,
 	kPlatformAtariST,
 	kPlatformMacintosh,
 	kPlatformFMTowns,
@@ -50,14 +59,20 @@ enum Platform {
 	kPlatformSegaCD,
 	kPlatform3DO,
 	kPlatformPCEngine,
+	kPlatformApple2,
 	kPlatformApple2GS,
 	kPlatformPC98,
 	kPlatformWii,
 	kPlatformPSX,
+	kPlatformPS2,
+	kPlatformXbox,
 	kPlatformCDi,
 	kPlatformIOS,
 	kPlatformOS2,
 	kPlatformBeOS,
+	kPlatformPocketPC,
+	kPlatformMegaDrive,
+	kPlatformSaturn,
 
 	kPlatformUnknown = -1
 };
@@ -77,6 +92,8 @@ extern Platform parsePlatform(const String &str);
 extern const char *getPlatformCode(Platform id);
 extern const char *getPlatformAbbrev(Platform id);
 extern const char *getPlatformDescription(Platform id);
+
+/** @} */
 
 } // End of namespace Common
 

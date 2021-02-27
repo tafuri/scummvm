@@ -35,6 +35,12 @@
 #include "common/events.h"
 #include "graphics/transform_struct.h"
 
+#ifdef ENABLE_WME3D
+#include "math/angle.h"
+#include "math/matrix4.h"
+#include "math/vector3d.h"
+#endif
+
 namespace Wintermute {
 
 class BaseSprite;
@@ -44,6 +50,11 @@ class BaseScriptHolder;
 class ScValue;
 class ScStack;
 class ScScript;
+
+#ifdef ENABLE_WME3D
+class ModelX;
+#endif
+
 class BaseObject : public BaseScriptHolder {
 protected:
 	bool _autoSoundPanning;
@@ -87,7 +98,7 @@ public:
 	bool updateOneSound(BaseSound *sound);
 	int32 _sFXVolume;
 
-	virtual bool handleMouseWheel(int delta);
+	virtual bool handleMouseWheel(int32 delta);
 	virtual bool handleMouse(TMouseEvent event, TMouseButton button);
 	virtual bool handleKeypress(Common::Event *event, bool printable = false);
 	virtual int32 getHeight();
@@ -105,8 +116,8 @@ public:
 	BaseSprite *_cursor;
 	bool _sharedCursors;
 	BaseSprite *_activeCursor;
-	virtual bool saveAsText(BaseDynamicBuffer *buffer, int indent);
-	virtual bool listen(BaseScriptHolder *param1, uint32 param2);
+	bool saveAsText(BaseDynamicBuffer *buffer, int indent) override;
+	bool listen(BaseScriptHolder *param1, uint32 param2) override;
 
 	bool _movable;
 	bool _zoomable;
@@ -118,7 +129,7 @@ public:
 	bool _saveState;
 
 	BaseObject(BaseGame *inGame);
-	virtual ~BaseObject();
+	~BaseObject() override;
 	// base
 	virtual bool update()  {
 		return STATUS_FAILED;
@@ -134,13 +145,32 @@ public:
 	};
 	bool _nonIntMouseEvents;
 
+#ifdef ENABLE_WME3D
+	Math::Angle _angle;
+	ModelX *_modelX;
+	ModelX *_shadowModel;
+	Math::Matrix4 _worldMatrix;
+	Math::Vector3d _posVector;
+	bool getMatrix(Math::Matrix4 *modelMatrix, Math::Vector3d *posVect = nullptr);
+	uint32 _shadowColor;
+	BaseSurface *_shadowImage;
+	float _shadowSize;
+	float _scale3D;
+	Math::Vector3d _shadowLightPos;
+	bool _drawBackfaces;
+	TShadowType _shadowType;
+
+	virtual uint32 getAnimTransitionTime(char *from, char *to) {
+		return 0;
+	};
+#endif
 
 public:
 	// scripting interface
-	virtual ScValue *scGetProperty(const Common::String &name) override;
-	virtual bool scSetProperty(const char *name, ScValue *value) override;
-	virtual bool scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack, const char *name) override;
-	virtual const char *scToString() override;
+	ScValue *scGetProperty(const Common::String &name) override;
+	bool scSetProperty(const char *name, ScValue *value) override;
+	bool scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack, const char *name) override;
+	const char *scToString() override;
 };
 
 } // End of namespace Wintermute

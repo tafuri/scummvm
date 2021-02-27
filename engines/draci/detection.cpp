@@ -20,11 +20,8 @@
  *
  */
 
-#include "draci/draci.h"
-#include "draci/saveload.h"
-
 #include "base/plugins.h"
-#include "common/system.h"
+
 #include "engines/advancedDetector.h"
 #include "engines/metaengine.h"
 
@@ -81,114 +78,22 @@ const ADGameDescription gameDescriptions[] = {
 
 } // End of namespace Draci
 
-class DraciMetaEngine : public AdvancedMetaEngine {
+class DraciMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	DraciMetaEngine() : AdvancedMetaEngine(Draci::gameDescriptions, sizeof(ADGameDescription), draciGames) {
-		_singleid = "draci";
+	DraciMetaEngineDetection() : AdvancedMetaEngineDetection(Draci::gameDescriptions, sizeof(ADGameDescription), draciGames) {
 	}
 
-	virtual const char *getName() const {
-		return "Draci";
+	const char *getEngineId() const override {
+		return "draci";
 	}
 
-	virtual const char *getOriginalCopyright() const {
-		return "Copyright (C) 1995 NoSense";
+	const char *getName() const override {
+		return "Draci Historie";
 	}
 
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual int getMaximumSaveSlot() const { return 99; }
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual void removeSaveState(const char *target, int slot) const;
-	virtual SaveStateDescriptor querySaveMetaInfos(const char *target, int slot) const;
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const;
+	const char *getOriginalCopyright() const override {
+		return "Draci Historie (C) 1995 NoSense";
+	}
 };
 
-bool DraciMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves) ||
-		(f == kSupportsDeleteSave) ||
-		(f == kSavesSupportMetaInfo) ||
-		(f == kSavesSupportThumbnail) ||
-		(f == kSavesSupportCreationDate) ||
-		(f == kSavesSupportPlayTime) ||
-		(f == kSupportsLoadingDuringStartup);
-}
-
-SaveStateList DraciMetaEngine::listSaves(const char *target) const {
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	Common::StringArray filenames;
-	Common::String pattern("draci.s??");
-
-	filenames = saveFileMan->listSavefiles(pattern);
-	sort(filenames.begin(), filenames.end());	// Sort (hopefully ensuring we are sorted numerically..)
-
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		// Obtain the last 2 digits of the filename, since they correspond to the save slot
-		int slotNum = atoi(file->c_str() + file->size() - 2);
-
-		if (slotNum >= 0 && slotNum <= 99) {
-			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
-			if (in) {
-				Draci::DraciSavegameHeader header;
-				if (Draci::readSavegameHeader(in, header)) {
-					saveList.push_back(SaveStateDescriptor(slotNum, header.saveName));
-					if (header.thumbnail) {
-						header.thumbnail->free();
-						delete header.thumbnail;
-					}
-				}
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-void DraciMetaEngine::removeSaveState(const char *target, int slot) const {
-	g_system->getSavefileManager()->removeSavefile(Draci::DraciEngine::getSavegameFile(slot));
-}
-
-SaveStateDescriptor DraciMetaEngine::querySaveMetaInfos(const char *target, int slot) const {
-	Common::InSaveFile *f = g_system->getSavefileManager()->openForLoading(
-		Draci::DraciEngine::getSavegameFile(slot));
-
-	if (f) {
-		Draci::DraciSavegameHeader header;
-		Draci::readSavegameHeader(f, header);
-		delete f;
-
-		// Create the return descriptor
-		SaveStateDescriptor desc(slot, header.saveName);
-		desc.setThumbnail(header.thumbnail);
-
-		int day = (header.date >> 24) & 0xFF;
-		int month = (header.date >> 16) & 0xFF;
-		int year = header.date & 0xFFFF;
-		desc.setSaveDate(year, month, day);
-
-		int hour = (header.time >> 8) & 0xFF;
-		int minutes = header.time & 0xFF;
-		desc.setSaveTime(hour, minutes);
-
-		desc.setPlayTime(header.playtime * 1000);
-
-		return desc;
-	}
-
-	return SaveStateDescriptor();
-}
-
-bool DraciMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	if (desc) {
-		*engine = new Draci::DraciEngine(syst, desc);
-	}
-	return desc != 0;
-}
-
-#if PLUGIN_ENABLED_DYNAMIC(DRACI)
-	REGISTER_PLUGIN_DYNAMIC(DRACI, PLUGIN_TYPE_ENGINE, DraciMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(DRACI, PLUGIN_TYPE_ENGINE, DraciMetaEngine);
-#endif
+REGISTER_PLUGIN_STATIC(DRACI_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, DraciMetaEngineDetection);

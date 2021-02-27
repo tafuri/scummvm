@@ -28,8 +28,9 @@
 #include "sci/engine/state.h"
 #include "sci/engine/selector.h"
 #include "sci/graphics/cache.h"
-#include "sci/graphics/font.h"
+#include "sci/graphics/scifont.h"
 #include "sci/graphics/fontsjis.h"
+#include "sci/graphics/fontkorean.h"
 #include "sci/graphics/view.h"
 
 namespace Sci {
@@ -66,8 +67,11 @@ GfxFont *GfxCache::getFont(GuiResourceId fontId) {
 		purgeFontCache();
 
 	if (!_cachedFonts.contains(fontId)) {
+		// Create special Korean font in korean games, when font 1001 is selected
+		if ((fontId == 1001) && (g_sci->getLanguage() == Common::KO_KOR))
+			_cachedFonts[fontId] = new GfxFontKorean(_screen, fontId);
 		// Create special SJIS font in japanese games, when font 900 is selected
-		if ((fontId == 900) && (g_sci->getLanguage() == Common::JA_JPN))
+		else if ((fontId == 900) && (g_sci->getLanguage() == Common::JA_JPN))
 			_cachedFonts[fontId] = new GfxFontSjis(_screen, fontId);
 		else
 			_cachedFonts[fontId] = new GfxFontFromResource(_resMan, _screen, fontId);
@@ -95,15 +99,21 @@ int16 GfxCache::kernelViewGetCelHeight(GuiResourceId viewId, int16 loopNo, int16
 }
 
 int16 GfxCache::kernelViewGetLoopCount(GuiResourceId viewId) {
+#ifdef ENABLE_SCI32
+	if (getSciVersion() >= SCI_VERSION_2) {
+		return CelObjView::getNumLoops(viewId);
+	}
+#endif
 	return getView(viewId)->getLoopCount();
 }
 
 int16 GfxCache::kernelViewGetCelCount(GuiResourceId viewId, int16 loopNo) {
+#ifdef ENABLE_SCI32
+	if (getSciVersion() >= SCI_VERSION_2) {
+		return CelObjView::getNumCels(viewId, loopNo);
+	}
+#endif
 	return getView(viewId)->getCelCount(loopNo);
-}
-
-byte GfxCache::kernelViewGetColorAtCoordinate(GuiResourceId viewId, int16 loopNo, int16 celNo, int16 x, int16 y) {
-	return getView(viewId)->getColorAtCoordinate(loopNo, celNo, x, y);
 }
 
 } // End of namespace Sci

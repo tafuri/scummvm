@@ -506,15 +506,13 @@ void RMItem::readFromStream(Common::SeekableReadStream &ds, bool bLOX) {
 	if (!ds.err()) {
 		for (int i = 0; i < _nSprites && !ds.err(); i++) {
 			// Download the sprites
-			if (bLOX) {
+			if (bLOX)
 				_sprites[i].LOXGetSizeFromStream(ds, &dimx, &dimy);
-				_sprites[i].init(newItemSpriteBuffer(dimx, dimy, true));
-				_sprites[i].readFromStream(ds, true);
-			} else {
+			else
 				_sprites[i].getSizeFromStream(ds, &dimx, &dimy);
-				_sprites[i].init(newItemSpriteBuffer(dimx, dimy, false));
-				_sprites[i].readFromStream(ds, false);
-			}
+
+			_sprites[i].init(newItemSpriteBuffer(dimx, dimy, bLOX));
+			_sprites[i].readFromStream(ds, bLOX);
 
 			if (_cm == CM_256 && _bPal)
 				_sprites[i].setPalette(_pal._data);
@@ -523,21 +521,14 @@ void RMItem::readFromStream(Common::SeekableReadStream &ds, bool bLOX) {
 
 	if (!ds.err()) {
 		for (int i = 0; i < _nSfx && !ds.err(); i++) {
-			if (bLOX)
-				_sfx[i].readFromStream(ds, true);
-			else
-				_sfx[i].readFromStream(ds, false);
+			_sfx[i].readFromStream(ds, bLOX);
 		}
 	}
 
 	// Read the pattern from pattern 1
 	if (!ds.err()) {
-		for (int i = 1; i <= _nPatterns && !ds.err(); i++) {
-			if (bLOX)
-				_patterns[i].readFromStream(ds, true);
-			else
-				_patterns[i].readFromStream(ds, false);
-		}
+		for (int i = 1; i <= _nPatterns && !ds.err(); i++)
+			_patterns[i].readFromStream(ds, bLOX);
 	}
 
 	// Initialize the current pattern
@@ -610,7 +601,7 @@ void RMItem::draw(CORO_PARAM, RMGfxTargetBuffer &bigBuf, RMGfxPrimitive *prim) {
 	// Offset direction for scrolling
 	prim->getDst().offset(-_curScroll);
 
-	// We must offset the cordinates of the item inside the primitive
+	// We must offset the coordinates of the item inside the primitive
 	// It is estimated as nonno + (babbo + figlio)
 	prim->getDst().offset(calculatePos());
 
@@ -900,10 +891,10 @@ bool RMCharacter::findPath(short source, short destination) {
 	bool error = false;
 	RMBoxLoc *cur;
 
-	g_system->lockMutex(_csMove);
+	_csMove.lock();
 
 	if (source == -1 || destination == -1) {
-		g_system->unlockMutex(_csMove);
+		_csMove.unlock();
 		return 0;
 	}
 
@@ -982,7 +973,7 @@ bool RMCharacter::findPath(short source, short destination) {
 		_pathLength++;
 	}
 
-	g_system->unlockMutex(_csMove);
+	_csMove.unlock();
 
 	return !error;
 }
@@ -1014,7 +1005,7 @@ void RMCharacter::goTo(CORO_PARAM, RMPoint destcoord, bool bReversed) {
 	_walkCount = 0;
 
 	if (bReversed) {
-		while (0) ;
+		while (0);
 	}
 
 	int nPatt = getCurPattern();
@@ -1314,6 +1305,8 @@ void RMCharacter::newBoxEntered(int nBox) {
 			case PAT_WALKLEFT:
 				setPattern(PAT_WALKRIGHT);
 				break;
+			default:
+				break;
 			}
 		}
 	}
@@ -1334,7 +1327,7 @@ void RMCharacter::doFrame(CORO_PARAM, RMGfxTargetBuffer *bigBuf, int loc) {
 	_bEndOfPath = false;
 	_bDrawNow = (_curLocation == loc);
 
-	g_system->lockMutex(_csMove);
+	_csMove.lock();
 
 	// If we're walking..
 	if (_status != STAND) {
@@ -1429,7 +1422,7 @@ void RMCharacter::doFrame(CORO_PARAM, RMGfxTargetBuffer *bigBuf, int loc) {
 		}
 	}
 
-	g_system->unlockMutex(_csMove);
+	_csMove.unlock();
 
 	// Invoke the DoFrame of the item
 	RMItem::doFrame(bigBuf);
@@ -1623,7 +1616,6 @@ void RMCharacter::removeThis(CORO_PARAM, bool &result) {
 }
 
 RMCharacter::RMCharacter() {
-	_csMove = g_system->createMutex();
 	_hEndOfPath = CoroScheduler.createEvent(false, false);
 	_minPath = 0;
 	_curSpeed = 3;
@@ -1651,7 +1643,6 @@ RMCharacter::RMCharacter() {
 }
 
 RMCharacter::~RMCharacter() {
-	g_system->deleteMutex(_csMove);
 	CoroScheduler.closeEvent(_hEndOfPath);
 }
 

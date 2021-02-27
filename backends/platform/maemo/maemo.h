@@ -31,21 +31,19 @@
 namespace Maemo {
 class MaemoSdlEventObserver;
 
-class OSystem_SDL_Maemo : public OSystem_POSIX {
+class OSystem_SDL_Maemo final : public OSystem_POSIX {
 public:
 	OSystem_SDL_Maemo();
 	~OSystem_SDL_Maemo();
 
-	virtual void init();
-	virtual void initBackend();
-	virtual void quit();
-	virtual void fatalError();
-	virtual void setWindowCaption(const char *caption);
-#ifdef ENABLE_KEYMAPPER
-	virtual Common::HardwareInputSet *getHardwareInputSet();
-	virtual Common::Keymap *getGlobalKeymap();
-	virtual Common::KeymapperDefaultBindings *getKeymapperDefaultBindings() { return _keymapperDefaultBindings; }
-#endif
+	virtual void init() override;
+	virtual void initBackend() override;
+	virtual void quit() override;
+	virtual void fatalError() override;
+	virtual void setWindowCaption(const Common::U32String &caption) override;
+	virtual Common::HardwareInputSet *getHardwareInputSet() override;
+	virtual Common::KeymapArray getGlobalKeymaps() override;
+	virtual Common::KeymapperDefaultBindings *getKeymapperDefaultBindings() override;
 
 	Model getModel() { return _model; }
 
@@ -56,9 +54,6 @@ private:
 	const Model detectModel();
 	Model _model;
 	MaemoSdlEventObserver *_eventObserver;
-#ifdef ENABLE_KEYMAPPER
-	Common::KeymapperDefaultBindings *_keymapperDefaultBindings;
-#endif
 };
 
 } // namespace Maemo

@@ -20,13 +20,6 @@
  *
  */
 
-/**
- * @file
- * PKWARE DCL ("explode") decompressor used in engines:
- * - mohawk
- * - sci
- */
-
 #ifndef COMMON_DCL_H
 #define COMMON_DCL_H
 
@@ -34,20 +27,51 @@
 
 namespace Common {
 
+/**
+ * @defgroup common_dcl Data compression library
+ * @ingroup common
+ *
+ * @brief  PKWARE data compression library (DCL).
+ *
+ * @details PKWARE DCL ("explode") ("PKWARE data compression library") decompressor used in engines:
+ *          - AGOS (exclusively for Simon 2 setup.shr file)
+ *          - Mohawk
+ *          - Neverhood
+ *          - SCI
+ * @{
+ */
+
 class ReadStream;
 class SeekableReadStream;
 
 /**
- * Try to decompress a PKWARE DCL compressed stream. Returns true if
- * successful.
+ * Decompress a PKWARE DCL compressed stream.
+ *
+ * @return Returns true if successful.
  */
-bool decompressDCL(ReadStream *src, byte *dest, uint32 packedSize, uint32 unpackedSize);
+bool decompressDCL(ReadStream *sourceStream, byte *dest, uint32 packedSize, uint32 unpackedSize);
 
 /**
- * Try to decompress a PKWARE DCL compressed stream. Returns a valid pointer
- * if successful and 0 otherwise.
+ * @overload
+ *
+ * Decompress a PKWARE DCL compressed stream.
+ *  
+ * @return Returns a valid pointer if successful or 0 otherwise.
  */
-SeekableReadStream *decompressDCL(ReadStream *src, uint32 packedSize, uint32 unpackedSize);
+SeekableReadStream *decompressDCL(SeekableReadStream *sourceStream, uint32 packedSize, uint32 unpackedSize);
+
+/**
+ * @overload
+ *
+ * Decompress a PKWARE DCL compressed stream.
+ * 
+ * This method is meant for cases, where the unpacked size is not known.
+ *
+ * @return Returns a valid pointer if successful or 0 otherwise. 
+ */
+SeekableReadStream *decompressDCL(SeekableReadStream *sourceStream);
+
+/** @} */
 
 } // End of namespace Common
 

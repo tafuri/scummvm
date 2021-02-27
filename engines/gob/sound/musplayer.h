@@ -40,8 +40,8 @@ namespace Gob {
  */
 class MUSPlayer : public AdLib {
 public:
-	MUSPlayer(Audio::Mixer &mixer);
-	~MUSPlayer();
+	MUSPlayer();
+	~MUSPlayer() override;
 
 	/** Load the instruments (.SND or .TBR) */
 	bool loadSND(Common::SeekableReadStream &snd);
@@ -55,8 +55,8 @@ public:
 
 protected:
 	// AdLib interface
-	uint32 pollMusic(bool first);
-	void rewind();
+	uint32 pollMusic(bool first) override;
+	void rewind() override;
 
 private:
 	struct Timbre {
@@ -97,7 +97,6 @@ private:
 	bool readMUSHeader(Common::SeekableReadStream &mus);
 	bool readMUSSong  (Common::SeekableReadStream &mus);
 
-	uint32 getSampleDelay(uint16 delay) const;
 	void setInstrument(uint8 voice, uint8 instrument);
 	void skipToTiming();
 

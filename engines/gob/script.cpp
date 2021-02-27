@@ -215,7 +215,7 @@ char *Script::readString(int32 length) {
 }
 
 byte Script::peekByte(int32 offset) {
-	byte v;
+	byte v = 0;
 
 	peek(&v, 1, offset);
 
@@ -299,6 +299,9 @@ char Script::evalExpr(int16 *pRes) {
 
 	case GOB_TRUE:
 		*pRes = 1;
+		break;
+
+	default:
 		break;
 	}
 

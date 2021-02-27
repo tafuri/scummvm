@@ -32,6 +32,14 @@ class MidiParser;
 namespace Audio {
 
 /**
+ * @defgroup audio_midiplayer MIDI player
+ * @ingroup audio
+ *
+ * @brief MidiPlayer class for playing MIDI sounds.
+ * @{
+ */
+
+/**
  * Simple MIDI playback class.
  *
  * @note Currently incomplete, as it lacks play() methods. This is just a
@@ -115,8 +123,8 @@ public:
 	bool hasNativeMT32() const { return _nativeMT32; }
 
 	// MidiDriver_BASE implementation
-	virtual void send(uint32 b);
-	virtual void metaEvent(byte type, byte *data, uint16 length);
+	virtual void send(uint32 b) override;
+	virtual void metaEvent(byte type, byte *data, uint16 length) override;
 
 protected:
 	/**
@@ -182,7 +190,7 @@ protected:
 	bool _nativeMT32;
 };
 
-
+/** @} */
 } // End of namespace Audio
 
 #endif

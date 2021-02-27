@@ -183,7 +183,7 @@
 #endif
 
 // mingw-w64 uses [set|long]jmp in system headers
-#ifndef __MINGW64__
+#if !defined __MINGW64__ && ! defined __MINGW32__
 #ifndef FORBIDDEN_SYMBOL_EXCEPTION_setjmp
 #undef setjmp
 #define setjmp(a)	FORBIDDEN_SYMBOL_REPLACEMENT
@@ -193,7 +193,7 @@
 #undef longjmp
 #define longjmp(a,b)	FORBIDDEN_SYMBOL_REPLACEMENT
 #endif
-#endif // __MINGW64__
+#endif // __MINGW64__ __MINGW32__
 
 #ifndef FORBIDDEN_SYMBOL_EXCEPTION_system
 #undef system
@@ -383,6 +383,11 @@
 	#define isxdigit(a)	FORBIDDEN_SYMBOL_REPLACEMENT
 	#endif
 
+	#ifndef FORBIDDEN_SYMBOL_EXCEPTION_isblank
+	#undef isblank
+	#define isblank(a)	FORBIDDEN_SYMBOL_REPLACEMENT
+	#endif
+
 #endif // FORBIDDEN_SYMBOL_EXCEPTION_ctype_h
 
 #ifndef FORBIDDEN_SYMBOL_EXCEPTION_mkdir
@@ -459,6 +464,10 @@
 #define strncasecmp(a,b,c)	FORBIDDEN_SYMBOL_REPLACEMENT
 #endif
 
+#ifndef FORBIDDEN_SYMBOL_EXCEPTION_strdup
+#undef strdup
+#define strdup(a)	FORBIDDEN_SYMBOL_REPLACEMENT
+#endif
 
 /*
  * We also would like to disable the following symbols;

@@ -87,17 +87,31 @@ private:
 	Common::String _currentDirectory;
 	Common::FSNode _rootFolder;
 	Common::List<ArchiveEntry *> _archiveList;
+	bool _extractedFiles;
+	Common::String _directoryName;
+
+	bool _useEnglishSpeech;
+	Common::String ensureSpeechLang(const Common::String &fileName);
 
 	Common::ArchiveMemberPtr getArchiveMember(const Common::String &fileName);
 
 public:
 	PackageManager(Kernel *pKernel);
-	~PackageManager();
+	~PackageManager() override;
 
 	enum FILE_TYPES {
 		FT_DIRECTORY    = (1 << 0),
 		FT_FILE         = (1 << 1)
 	};
+
+	/**
+	 *
+	 * Set the PackageManager to run on extracted game files.s
+	 */
+	void setRunWithExtractedFiles(const Common::String &directoryName) {
+		_extractedFiles = true;
+		_directoryName = directoryName;
+	}
 
 	/**
 	 * Mounts the contents of a package in the directory specified in the directory tree.

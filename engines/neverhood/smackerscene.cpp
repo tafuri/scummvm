@@ -21,6 +21,7 @@
  */
 
 #include "neverhood/smackerscene.h"
+#include "neverhood/smackerplayer.h"
 
 namespace Neverhood {
 
@@ -114,6 +115,8 @@ uint32 SmackerScene::handleMessage(int messageNum, const MessageParam &param, En
 		break;
 	case NM_ANIMATION_STOP:
 		_playNextVideoFlag = true;
+		break;
+	default:
 		break;
 	}
 	return messageResult;

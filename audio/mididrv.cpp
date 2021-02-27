@@ -28,6 +28,7 @@
 #include "common/textconsole.h"
 #include "common/translation.h"
 #include "common/util.h"
+#include "common/file.h"
 #include "gui/message.h"
 #include "audio/mididrv.h"
 #include "audio/musicplugin.h"
@@ -69,6 +70,7 @@ static const struct {
 	{ MT_APPLEIIGS,	GUIO_MIDIAPPLEIIGS },
 	{ MT_TOWNS,		GUIO_MIDITOWNS },
 	{ MT_PC98,		GUIO_MIDIPC98 },
+	{ MT_SEGACD,	GUIO_MIDISEGACD },
 	{ MT_GM,		GUIO_MIDIGM },
 	{ MT_MT32,		GUIO_MIDIMT32 },
 	{ 0,			0 },
@@ -92,9 +94,9 @@ MusicType MidiDriver::getMusicType(MidiDriver::DeviceHandle handle) {
 		return MT_MT32;
 
 	if (handle) {
-		const MusicPlugin::List p = MusicMan.getPlugins();
-		for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); m++) {
-			MusicDevices i = (**m)->getDevices();
+		const PluginList p = MusicMan.getPlugins();
+		for (PluginList::const_iterator m = p.begin(); m != p.end(); m++) {
+			MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 			for (MusicDevices::iterator d = i.begin(); d != i.end(); d++) {
 				if (handle == d->getHandle())
 					return d->getMusicType();
@@ -107,9 +109,9 @@ MusicType MidiDriver::getMusicType(MidiDriver::DeviceHandle handle) {
 
 Common::String MidiDriver::getDeviceString(DeviceHandle handle, DeviceStringType type) {
 	if (handle) {
-		const MusicPlugin::List p = MusicMan.getPlugins();
-		for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); m++) {
-			MusicDevices i = (**m)->getDevices();
+		const PluginList p = MusicMan.getPlugins();
+		for (PluginList::const_iterator m = p.begin(); m != p.end(); m++) {
+			MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 			for (MusicDevices::iterator d = i.begin(); d != i.end(); d++) {
 				if (handle == d->getHandle()) {
 					if (type == kDriverName)
@@ -133,6 +135,9 @@ Common::String MidiDriver::getDeviceString(DeviceHandle handle, DeviceStringType
 MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 	// Query the selected music device (defaults to MT_AUTO device).
 	Common::String selDevStr = ConfMan.hasKey("music_driver") ? ConfMan.get("music_driver") : Common::String("auto");
+	if ((flags & MDT_PREFER_FLUID) && selDevStr == "auto") {
+		selDevStr = "fluidsynth";
+	}
 	DeviceHandle hdl = getDeviceHandle(selDevStr.empty() ? Common::String("auto") : selDevStr);
 	DeviceHandle reslt = 0;
 
@@ -186,6 +191,11 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 			reslt = hdl;
 		break;
 
+	case MT_SEGACD:
+	if (flags & MDT_SEGACD)
+		reslt = hdl;
+	break;
+
 	case MT_GM:
 	case MT_GS:
 	case MT_MT32:
@@ -206,7 +216,9 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 		// If the expressly selected driver or device cannot be found (no longer compiled in, turned off, etc.)
 		// we display a warning and continue.
 		failedDevStr = selDevStr;
-		Common::String warningMsg = Common::String::format(_("The selected audio device '%s' was not found (e.g. might be turned off or disconnected)."), failedDevStr.c_str()) + " " + _("Attempting to fall back to the next available device...");
+		Common::U32String warningMsg = Common::U32String::format(
+			_("The selected audio device '%s' was not found (e.g. might be turned off or disconnected)."), failedDevStr.c_str())
+			+ Common::U32String(" ") + _("Attempting to fall back to the next available device...");
 		GUI::MessageDialog dialog(warningMsg);
 		dialog.runModal();
 	}
@@ -218,7 +230,9 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 		} else {
 			// If the expressly selected device cannot be used we display a warning and continue.
 			failedDevStr = getDeviceString(hdl, MidiDriver::kDeviceName);
-			Common::String warningMsg = Common::String::format(_("The selected audio device '%s' cannot be used. See log file for more information."), failedDevStr.c_str()) + " " + _("Attempting to fall back to the next available device...");
+			Common::U32String warningMsg = Common::U32String::format(
+				_("The selected audio device '%s' cannot be used. See log file for more information."), failedDevStr.c_str())
+				+ Common::U32String(" ") + _("Attempting to fall back to the next available device...");
 			GUI::MessageDialog dialog(warningMsg);
 			dialog.runModal();
 		}
@@ -226,7 +240,7 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 
 	// If the selected driver did not match the flags setting,
 	// we try to determine a suitable and "optimal" music driver.
-	const MusicPlugin::List p = MusicMan.getPlugins();
+	const PluginList p = MusicMan.getPlugins();
 	// If only MDT_MIDI but not MDT_PREFER_MT32 or MDT_PREFER_GM is set we prefer the other devices (which will always be
 	// detected since they are hard coded and cannot be disabled).
 	bool skipMidi = !(flags & (MDT_PREFER_GM | MDT_PREFER_MT32));
@@ -254,7 +268,9 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 					// we display a warning and continue. Don't warn about the missing device if we did already (this becomes relevant if the
 					// missing device is selected as preferred device and also as GM or MT-32 device).
 					if (failedDevStr != devStr) {
-						Common::String warningMsg = Common::String::format(_("The preferred audio device '%s' was not found (e.g. might be turned off or disconnected)."), devStr.c_str()) + " " + _("Attempting to fall back to the next available device...");
+						Common::U32String warningMsg = Common::U32String::format(
+							_("The preferred audio device '%s' was not found (e.g. might be turned off or disconnected)."), devStr.c_str())
+							+ Common::U32String(" ") + _("Attempting to fall back to the next available device...");
 						GUI::MessageDialog dialog(warningMsg);
 						dialog.runModal();
 					}
@@ -269,7 +285,9 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 						// Don't warn about the failing device if we did already (this becomes relevant if the failing
 						// device is selected as preferred device and also as GM or MT-32 device).
 						if (failedDevStr != getDeviceString(hdl, MidiDriver::kDeviceName)) {
-							Common::String warningMsg = Common::String::format(_("The preferred audio device '%s' cannot be used. See log file for more information."), getDeviceString(hdl, MidiDriver::kDeviceName).c_str()) + " " + _("Attempting to fall back to the next available device...");
+							Common::U32String warningMsg = Common::U32String::format(
+								_("The preferred audio device '%s' cannot be used. See log file for more information."), getDeviceString(hdl, MidiDriver::kDeviceName).c_str())
+								+ Common::U32String(" ") + _("Attempting to fall back to the next available device...");
 							GUI::MessageDialog dialog(warningMsg);
 							dialog.runModal();
 						}
@@ -280,8 +298,8 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 				// and there is no preferred MT32 or GM device selected either or if the detected device is unavailable we arrive here.
 				// If MT32 is preferred we try for the first available device with music type 'MT_MT32' (usually the mt32 emulator).
 				if (flags & MDT_PREFER_MT32) {
-					for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); ++m) {
-						MusicDevices i = (**m)->getDevices();
+					for (PluginList::const_iterator m = p.begin(); m != p.end(); ++m) {
+						MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 						for (MusicDevices::iterator d = i.begin(); d != i.end(); ++d) {
 							if (d->getMusicType() == MT_MT32) {
 								hdl = d->getHandle();
@@ -295,8 +313,8 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 				// Now we default to the first available device with music type 'MT_GM' if not
 				// MT-32 is preferred or if MT-32 is preferred but all other devices have failed.
 				if (!(flags & MDT_PREFER_MT32) || flags == (MDT_PREFER_MT32 | MDT_MIDI)) {
-					for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); ++m) {
-						MusicDevices i = (**m)->getDevices();
+					for (PluginList::const_iterator m = p.begin(); m != p.end(); ++m) {
+						MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 						for (MusicDevices::iterator d = i.begin(); d != i.end(); ++d) {
 							if (d->getMusicType() == MT_GM || d->getMusicType() == MT_GS) {
 								hdl = d->getHandle();
@@ -320,6 +338,9 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 		} else if (flags & MDT_PC98) {
 			tp = MT_PC98;
 			flags &= ~MDT_PC98;
+		} else if (flags & MDT_SEGACD) {
+			tp = MT_SEGACD;
+			flags &= ~MDT_SEGACD;
 		} else if (flags & MDT_ADLIB) {
 			tp = MT_ADLIB;
 			flags &= ~MDT_ADLIB;
@@ -348,8 +369,8 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 			tp = MT_AUTO;
 		}
 
-		for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); ++m) {
-			MusicDevices i = (**m)->getDevices();
+		for (PluginList::const_iterator m = p.begin(); m != p.end(); ++m) {
+			MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 			for (MusicDevices::iterator d = i.begin(); d != i.end(); ++d) {
 				if (d->getMusicType() == tp) {
 					hdl = d->getHandle();
@@ -365,33 +386,35 @@ MidiDriver::DeviceHandle MidiDriver::detectDevice(int flags) {
 
 MidiDriver *MidiDriver::createMidi(MidiDriver::DeviceHandle handle) {
 	MidiDriver *driver = 0;
-	const MusicPlugin::List p = MusicMan.getPlugins();
-	for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); m++) {
-		if (getDeviceString(handle, MidiDriver::kDriverId).equals((**m)->getId()))
-			(**m)->createInstance(&driver, handle);
+	const PluginList p = MusicMan.getPlugins();
+	for (PluginList::const_iterator m = p.begin(); m != p.end(); m++) {
+		const MusicPluginObject &musicPlugin = (*m)->get<MusicPluginObject>();
+		if (getDeviceString(handle, MidiDriver::kDriverId).equals(musicPlugin.getId()))
+			musicPlugin.createInstance(&driver, handle);
 	}
 
 	return driver;
 }
 
 bool MidiDriver::checkDevice(MidiDriver::DeviceHandle handle) {
-	const MusicPlugin::List p = MusicMan.getPlugins();
-	for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); m++) {
-		if (getDeviceString(handle, MidiDriver::kDriverId).equals((**m)->getId()))
-			return (**m)->checkDevice(handle);
+	const PluginList p = MusicMan.getPlugins();
+	for (PluginList::const_iterator m = p.begin(); m != p.end(); m++) {
+		const MusicPluginObject &musicPlugin = (*m)->get<MusicPluginObject>();
+		if (getDeviceString(handle, MidiDriver::kDriverId).equals(musicPlugin.getId()))
+			return musicPlugin.checkDevice(handle);
 	}
 
 	return false;
 }
 
 MidiDriver::DeviceHandle MidiDriver::getDeviceHandle(const Common::String &identifier) {
-	const MusicPlugin::List p = MusicMan.getPlugins();
+	const PluginList p = MusicMan.getPlugins();
 
 	if (p.begin() == p.end())
 		error("MidiDriver::getDeviceHandle: Music plugins must be loaded prior to calling this method");
 
-	for (MusicPlugin::List::const_iterator m = p.begin(); m != p.end(); m++) {
-		MusicDevices i = (**m)->getDevices();
+	for (PluginList::const_iterator m = p.begin(); m != p.end(); m++) {
+		MusicDevices i = (*m)->get<MusicPluginObject>().getDevices();
 		for (MusicDevices::iterator d = i.begin(); d != i.end(); d++) {
 			// The music driver id isn't unique, but it will match
 			// driver's first device. This is useful when selecting
@@ -412,7 +435,153 @@ void MidiDriver::sendMT32Reset() {
 }
 
 void MidiDriver::sendGMReset() {
-	static const byte resetSysEx[] = { 0x7E, 0x7F, 0x09, 0x01 };
-	sysEx(resetSysEx, sizeof(resetSysEx));
+	static const byte gmResetSysEx[] = { 0x7E, 0x7F, 0x09, 0x01 };
+	sysEx(gmResetSysEx, sizeof(gmResetSysEx));
+	g_system->delayMillis(100);
+
+	// Send a Roland GS reset. This will be ignored by pure GM units,
+	// but will enable certain GS features on units that support them.
+	// This is especially useful for some Yamaha units, which are put
+	// in XG mode after a GM reset, which has some compatibility
+	// problems with GS features like instrument banks and
+	// GS-exclusive drum sounds.
+	static const byte gsResetSysEx[] = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x00, 0x7F, 0x00, 0x41 };
+	sysEx(gsResetSysEx, sizeof(gsResetSysEx));
 	g_system->delayMillis(100);
 }
+
+void MidiDriver_BASE::midiDumpInit() {
+	g_system->displayMessageOnOSD(_("Starting MIDI dump"));
+	_midiDumpCache.clear();
+	_prevMillis = g_system->getMillis(true);
+}
+
+int MidiDriver_BASE::midiDumpVarLength(const uint32 &delta) {
+	// MIDI file format has a very strange representation - "Variable Length Values"
+	// we're using only *7* bits of each byte for the data
+	// the MSB bit is 1 for all bytes, except the last one
+	if (delta <= 127) {
+		// "Variable Length Values" of 1 byte
+		debugN("0x%02x", delta);
+		_midiDumpCache.push_back(delta);
+		return 1;
+	} else {
+		// "Variable Length Values" of 2 bytes
+		// theoretically, "Variable Length Values" can have more than 2 bytes, but it won't happen in our use case
+		byte msb = delta / 128;
+		msb |= 0x80;
+		byte lsb = delta % 128;
+		debugN("0x%02x,0x%02x", msb, lsb);
+		_midiDumpCache.push_back(msb);
+		_midiDumpCache.push_back(lsb);
+		return 2;
+	}
+}
+
+void MidiDriver_BASE::midiDumpDelta() {
+	uint32 millis = g_system->getMillis(true);
+	uint32 delta = millis - _prevMillis;
+	_prevMillis = millis;
+
+	debugN("MIDI : delta(");
+	int varLength = midiDumpVarLength(delta);
+	if (varLength == 1)
+		debugN("),\t ");
+	else
+		debugN("), ");
+}
+
+void MidiDriver_BASE::midiDumpDo(uint32 b) {
+	const byte status = b & 0xff;
+	const byte firstOp = (b >> 8) & 0xff;
+	const byte secondOp = (b >> 16) & 0xff;
+
+	midiDumpDelta();
+	debugN("message(0x%02x 0x%02x", status, firstOp);
+
+	_midiDumpCache.push_back(status);
+	_midiDumpCache.push_back(firstOp);
+
+	if (status < 0xc0 || status > 0xdf) {
+		_midiDumpCache.push_back(secondOp);
+		debug(" 0x%02x)", secondOp);
+	} else
+		debug(")");
+}
+
+void MidiDriver_BASE::midiDumpSysEx(const byte *msg, uint16 length) {
+	midiDumpDelta();
+	_midiDumpCache.push_back(0xf0);
+	debugN("0xf0, length(");
+	midiDumpVarLength(length + 1);		// +1 because of closing 0xf7
+	debugN("), sysex[");
+	for (int i = 0; i < length; i++) {
+		debugN("0x%x, ", msg[i]);
+		_midiDumpCache.push_back(msg[i]);
+	}
+	debug("0xf7]\t\t");
+	_midiDumpCache.push_back(0xf7);
+}
+
+
+void MidiDriver_BASE::midiDumpFinish() {
+	Common::DumpFile *midiDumpFile = new Common::DumpFile();
+	midiDumpFile->open("dump.mid");
+	midiDumpFile->write("MThd\0\0\0\x6\0\x1\0\x2", 12);		// standard MIDI file header, with two tracks
+	midiDumpFile->write("\x1\xf4", 2);						// division - 500 ticks per beat, i.e. a quarter note. Each tick is 1ms
+	midiDumpFile->write("MTrk", 4);							// start of first track - doesn't contain real data, it's just common practice to use two tracks
+	midiDumpFile->writeUint32BE(4);							// first track size
+	midiDumpFile->write("\0\xff\x2f\0", 4);			    	// meta event - end of track
+	midiDumpFile->write("MTrk", 4);							// start of second track
+	midiDumpFile->writeUint32BE(_midiDumpCache.size() + 4);	// track size (+4 because of the 'end of track' event)
+	midiDumpFile->write(_midiDumpCache.data(), _midiDumpCache.size());	
+	midiDumpFile->write("\0\xff\x2f\0", 4);			    	// meta event - end of track
+	midiDumpFile->finalize();
+	midiDumpFile->close();
+	const char msg[] = "Ending MIDI dump, created 'dump.mid'";
+	g_system->displayMessageOnOSD(_(msg));		//TODO: why it doesn't appear?
+	debug("%s", msg);
+}
+
+MidiDriver_BASE::MidiDriver_BASE() {
+	_midiDumpEnable = ConfMan.getBool("dump_midi");
+	if (_midiDumpEnable) {
+		midiDumpInit();
+	}
+}
+
+MidiDriver_BASE::~MidiDriver_BASE() {
+	if (_midiDumpEnable && !_midiDumpCache.empty()) {
+		midiDumpFinish();
+	}
+}
+
+void MidiDriver_BASE::send(byte status, byte firstOp, byte secondOp) {
+	send(status | ((uint32)firstOp << 8) | ((uint32)secondOp << 16));
+}
+
+void MidiDriver_BASE::send(int8 source, byte status, byte firstOp, byte secondOp) {
+	send(source, status | ((uint32)firstOp << 8) | ((uint32)secondOp << 16));
+}
+
+void MidiDriver_BASE::stopAllNotes(bool stopSustainedNotes) {
+	for (int i = 0; i < 16; ++i) {
+		send(0xB0 | i, MIDI_CONTROLLER_ALL_NOTES_OFF, 0);
+		if (stopSustainedNotes)
+			send(0xB0 | i, MIDI_CONTROLLER_SUSTAIN, 0); // Also send a sustain off event (bug #3116608)
+	}
+}
+
+void MidiDriver::midiDriverCommonSend(uint32 b) {
+	if (_midiDumpEnable) {
+		midiDumpDo(b);
+	}
+}
+
+void MidiDriver::midiDriverCommonSysEx(const byte *msg, uint16 length) {
+	if (_midiDumpEnable) {
+		midiDumpSysEx(msg, length);
+	}
+}
+
+

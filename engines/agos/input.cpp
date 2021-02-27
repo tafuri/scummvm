@@ -26,6 +26,7 @@
 #include "agos/intern.h"
 #include "agos/agos.h"
 #include "agos/midi.h"
+#include "agos/sound.h"
 #include "agos/vga.h"
 
 namespace AGOS {
@@ -513,14 +514,14 @@ void AGOSEngine_Elvira2::handleMouseWheelDown() {
 
 void AGOSEngine::handleMouseWheelUp() {
 	HitArea *ha = findBox(0x7FFB);
-	if (ha != NULL && (ha->flags & kBFBoxInUse)) {
+	if (ha != NULL && (ha->flags & kBFBoxInUse) && !(getGameId() == GID_ELVIRA1 && _windowNum == 3)) {
 		inventoryUp(ha->window);
 	}
 }
 
 void AGOSEngine::handleMouseWheelDown() {
 	HitArea *ha = findBox(0x7FFC);
-	if (ha != NULL && (ha->flags & kBFBoxInUse)) {
+	if (ha != NULL && (ha->flags & kBFBoxInUse) && !(getGameId() == GID_ELVIRA1 && _windowNum == 3)) {
 		inventoryDown(ha->window);
 	}
 }
@@ -707,6 +708,7 @@ bool AGOSEngine::processSpecialKeys() {
 		if (_midiEnabled) {
 			_midi->pause(_musicPaused);
 		}
+		_mixer->pauseHandle(_modHandle, _musicPaused);
 		syncSoundSettings();
 		break;
 	case 's':

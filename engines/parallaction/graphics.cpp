@@ -731,7 +731,7 @@ Gfx::Gfx(Parallaction* vm) :
 	_gameType = _vm->getGameType();
 	_doubleBuffering = _gameType != GType_Nippon;
 
-	initGraphics(_vm->_screenWidth, _vm->_screenHeight, _gameType == GType_BRA);
+	initGraphics(_vm->_screenWidth, _vm->_screenHeight);
 
 	setPalette(_palette);
 
@@ -742,6 +742,8 @@ Gfx::Gfx(Parallaction* vm) :
 	_halfbrite = false;
 	_nextProjectorPos = 0;
 	_hbCircleRadius = 0;
+
+	_overlayMode = false;
 
 	_unpackedBitmap = new byte[MAXIMUM_UNPACKED_BITMAP_SIZE];
 	assert(_unpackedBitmap);
@@ -854,8 +856,8 @@ void Gfx::setBackground(uint type, BackgroundInfo *info) {
 	_backgroundInfo->finalizePath();
 
 	if (_gameType == GType_BRA) {
-		int width = CLIP(info->width, (int)_vm->_screenWidth, info->width);
-		int height = CLIP(info->height, (int)_vm->_screenHeight, info->height);
+		int width = MAX(info->width, (int)_vm->_screenWidth);
+		int height = MAX(info->height, (int)_vm->_screenHeight);
 
 		if (width != _backBuffer.w || height != _backBuffer.h) {
 			_backBuffer.create(width, height, Graphics::PixelFormat::createFormatCLUT8());

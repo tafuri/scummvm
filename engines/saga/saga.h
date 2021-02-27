@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef SAGA_H
-#define SAGA_H
+#ifndef SAGA_SAGA_H
+#define SAGA_SAGA_H
 
 #include "engines/engine.h"
 
@@ -31,6 +31,7 @@
 #include "common/textconsole.h"
 
 #include "saga/gfx.h"
+#include "saga/detection.h"
 
 struct ADGameFileDescription;
 
@@ -106,42 +107,6 @@ class ResourceContext;
 enum ERRORCODE {
 	FAILURE = -1,
 	SUCCESS = 0
-};
-
-enum GameIds {
-	GID_ITE = 0,
-	GID_IHNM = 1,
-	GID_DINO = 2,
-	GID_FTA2 = 3
-};
-
-enum GameFileTypes {
-	// Common
-	GAME_RESOURCEFILE     = 1 << 0,    // Game resources
-	GAME_SCRIPTFILE       = 1 << 1,    // Game scripts
-	GAME_SOUNDFILE        = 1 << 2,    // SFX (also contains voices and MIDI music in SAGA 2 games)
-	GAME_VOICEFILE        = 1 << 3,    // Voices (also contains SFX in the ITE floppy version)
-	// ITE specific
-	GAME_DIGITALMUSICFILE = 1 << 4,    // ITE digital music, added by Wyrmkeep
-	GAME_MACBINARY        = 1 << 5,    // ITE Mac CD Guild
-	GAME_DEMOFILE         = 1 << 6,    // Early ITE demo
-	GAME_SWAPENDIAN       = 1 << 7,    // Used to identify the BE voice file in the ITE combined version
-	// IHNM specific
-	GAME_MUSICFILE_FM     = 1 << 8,    // IHNM
-	GAME_MUSICFILE_GM     = 1 << 9,    // IHNM, ITE Mac CD Guild
-	GAME_PATCHFILE        = 1 << 10,   // IHNM patch file (patch.re_/patch.res)
-	// SAGA 2 (Dinotopia, FTA2)
-	GAME_IMAGEFILE        = 1 << 11,   // Game images
-	GAME_OBJRESOURCEFILE  = 1 << 12    // Game object data
-};
-
-enum GameFeatures {
-	GF_ITE_FLOPPY        = 1 << 0,
-#if 0
-	GF_OLD_ITE_DOS       = 1 << 1,     // Currently unused
-#endif
-	GF_EXTRA_ITE_CREDITS = 1 << 2,
-	GF_8BIT_UNSIGNED_PCM = 1 << 3
 };
 
 enum VerbTypeIds {
@@ -269,38 +234,7 @@ enum TextStringIds {
 	kTextLoadSavedGame
 };
 
-struct GameResourceDescription {
-	uint32 sceneLUTResourceId;
-	uint32 moduleLUTResourceId;
-	uint32 mainPanelResourceId;
-	uint32 conversePanelResourceId;
-	uint32 optionPanelResourceId;
-	uint32 mainSpritesResourceId;
-	uint32 mainPanelSpritesResourceId;
-	uint32 mainStringsResourceId;
-	// ITE specific resources
-	uint32 actorsStringsResourceId;
-	uint32 defaultPortraitsResourceId;
-	// IHNM specific resources
-	uint32 optionPanelSpritesResourceId;
-	uint32 warningPanelResourceId;
-	uint32 warningPanelSpritesResourceId;
-	uint32 psychicProfileResourceId;
-};
-
-struct GameFontDescription {
-	uint32 fontResourceId;
-};
-
 struct GameDisplayInfo;
-
-struct GamePatchDescription {
-	const char *fileName;
-	uint16 fileType;
-	uint32 resourceId;
-};
-
-struct SAGAGameDescription;
 
 enum GameObjectTypes {
 	kGameObjectNone = 0,
@@ -312,7 +246,6 @@ enum GameObjectTypes {
 
 enum ScriptTimings {
 	kScriptTimeTicksPerSecond = (728L/10L),
-	kScriptTimeTicksPerSecondIHNM = 72,
 	kRepeatSpeedTicks = (728L/10L)/3,
 	kNormalFadeDuration = 320, // 64 steps, 5 msec each
 	kQuickFadeDuration = 64,  // 64 steps, 1 msec each
@@ -405,6 +338,7 @@ enum KnownColor {
 	kKnownColorBlack,
 
 	kKnownColorSubtitleTextColor,
+	kKnownColorSubtitleEffectColorPC98,
 	kKnownColorVerbText,
 	kKnownColorVerbTextShadow,
 	kKnownColorVerbTextActive
@@ -459,7 +393,8 @@ public:
 class ByteArrayReadStreamEndian : public Common::MemoryReadStreamEndian {
 public:
 	ByteArrayReadStreamEndian(const ByteArray & byteArray, bool bigEndian = false)
-		: Common::MemoryReadStreamEndian(byteArray.getBuffer(), byteArray.size(), bigEndian) {
+		: Common::MemoryReadStreamEndian(byteArray.getBuffer(), byteArray.size(), bigEndian),
+		ReadStreamEndian(bigEndian) {
 	}
 };
 
@@ -468,15 +403,13 @@ class SagaEngine : public Engine {
 
 public:
 	// Engine APIs
-	virtual Common::Error run();
-	bool hasFeature(EngineFeature f) const;
-	void syncSoundSettings();
-	void pauseEngineIntern(bool pause);
-
-	GUI::Debugger *getDebugger();
+	Common::Error run() override;
+	bool hasFeature(EngineFeature f) const override;
+	void syncSoundSettings() override;
+	void pauseEngineIntern(bool pause) override;
 
 	SagaEngine(OSystem *syst, const SAGAGameDescription *gameDesc);
-	~SagaEngine();
+	~SagaEngine() override;
 
 	void save(const char *fileName, const char *saveName);
 	void load(const char *fileName);
@@ -485,6 +418,9 @@ public:
 	}
 	void fillSaveList();
 	char *calcSaveFileName(uint slotNumber);
+	virtual Common::String getSaveStateName(int slot) const override {
+		return Common::String::format("%s.s%02u", _targetName.c_str(), slot);
+	}
 
 	SaveFileData *getSaveFile(uint idx);
 	uint getNewSaveSlotNumber() const;
@@ -587,10 +523,7 @@ public:
 	}
 
 	inline int ticksToMSec(int tick) const {
-		if (getGameId() == GID_ITE)
-			return tick * 1000 / kScriptTimeTicksPerSecond;
-		else
-			return tick * 1000 / kScriptTimeTicksPerSecondIHNM;
+		return tick * 1000 / kScriptTimeTicksPerSecond;
 	}
 
  private:
@@ -634,10 +567,10 @@ public:
 	const ADGameFileDescription *getFilesDescriptions() const;
 
 	const Common::Rect &getDisplayClip() const { return _displayClip;}
-	Common::Error loadGameState(int slot);
-	Common::Error saveGameState(int slot, const Common::String &desc);
-	bool canLoadGameStateCurrently();
-	bool canSaveGameStateCurrently();
+	Common::Error loadGameState(int slot) override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	bool canLoadGameStateCurrently() override;
+	bool canSaveGameStateCurrently() override;
 	const GameDisplayInfo &getDisplayInfo();
 
 	const char *getTextString(int textStringId);

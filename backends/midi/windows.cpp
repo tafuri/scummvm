@@ -25,12 +25,10 @@
 
 #include "common/scummsys.h"
 
-#if defined(WIN32) && !defined(_WIN32_WCE)
+#if defined(WIN32)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-// winnt.h defines ARRAYSIZE, but we want our own one...
-#undef ARRAYSIZE
 
 #include "audio/musicplugin.h"
 #include "audio/mpu401.h"
@@ -38,7 +36,6 @@
 #include "common/translation.h"
 #include "common/textconsole.h"
 #include "common/error.h"
-
 #include <mmsystem.h>
 
 ////////////////////////////////////////
@@ -47,7 +44,7 @@
 //
 ////////////////////////////////////////
 
-class MidiDriver_WIN : public MidiDriver_MPU401 {
+class MidiDriver_WIN final : public MidiDriver_MPU401 {
 private:
 	MIDIHDR _streamHeader;
 	byte _streamBuffer[266];	// SysEx blocks should be no larger than 266 bytes
@@ -60,11 +57,11 @@ private:
 
 public:
 	MidiDriver_WIN(int deviceIndex) : _isOpen(false), _device(deviceIndex) { }
-	int open();
-	bool isOpen() const { return _isOpen; }
-	void close();
-	void send(uint32 b);
-	void sysEx(const byte *msg, uint16 length);
+	int open() override;
+	bool isOpen() const override { return _isOpen; }
+	void close() override;
+	void send(uint32 b) override;
+	void sysEx(const byte *msg, uint16 length) override;
 };
 
 int MidiDriver_WIN::open() {
@@ -96,6 +93,8 @@ void MidiDriver_WIN::close() {
 void MidiDriver_WIN::send(uint32 b) {
 	assert(_isOpen);
 
+	midiDriverCommonSend(b);
+
 	union {
 		DWORD dwData;
 		BYTE bData[4];
@@ -109,6 +108,7 @@ void MidiDriver_WIN::send(uint32 b) {
 	check_error(midiOutShortMsg(_mo, u.dwData));
 }
 
+
 void MidiDriver_WIN::sysEx(const byte *msg, uint16 length) {
 	if (!_isOpen)
 		return;
@@ -119,6 +119,8 @@ void MidiDriver_WIN::sysEx(const byte *msg, uint16 length) {
 	}
 
 	assert(length+2 <= 266);
+
+	midiDriverCommonSysEx(msg, length);
 
 	midiOutUnprepareHeader(_mo, &_streamHeader, sizeof(_streamHeader));
 
@@ -184,6 +186,9 @@ MusicDevices WindowsMusicPlugin::getDevices() const {
 			break;
 		deviceNames.push_back(tmp.szPname);
 	}
+
+	// Limit us to the number of actually retrieved devices.
+	numDevs = deviceNames.size();
 
 	// Check for non-unique device names. This may happen if someone has devices with identical
 	// names (e. g. more than one USB device of the exact same hardware type). It seems that this

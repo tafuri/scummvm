@@ -1251,10 +1251,15 @@ bool Debugger::Cmd_LogicCommand(int argc, const char **argv) {
 	switch (argc) {
 		case  5:
 			arg3 = atoi(argv[4]);
+			// fall through
 		case  4:
 			arg2 = atoi(argv[3]);
+			// fall through
 		case  3:
 			arg1 = atoi(argv[2]);
+			// fall through
+		default:
+			break;
 	}
 
 	for (int i = 0; i < numMCodes; ++i) {
@@ -1270,9 +1275,9 @@ bool Debugger::Cmd_LogicCommand(int argc, const char **argv) {
 }
 
 bool Debugger::Cmd_Info(int argc, const char **argv) {
-	debugPrintf("Beneath a Steel Sky version: 0.0%d\n", SkyEngine::_systemVars.gameVersion);
-	debugPrintf("Speech: %s\n", (SkyEngine::_systemVars.systemFlags & SF_ALLOW_SPEECH) ? "on" : "off");
-	debugPrintf("Text  : %s\n", (SkyEngine::_systemVars.systemFlags & SF_ALLOW_TEXT) ? "on" : "off");
+	debugPrintf("Beneath a Steel Sky version: 0.0%d\n", SkyEngine::_systemVars->gameVersion);
+	debugPrintf("Speech: %s\n", (SkyEngine::_systemVars->systemFlags & SF_ALLOW_SPEECH) ? "on" : "off");
+	debugPrintf("Text  : %s\n", (SkyEngine::_systemVars->systemFlags & SF_ALLOW_TEXT) ? "on" : "off");
 	return true;
 }
 

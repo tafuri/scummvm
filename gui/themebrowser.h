@@ -38,13 +38,15 @@ class ThemeBrowser : public Dialog {
 public:
 	ThemeBrowser();
 
-	void open();
-	void handleCommand(CommandSender *sender, uint32 cmd, uint32 data);
+	void open() override;
+	void handleCommand(CommandSender *sender, uint32 cmd, uint32 data) override;
 
 	const Common::String &getSelected() const { return _select; }
+	const Common::String &getSelectedName() const { return _selectName; }
 private:
 	ListWidget *_fileList;
 	Common::String _select;
+	Common::String _selectName;
 
 	typedef Common::List<ThemeEngine::ThemeDescriptor> ThemeDescList;
 	ThemeDescList _themes;

@@ -41,11 +41,25 @@ BdfFont::~BdfFont() {
 		delete[] _data.bitmaps;
 		delete[] _data.advances;
 		delete[] _data.boxes;
+		delete[] _data.familyName;
+		delete[] _data.slant;
 	}
+}
+
+const char *BdfFont::getFamilyName() const {
+	return _data.familyName;
+}
+
+const char *BdfFont::getFontSlant() const {
+	return _data.slant;
 }
 
 int BdfFont::getFontHeight() const {
 	return _data.height;
+}
+
+int BdfFont::getFontSize() const {
+	return _data.size;
 }
 
 int BdfFont::getMaxCharWidth() const {
@@ -102,7 +116,7 @@ void BdfFont::drawChar(Surface *dst, uint32 chr, const int tx, const int ty, con
 	// TODO: Where is the relation between the max advance being smaller or
 	// equal to 50 and the decision of the theme designer?
 	// asserting _data.maxAdvance <= 50: let the theme designer decide what looks best
-	assert(_data.maxAdvance <= 50);
+	//assert(_data.maxAdvance <= 50);
 	assert(dst->format.bytesPerPixel == 1 || dst->format.bytesPerPixel == 2 || dst->format.bytesPerPixel == 4);
 
 	const int idx = mapToIndex(chr);
@@ -189,6 +203,9 @@ byte *loadCharacter(Common::SeekableReadStream &stream, int &encoding, int &adva
 
 	while (true) {
 		line = stream.readLine();
+		line.trim(); 	// BDF files created from unifont tools (make hex)
+						// have a rogue space character after the "BITMAP" label
+
 		if (stream.err() || stream.eos()) {
 			warning("BdfFont::loadCharacter: Premature end of file");
 			delete[] bitmap;
@@ -235,6 +252,12 @@ byte *loadCharacter(Common::SeekableReadStream &stream, int &encoding, int &adva
 			box.yOffset = yOffset;
 		} else if (line == "BITMAP") {
 			const uint bytesPerRow = (box.width + 7) / 8;
+
+			if (bitmap) {
+				warning("Bdf::loadCharacter(): Double BITMAP definitions");
+				delete[] bitmap;
+			}
+
 			byte *dst = bitmap = new byte[box.height * bytesPerRow];
 
 			for (int y = 0; y < box.height; ++y) {
@@ -261,9 +284,6 @@ byte *loadCharacter(Common::SeekableReadStream &stream, int &encoding, int &adva
 			return bitmap;
 		}
 	}
-
-	delete[] bitmap;
-	return 0;
 }
 
 void freeBitmaps(byte **bitmaps, int size) {
@@ -285,6 +305,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 	memset(bitmaps, 0, sizeof(byte *) * font.numCharacters);
 	byte *advances = new byte[font.numCharacters];
 	BdfBoundingBox *boxes = new BdfBoundingBox[font.numCharacters];
+	char *familyName = nullptr;
+	char *slant = nullptr;
 
 	int descent = -1;
 
@@ -297,6 +319,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 			delete[] bitmaps;
 			delete[] advances;
 			delete[] boxes;
+			delete[] familyName;
+			delete[] slant;
 			return 0;
 		}
 
@@ -310,6 +334,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				delete[] bitmaps;
 				delete[] advances;
 				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
 				return 0;
 			}
 
@@ -317,6 +343,17 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 			font.defaultBox.height = height;
 			font.defaultBox.xOffset = xOffset;
 			font.defaultBox.yOffset = yOffset;
+		} else if (line.hasPrefix("PIXEL_SIZE ")) {
+			if (sscanf(line.c_str(), "PIXEL_SIZE %d", &font.size) != 1) {
+				warning("BdfFont::loadFont: Invalid PIXEL_SIZE");
+				freeBitmaps(bitmaps, font.numCharacters);
+				delete[] bitmaps;
+				delete[] advances;
+				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
+				return 0;
+			}
 		} else if (line.hasPrefix("FONT_ASCENT ")) {
 			if (sscanf(line.c_str(), "FONT_ASCENT %d", &font.ascent) != 1) {
 				warning("BdfFont::loadFont: Invalid FONT_ASCENT");
@@ -324,6 +361,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				delete[] bitmaps;
 				delete[] advances;
 				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
 				return 0;
 			}
 		} else if (line.hasPrefix("FONT_DESCENT ")) {
@@ -333,6 +372,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				delete[] bitmaps;
 				delete[] advances;
 				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
 				return 0;
 			}
 		} else if (line.hasPrefix("DEFAULT_CHAR ")) {
@@ -342,6 +383,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				delete[] bitmaps;
 				delete[] advances;
 				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
 				return 0;
 			}
 		} else if (line.hasPrefix("STARTCHAR ")) {
@@ -366,6 +409,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				delete[] bitmaps;
 				delete[] advances;
 				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
 				return 0;
 			}
 
@@ -374,6 +419,48 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 				advances[encoding] = advance;
 				boxes[encoding] = box;
 			}
+		} else if (line.hasPrefix("FAMILY_NAME \"")) {
+			if (familyName != nullptr) {
+				warning("BdfFont::loadFont: Duplicated FAMILY_NAME");
+				delete[] familyName;
+			}
+			familyName = new char[line.size()];
+			Common::strlcpy(familyName, line.c_str() + 13, line.size() - 12);	// strlcpy() copies at most size-1 characters and then add a '\0'
+			char *p = &familyName[strlen(familyName)];
+			while (p != familyName && *p != '"')
+				p--;
+			if (p == familyName) {
+				warning("BdfFont::loadFont: Invalid FAMILY_NAME");
+				freeBitmaps(bitmaps, font.numCharacters);
+				delete[] bitmaps;
+				delete[] advances;
+				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
+				return 0;
+			}
+			*p = '\0'; // Remove last quote
+		} else if (line.hasPrefix("SLANT \"")) {
+			if (slant != nullptr) {
+				warning("BdfFont::loadFont: Duplicated SLANT");
+				delete[] slant;
+			}
+			slant = new char[line.size()];
+			Common::strlcpy(slant, line.c_str() + 7, line.size() - 6);  // strlcpy() copies at most size-1 characters and then add a '\0'
+			char *p = &slant[strlen(slant)];
+			while (p != slant && *p != '"')
+				p--;
+			if (p == slant) {
+				warning("BdfFont::loadFont: Invalid SLANT");
+				freeBitmaps(bitmaps, font.numCharacters);
+				delete[] bitmaps;
+				delete[] advances;
+				delete[] boxes;
+				delete[] familyName;
+				delete[] slant;
+				return 0;
+			}
+			*p = '\0'; // Remove last quote
 		} else if (line == "ENDFONT") {
 			break;
 		}
@@ -385,6 +472,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 		delete[] bitmaps;
 		delete[] advances;
 		delete[] boxes;
+		delete[] familyName;
+		delete[] slant;
 		return 0;
 	}
 
@@ -393,6 +482,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 	font.bitmaps = bitmaps;
 	font.advances = advances;
 	font.boxes = boxes;
+	font.familyName = familyName;
+	font.slant = slant;
 
 	int firstCharacter = font.numCharacters;
 	int lastCharacter = -1;
@@ -425,6 +516,8 @@ BdfFont *BdfFont::loadFont(Common::SeekableReadStream &stream) {
 		delete[] font.bitmaps;
 		delete[] font.advances;
 		delete[] font.boxes;
+		delete[] familyName;
+		delete[] slant;
 		return 0;
 	}
 
@@ -548,11 +641,11 @@ bool BdfFont::cacheFontData(const BdfFont &font, const Common::String &filename)
 BdfFont *BdfFont::loadFromCache(Common::SeekableReadStream &stream) {
 	const uint32 magic = stream.readUint32BE();
 	if (magic != BDF_FONTCACHE_TAG)
-		return 0;
+		return nullptr;
 
 	const uint32 version = stream.readUint32BE();
 	if (version != BDF_FONTCACHE_VERSION)
-		return 0;
+		return nullptr;
 
 	BdfFontData data;
 
@@ -568,7 +661,12 @@ BdfFont *BdfFont::loadFromCache(Common::SeekableReadStream &stream) {
 	data.numCharacters = stream.readUint16BE();
 
 	if (stream.err() || stream.eos())
-		return 0;
+		return nullptr;
+
+	if (data.numCharacters == 0) {
+		warning("BdfFont::loadFromCache(): Requested to load 0 characters font");
+		return nullptr;
+	}
 
 	byte **bitmaps = new byte *[data.numCharacters];
 	byte *advances = 0;
@@ -580,7 +678,7 @@ BdfFont *BdfFont::loadFromCache(Common::SeekableReadStream &stream) {
 			for (int j = 0; j < i; ++j)
 				delete[] bitmaps[i];
 			delete[] bitmaps;
-			return 0;
+			return nullptr;
 		}
 
 		if (size) {
@@ -613,12 +711,120 @@ BdfFont *BdfFont::loadFromCache(Common::SeekableReadStream &stream) {
 		delete[] bitmaps;
 		delete[] advances;
 		delete[] boxes;
-		return 0;
+		return nullptr;
 	}
 
 	data.bitmaps = bitmaps;
 	data.advances = advances;
 	data.boxes = boxes;
+	data.familyName = nullptr;
+	data.slant = nullptr;
+	data.size = data.height;
+	return new BdfFont(data, DisposeAfterUse::YES);
+}
+
+BdfFont *BdfFont::scaleFont(BdfFont *src, int newSize) {
+	if (!src) {
+		warning("BdfFont::scaleFont(): Empty font reference in scale font");
+		return nullptr;
+	}
+
+	if (src->getFontSize() == 0) {
+		warning("BdfFont::scaleFont(): Requested to scale 0 size font");
+		return nullptr;
+	}
+
+	if (src->_data.numCharacters == 0) {
+		warning("BdfFont::scaleFont(): Requested to scale 0 characters font");
+		return nullptr;
+	}
+
+	float scale = (float)newSize / (float)src->getFontSize();
+
+	BdfFontData data;
+
+	data.maxAdvance = (int)((float)src->_data.maxAdvance * scale);
+	data.height = (int)((float)src->_data.height * scale);
+	data.size = (int)((float)src->_data.size * scale);
+	data.defaultBox.width = (int)((float)src->_data.defaultBox.width * scale);
+	data.defaultBox.height = (int)((float)src->_data.defaultBox.height * scale);
+	data.defaultBox.xOffset = (int)((float)src->_data.defaultBox.xOffset * scale);
+	data.defaultBox.yOffset = (int)((float)src->_data.defaultBox.yOffset * scale);
+	data.ascent = (int)((float)src->_data.ascent * scale);
+	data.firstCharacter = src->_data.firstCharacter;
+	data.defaultCharacter = src->_data.defaultCharacter;
+	data.numCharacters = src->_data.numCharacters;
+	char *familyName = new char[1 + strlen(src->_data.familyName)];
+	strcpy(familyName, src->_data.familyName);
+	data.familyName = familyName;
+	char *slant = new char[1 + strlen(src->_data.slant)];
+	strcpy(slant, src->_data.slant);
+	data.slant = slant;
+
+	BdfBoundingBox *boxes = new BdfBoundingBox[data.numCharacters];
+	for (int i = 0; i < data.numCharacters; ++i) {
+		boxes[i].width = (int)((float)src->_data.boxes[i].width * scale);
+		boxes[i].height = (int)((float)src->_data.boxes[i].height * scale);
+		boxes[i].xOffset = (int)((float)src->_data.boxes[i].xOffset * scale);
+		boxes[i].yOffset = (int)((float)src->_data.boxes[i].yOffset * scale);
+	}
+	data.boxes = boxes;
+
+	byte *advances = new byte[data.numCharacters];
+	for (int i = 0; i < data.numCharacters; ++i) {
+		advances[i] = (int)((float)src->_data.advances[i] * scale);
+	}
+	data.advances = advances;
+
+	byte **bitmaps = new byte *[data.numCharacters];
+
+	for (int i = 0; i < data.numCharacters; i++) {
+		const BdfBoundingBox &box = data.boxes ? data.boxes[i] : data.defaultBox;
+		const BdfBoundingBox &srcBox = data.boxes ? src->_data.boxes[i] : src->_data.defaultBox;
+
+		if (src->_data.bitmaps[i]) {
+			const int bytes = ((box.width + 7) / 8) * box.height; // Dimensions have been already corrected
+			bitmaps[i] = new byte[bytes];
+
+			int srcPitch = (srcBox.width + 7) / 8;
+			int dstPitch = (box.width + 7) / 8;
+
+			byte *ptr = bitmaps[i];
+
+			for (int y = 0; y < box.height; y++) {
+				const byte *srcd = (const byte *)&src->_data.bitmaps[i][((int)((float)y / scale)) * srcPitch];
+				byte *dst = ptr;
+				byte b = 0;
+
+				for (int x = 0; x < box.width; x++) {
+					b <<= 1;
+
+					int sx = (int)((float)x / scale);
+
+					if (srcd[sx / 8] & (0x80 >> (sx % 8)))
+						b |= 1;
+
+					if (x % 8 == 7) {
+						*dst++ = b;
+						b = 0;
+					}
+				}
+
+				if (((box.width - 1) % 8)) {
+					b <<= 7 - ((box.width - 1) % 8);
+					*dst = b;
+				}
+
+				ptr += dstPitch;
+			}
+
+		} else {
+			bitmaps[i] = 0;
+		}
+	}
+
+	data.bitmaps = bitmaps;
+
 	return new BdfFont(data, DisposeAfterUse::YES);
 }
 

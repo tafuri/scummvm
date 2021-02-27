@@ -69,12 +69,11 @@ Sword25Engine::Sword25Engine(OSystem *syst, const ADGameDescription *gameDesc):
 	DebugMan.addDebugChannel(kDebugScript, "Scripts", "Script debug level");
 	DebugMan.addDebugChannel(kDebugSound, "Sound", "Sound debug level");
 
-	_console = new Sword25Console(this);
+	setDebugger(new Sword25Console(this));
 }
 
 Sword25Engine::~Sword25Engine() {
 	DebugMan.clearAllDebugChannels();
-	delete _console;
 }
 
 Common::Error Sword25Engine::run() {
@@ -95,9 +94,9 @@ Common::Error Sword25Engine::run() {
 }
 
 Common::Error Sword25Engine::appStart() {
-	// Initialize the graphics mode to ARGB8888
+	// Initialize the graphics mode to RGBA8888
 	Graphics::PixelFormat format = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
-	initGraphics(800, 600, true, &format);
+	initGraphics(800, 600, &format);
 	if (format != g_system->getScreenFormat())
 		return Common::kUnsupportedColorMode;
 
@@ -110,7 +109,9 @@ Common::Error Sword25Engine::appStart() {
 	// Load packages
 	PackageManager *packageManagerPtr = Kernel::getInstance()->getPackage();
 	if (getGameFlags() & GF_EXTRACTED) {
-		if (!packageManagerPtr->loadDirectoryAsPackage(ConfMan.get("path"), "/"))
+		Common::String gameDirectory = ConfMan.get("path");
+		packageManagerPtr->setRunWithExtractedFiles(gameDirectory);
+		if (!packageManagerPtr->loadDirectoryAsPackage(gameDirectory, "/"))
 			return Common::kUnknownError;
 	} else {
 		if (!loadPackages())
@@ -120,7 +121,7 @@ Common::Error Sword25Engine::appStart() {
 	// Pass the command line to the script engine.
 	ScriptEngine *scriptPtr = Kernel::getInstance()->getScript();
 	if (!scriptPtr) {
-		error("Script intialization failed.");
+		error("Script initialization failed.");
 		return Common::kUnknownError;
 	}
 
@@ -196,12 +197,12 @@ bool Sword25Engine::loadPackages() {
 
 bool Sword25Engine::hasFeature(EngineFeature f) const {
 	return
-		(f == kSupportsRTL);
+		(f == kSupportsReturnToLauncher);
 	// TODO: Implement more of these features?!
 #if 0
 	return
 		(f == kSupportsSubtitleOptions) ||
-		(f == kSupportsRTL) ||
+		(f == kSupportsReturnToLauncher) ||
 		(f == kSupportsLoadingDuringRuntime) ||
 		(f == kSupportsSavingDuringRuntime);
 #endif

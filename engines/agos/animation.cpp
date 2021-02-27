@@ -57,6 +57,7 @@ MoviePlayer::MoviePlayer(AGOSEngine_Feeble *vm)
 	memset(baseName, 0, sizeof(baseName));
 
 	_ticks = 0;
+	_bgSoundStream = nullptr;
 }
 
 MoviePlayer::~MoviePlayer() {
@@ -343,9 +344,9 @@ void MoviePlayerDXA::handleNextFrame() {
 }
 
 bool MoviePlayerDXA::processFrame() {
-	Graphics::Surface *screen = _vm->_system->lockScreen();
+	Graphics::Surface *screen = _vm->getBackendSurface();
 	copyFrameToBuffer((byte *)screen->getPixels(), (_vm->_screenWidth - getWidth()) / 2, (_vm->_screenHeight - getHeight()) / 2, screen->pitch);
-	_vm->_system->unlockScreen();
+	_vm->updateBackendSurface();
 
 	uint32 soundTime = _mixer->getSoundElapsedTime(_bgSound);
 	uint32 nextFrameStartTime = ((Video::VideoDecoder::VideoTrack *)getTrack(0))->getNextFrameStartTime();
@@ -494,9 +495,9 @@ void MoviePlayerSMK::nextFrame() {
 }
 
 bool MoviePlayerSMK::processFrame() {
-	Graphics::Surface *screen = _vm->_system->lockScreen();
+	Graphics::Surface *screen = _vm->getBackendSurface();
 	copyFrameToBuffer((byte *)screen->getPixels(), (_vm->_screenWidth - getWidth()) / 2, (_vm->_screenHeight - getHeight()) / 2, screen->pitch);
-	_vm->_system->unlockScreen();
+	_vm->updateBackendSurface();
 
 	uint32 waitTime = getTimeToNextFrame();
 
@@ -518,7 +519,7 @@ bool MoviePlayerSMK::processFrame() {
 
 MoviePlayer *makeMoviePlayer(AGOSEngine_Feeble *vm, const char *name) {
 	char baseName[40];
-	char filename[20];
+	char filename[45];
 
 	int baseLen = strlen(name) - 4;
 	memset(baseName, 0, sizeof(baseName));
@@ -527,7 +528,7 @@ MoviePlayer *makeMoviePlayer(AGOSEngine_Feeble *vm, const char *name) {
 	if (vm->getLanguage() == Common::DE_DEU && baseLen >= 8) {
 		// Check short filename to work around
 		// bug in a German Windows 2CD version.
-		char shortName[20];
+		char shortName[10];
 		memset(shortName, 0, sizeof(shortName));
 		memcpy(shortName, baseName, 6);
 
@@ -554,7 +555,7 @@ MoviePlayer *makeMoviePlayer(AGOSEngine_Feeble *vm, const char *name) {
 		return new MoviePlayerSMK(vm, baseName);
 	}
 
-	Common::String buf = Common::String::format(_("Cutscene file '%s' not found!"), baseName);
+	Common::U32String buf = Common::U32String::format(_("Cutscene file '%s' not found!"), baseName);
 	GUI::MessageDialog dialog(buf, _("OK"));
 	dialog.runModal();
 

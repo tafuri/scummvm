@@ -25,6 +25,7 @@
 #include "common/config-manager.h"
 #include "common/system.h"
 #include "common/events.h"
+#include "common/translation.h"
 
 #include "audio/mixer.h"
 
@@ -117,6 +118,9 @@ SagaEngine::SagaEngine(OSystem *syst, const SAGAGameDescription *gameDesc)
 	SearchMan.addSubDirectoryMatching(gameDataDir, "music");
 	SearchMan.addSubDirectoryMatching(gameDataDir, "sound");
 
+	// Location of Miles audio files (sample.ad and sample.opl) in IHNM
+	SearchMan.addSubDirectoryMatching(gameDataDir, "drivers");
+
 	// The Multi-OS version puts the voices file in the root directory of
 	// the CD. The rest of the data files are in game/itedata
 	SearchMan.addSubDirectoryMatching(gameDataDir, "game/itedata");
@@ -194,7 +198,7 @@ SagaEngine::~SagaEngine() {
 	delete _gfx;
 	_gfx = NULL;
 
-	delete _console;
+	//_console is deleted by Engine
 	_console = NULL;
 
 	delete _resource;
@@ -234,11 +238,13 @@ Common::Error SagaEngine::run() {
 			_resource = new Resource_HRS(this);
 			break;
 #endif
+		default:
+			break;
 	}
 
 	// Detect game and open resource files
 	if (!initGame()) {
-		GUIErrorMessage("Error loading game resources.");
+		GUIErrorMessage(_("Error loading game resources."));
 		return Common::kUnknownError;
 	}
 
@@ -248,7 +254,10 @@ Common::Error SagaEngine::run() {
 	_events = new Events(this);
 
 	if (!isSaga2()) {
-		_font = new Font(this);
+		if (getLanguage() == Common::JA_JPN)
+			_font = new SJISFont(this);
+		else
+			_font = new DefaultFont(this);
 		_sprite = new Sprite(this);
 		_script = new SAGA1Script(this);
 	} else {
@@ -275,6 +284,7 @@ Common::Error SagaEngine::run() {
 
 	// Graphics driver should be initialized before console
 	_console = new Console(this);
+	setDebugger(_console);
 
 	// Graphics should be initialized before music
 	_music = new Music(this, _mixer);
@@ -347,8 +357,6 @@ Common::Error SagaEngine::run() {
 	uint32 currentTicks;
 
 	while (!shouldQuit()) {
-		_console->onFrame();
-
 		if (_render->getFlags() & RF_RENDERPAUSE) {
 			// Freeze time while paused
 			_previousTicks = _system->getMillis();
@@ -481,6 +489,8 @@ const char *SagaEngine::getObjectName(uint16 objectId) const {
 			return "";
 
 		return _scene->_sceneStrings.getString(hitZone->getNameIndex());
+	default:
+		break;
 	}
 	warning("SagaEngine::getObjectName name not found for 0x%X", objectId);
 	return NULL;
@@ -499,6 +509,15 @@ const char *SagaEngine::getTextString(int textStringId) {
 			break;
 		case Common::ES_ESP:
 			lang = 3;
+			break;
+		case Common::RU_RUS:
+			lang = 4;
+			break;
+		case Common::FR_FRA:
+			lang = 5;
+			break;
+		case Common::JA_JPN:
+			lang = 6;
 			break;
 		default:
 			lang = 0;
@@ -557,6 +576,9 @@ ColorId SagaEngine::KnownColor2ColorId(KnownColor knownColor) {
 		case (kKnownColorSubtitleTextColor):
 			colorId = (ColorId)255;
 			break;
+		case (kKnownColorSubtitleEffectColorPC98):
+			colorId = (ColorId)210;
+			break;
 		case (kKnownColorVerbText):
 			colorId = kITEColorBlue;
 			break;
@@ -572,9 +594,11 @@ ColorId SagaEngine::KnownColor2ColorId(KnownColor knownColor) {
 		}
 #ifdef ENABLE_IHNM
 	} else if (getGameId() == GID_IHNM) {
-		// The default colors in the Spanish version of IHNM are shifted by one
-		// Fixes bug #1848016 - "IHNM: Wrong Subtitles Color (Spanish)"
-		int offset = (getLanguage() == Common::ES_ESP) ? 1 : 0;
+		// The default colors in the Spanish, version of IHNM are shifted by one
+		// Fixes bug #1848016 - "IHNM: Wrong Subtitles Color (Spanish)". This
+		// also applies to the German and French versions (bug #7064 - "IHNM:
+		// text mistake in german version").
+		int offset = (getFeatures() & GF_IHNM_COLOR_FIX) ? 1 : 0;
 
 		switch (knownColor) {
 		case(kKnownColorTransparent):
@@ -615,10 +639,6 @@ int SagaEngine::getTalkspeed() const {
 	return (ConfMan.getInt("talkspeed") * 3 + 255 / 2) / 255;
 }
 
-GUI::Debugger *SagaEngine::getDebugger() {
-	return _console;
-}
-
 void SagaEngine::syncSoundSettings() {
 	Engine::syncSoundSettings();
 
@@ -634,6 +654,9 @@ void SagaEngine::syncSoundSettings() {
 }
 
 void SagaEngine::pauseEngineIntern(bool pause) {
+	if (!_render || !_music)
+		return;
+
 	bool engineIsPaused = (_render->getFlags() & RF_RENDERPAUSE);
 	if (engineIsPaused == pause)
 		return;

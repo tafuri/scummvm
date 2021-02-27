@@ -79,8 +79,8 @@ bool Console::cmd_item(int argc, const char **argv) {
 		return true;
 	}
 
-	HoldItem(INV_NOICON);
-	HoldItem(strToInt(argv[1]));
+	_vm->_dialogs->HoldItem(INV_NOICON);
+	_vm->_dialogs->HoldItem(strToInt(argv[1]));
 	return false;
 }
 
@@ -117,11 +117,11 @@ bool Console::cmd_music(int argc, const char **argv) {
 		debugPrintf("Track number/offset can't be 0!\n");
 	} else if (param > 0) {
 		// Track provided
-		PlayMidiSequence(GetTrackOffset(param - 1), false);
+		_vm->_music->PlayMidiSequence(_vm->_music->GetTrackOffset(param - 1), false);
 	} else if (param < 0) {
 		// Offset provided
 		param = param * -1;
-		PlayMidiSequence(param, false);
+		_vm->_music->PlayMidiSequence(param, false);
 	}
 	return true;
 }

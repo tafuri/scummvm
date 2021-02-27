@@ -128,8 +128,7 @@ bool SXString::scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack
 			str = StringUtil::ansiToWide(_string);
 		}
 
-		//WideString subStr = str.substr(start, end - start + 1);
-		WideString subStr(str.c_str() + start, end - start + 1);
+		WideString subStr = str.substr(start, end - start + 1);
 
 		if (_gameRef->_textEncoding == TEXT_UTF8) {
 			stack->pushString(StringUtil::wideToUtf8(subStr).c_str());
@@ -170,8 +169,7 @@ bool SXString::scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack
 			str = StringUtil::ansiToWide(_string);
 		}
 
-//			WideString subStr = str.substr(start, len);
-		WideString subStr(str.c_str() + start, len);
+		WideString subStr = str.substr(start, len);
 
 		if (_gameRef->_textEncoding == TEXT_UTF8) {
 			stack->pushString(StringUtil::wideToUtf8(subStr).c_str());
@@ -262,6 +260,26 @@ bool SXString::scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack
 		return STATUS_OK;
 	}
 
+#ifdef ENABLE_HEROCRAFT
+	//////////////////////////////////////////////////////////////////////////
+	// [HeroCraft] GetCharCode
+	// Returns integer value of char at given position
+	// Used at "Pole Chudes" only
+	//////////////////////////////////////////////////////////////////////////
+	else if (strcmp(name, "GetCharCode") == 0) {
+		stack->correctParams(1);
+
+		int index = stack->pop()->getInt();
+		int result = 0;
+		if (strlen(_string) > (uint32)index) {
+			result = _string[index];
+		}
+		stack->pushInt(result);
+		
+		return STATUS_OK;
+	}
+#endif
+
 	//////////////////////////////////////////////////////////////////////////
 	// Split
 	//////////////////////////////////////////////////////////////////////////
@@ -303,7 +321,7 @@ bool SXString::scCallMethod(ScScript *script, ScStack *stack, ScStack *thisStack
 			uint32 ch = (i == str.size()) ? '\0' : str[i];
 			if (ch =='\0' || delims.contains(ch)) {
 				if (i != start) {
-					parts.push_back(WideString(str.c_str() + start, i - start + 1));
+					parts.push_back(str.substr(start, i - start));
 				} else {
 					parts.push_back(WideString());
 				}

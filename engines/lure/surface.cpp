@@ -30,6 +30,11 @@
 #include "lure/strings.h"
 #include "lure/surface.h"
 #include "common/endian.h"
+#include "common/config-manager.h"
+
+#ifdef USE_TTS
+#include "common/text-to-speech.h"
+#endif
 
 namespace Lure {
 
@@ -420,7 +425,7 @@ void Surface::wordWrap(char *text, uint16 width, char **&lines, uint8 &numLines)
 			wordEnd = strchr(wordStart, '\0') - 1;
 		}
 
-		int wordBytes = (int) (wordEnd - s + 1);
+		int wordBytes = (int)(wordEnd - s + 1);
 		uint16 wordSize = (wordBytes == 0) ? 0 : textWidth(s, wordBytes);
 		if (gDebugLevel >= ERROR_DETAILED) {
 			char wordBuffer[MAX_DESC_SIZE];
@@ -467,28 +472,44 @@ Surface *Surface::newDialog(uint16 width, uint8 numLines, const char **lines, bo
 
 	Surface *s = new Surface(width, size.y);
 	s->createDialog();
+#ifdef USE_TTS
+	Common::String text;
+#endif
 
 	uint16 yP = Surface::textY();
 	for (uint8 ctr = 0; ctr < numLines; ++ctr) {
+#ifdef USE_TTS
+		text += lines[ctr];
+#endif
 		s->writeString(Surface::textX(), yP, lines[ctr], true, color, varLength);
 		yP += squashedLines ? FONT_HEIGHT - 1 : FONT_HEIGHT;
 	}
+
+
+#ifdef USE_TTS
+	if (ConfMan.getBool("tts_narrator")) {
+		Common::TextToSpeechManager *ttsMan = g_system->getTextToSpeechManager();
+		if (ttsMan != nullptr) {
+			ttsMan->stop();
+			ttsMan->say(text.c_str());
+		}
+	}
+#endif
 
 	return s;
 }
 
 Surface *Surface::newDialog(uint16 width, const char *line, int color) {
 	char **lines;
-	char *lineCopy = strdup(line);
+	Common::String lineCopy(line);
 	uint8 numLines;
-	wordWrap(lineCopy, width - (Surface::textX() * 2), lines, numLines);
+	wordWrap(lineCopy.begin(), width - (Surface::textX() * 2), lines, numLines);
 
 	// Create the dialog
 	Surface *result = newDialog(width, numLines, const_cast<const char **>(lines), true, color);
 
 	// Deallocate used resources
 	free(lines);
-	free(lineCopy);
 
 	return result;
 }
@@ -1125,7 +1146,7 @@ bool RestartRestoreDialog::show() {
 	LureEngine &engine = LureEngine::getReference();
 
 	Sound.killSounds();
-	Sound.musicInterface_Play(60, 0);
+	Sound.musicInterface_Play(188, 0, true);
 	mouse.setCursorNum(CURSOR_ARROW);
 
 	// See if there are any savegames that can be restored
@@ -1262,6 +1283,7 @@ static const ItemDesc copyProtectElements[] = {
 	{Common::NL_NLD, 57, 40, 208, 40, WORDING_HEADER, 32},
 	{Common::ES_ESP, 57, 40, 208, 40, WORDING_HEADER, 32},
 	{Common::IT_ITA, 57, 40, 208, 40, WORDING_HEADER, 32},
+	{Common::RU_RUS, 57, 40, 208, 40, WORDING_HEADER, 32},
 
 	{Common::UNK_LANG, 138, 168, 16, 8, NUMBER_HEADER, 32},
 	{Common::UNK_LANG, 145, 168, 16, 8, NUMBER_HEADER, 32},
@@ -1411,6 +1433,58 @@ void CopyProtectionDialog::chooseCharacters() {
 	(*curHotspot)->copyTo(&screen.screen());
 
 	screen.update();
+}
+
+AudioInitIcon::AudioInitIcon() : _visible(false) {
+	if (LureEngine::getReference().isEGA()) {
+		// The icon is not shown on EGA
+		_iconSurface = 0;
+	} else {
+		// Load icon
+		_iconSurface = new Surface(Disk::getReference().getEntry(AUDIO_INIT_ICON_RESOURCE_ID), 14, 14);
+
+		Screen &screen = Screen::getReference();
+
+		// Add the colors needed for displaying the icon to the current palette
+		Palette combinedPalette;
+		Palette defaultPalette(GAME_PALETTE_RESOURCE_ID);
+		combinedPalette.palette()->copyFrom(screen.getPalette().palette(), 0, 0, 4 * 0xF8);
+		combinedPalette.palette()->copyFrom(defaultPalette.palette(), 4 * 0xF8, 4 * 0xF8, 4 * 6);
+		screen.setPalette(&combinedPalette);
+	}
+}
+
+AudioInitIcon::~AudioInitIcon() {
+	if (_iconSurface)
+		delete _iconSurface;
+}
+
+void AudioInitIcon::show() {
+	if (!LureEngine::getReference().isEGA()) {
+		Screen &screen = Screen::getReference();
+
+		_iconSurface->copyTo(&screen.screen(), 0, 185);
+		screen.update();
+		_visible = true;
+	}
+}
+
+void AudioInitIcon::hide() {
+	if (!LureEngine::getReference().isEGA()) {
+		Screen &screen = Screen::getReference();
+
+		screen.screen().fillRect(Common::Rect(0, 185, 14, 199), 0);
+		screen.update();
+		_visible = false;
+	}
+}
+
+void AudioInitIcon::toggleVisibility() {
+	if (_visible) {
+		hide();
+	} else {
+		show();
+	}
 }
 
 } // End of namespace Lure

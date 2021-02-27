@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,7 +24,7 @@
 #define BBVS_BBVS_H
 
 #include "audio/mixer.h"
-#include "audio/decoders/aiff.h"
+
 #include "common/array.h"
 #include "common/events.h"
 #include "common/file.h"
@@ -33,9 +33,10 @@
 #include "common/str.h"
 #include "common/substream.h"
 #include "common/system.h"
-#include "common/winexe.h"
-#include "common/winexe_pe.h"
+
 #include "engines/engine.h"
+
+#include "bbvs/detection.h"
 
 struct ADGameDescription;
 
@@ -217,18 +218,26 @@ static const int8 kWalkTurnTbl[] = {
 
 class BbvsEngine : public Engine {
 protected:
-	Common::Error run();
-	virtual bool hasFeature(EngineFeature f) const;
+	Common::Error run() override;
+	bool hasFeature(EngineFeature f) const override;
 public:
 	BbvsEngine(OSystem *syst, const ADGameDescription *gd);
-	~BbvsEngine();
+	~BbvsEngine() override;
 	void newGame();
 	void continueGameFromQuickSave();
 	void setNewSceneNum(int newSceneNum);
 	const Common::String getTargetName() { return _targetName; }
-private:
 	const ADGameDescription *_gameDescription;
+
+	bool isLoogieDemo() const;
+
+private:
 	Graphics::PixelFormat _pixelFormat;
+
+#ifdef USE_TRANSLATION
+	Common::String _oldGUILanguage;
+#endif
+
 public:
 	Common::RandomSource *_random;
 
@@ -399,16 +408,15 @@ public:
 
 	bool _isSaveAllowed;
 
-	bool canLoadGameStateCurrently() { return _isSaveAllowed; }
-	bool canSaveGameStateCurrently() { return _isSaveAllowed; }
-	Common::Error loadGameState(int slot);
-	Common::Error saveGameState(int slot, const Common::String &description);
+	bool canLoadGameStateCurrently() override { return _isSaveAllowed; }
+	bool canSaveGameStateCurrently() override { return _isSaveAllowed; }
+	Common::Error loadGameState(int slot) override;
+	Common::Error saveGameState(int slot, const Common::String &description, bool isAutosave = false) override;
 	void savegame(const char *filename, const char *description);
 	void loadgame(const char *filename);
-	const char *getSavegameFilename(int num);
 	bool existsSavegame(int num);
 	static Common::String getSavegameFilename(const Common::String &target, int num);
-	static kReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *in, bool loadThumbnail, SaveHeader &header);
+	WARN_UNUSED_RESULT static kReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *in, SaveHeader &header, bool skipThumbnail = true);
 
 	void allocSnapshot();
 	void freeSnapshot();

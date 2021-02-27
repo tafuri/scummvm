@@ -28,6 +28,19 @@
 
 namespace Common {
 
+uint32 WriteStream::writeStream(ReadStream *stream, uint32 dataSize) {
+	void *buf = malloc(dataSize);
+	dataSize = stream->read(buf, dataSize);
+	assert(dataSize > 0);
+	dataSize = write(buf, dataSize);
+	free(buf);
+	return dataSize;
+}
+
+uint32 WriteStream::writeStream(SeekableReadStream *stream) {
+	return writeStream(stream, stream->size());
+}
+
 void WriteStream::writeString(const String &str) {
 	write(str.c_str(), str.size());
 }
@@ -39,6 +52,37 @@ SeekableReadStream *ReadStream::readStream(uint32 dataSize) {
 	return new MemoryReadStream((byte *)buf, dataSize, DisposeAfterUse::YES);
 }
 
+Common::String ReadStream::readString(char terminator) {
+	Common::String result;
+	char c;
+
+	while ((c = (char)readByte()) != terminator && !eos())
+		result += c;
+
+	return result;
+}
+
+Common::String ReadStream::readPascalString(bool transformCR) {
+	Common::String s;
+	char *buf;
+	int len;
+	int i;
+
+	len = readByte();
+	buf = (char *)malloc(len + 1);
+	for (i = 0; i < len; i++) {
+		buf[i] = readByte();
+		if (transformCR && buf[i] == 0x0d)
+			buf[i] = '\n';
+	}
+
+	buf[i] = 0;
+
+	s = buf;
+	free(buf);
+
+	return s;
+}
 
 uint32 MemoryReadStream::read(void *dataPtr, uint32 dataSize) {
 	// Read at most as many bytes as are still available...
@@ -64,6 +108,8 @@ bool MemoryReadStream::seek(int32 offs, int whence) {
 		offs = _size + offs;
 		// Fall through
 	case SEEK_SET:
+		// Fall through
+	default:
 		_ptr = _ptrOrig + offs;
 		_pos = offs;
 		break;
@@ -78,32 +124,7 @@ bool MemoryReadStream::seek(int32 offs, int whence) {
 
 	// Reset end-of-stream flag on a successful seek
 	_eos = false;
-	return true;	// FIXME: STREAM REWRITE
-}
-
-bool MemoryWriteStreamDynamic::seek(int32 offs, int whence) {
-	// Pre-Condition
-	assert(_pos <= _size);
-	switch (whence) {
-	case SEEK_END:
-		// SEEK_END works just like SEEK_SET, only 'reversed',
-		// i.e. from the end.
-		offs = _size + offs;
-		// Fall through
-	case SEEK_SET:
-		_ptr = _data + offs;
-		_pos = offs;
-		break;
-
-	case SEEK_CUR:
-		_ptr += offs;
-		_pos += offs;
-		break;
-	}
-	// Post-Condition
-	assert(_pos <= _size);
-
-	return true;	// FIXME: STREAM REWRITE
+	return true; // FIXME: STREAM REWRITE
 }
 
 #pragma mark -
@@ -113,8 +134,8 @@ enum {
 	CR = 0x0D
 };
 
-char *SeekableReadStream::readLine(char *buf, size_t bufSize) {
-	assert(buf != 0 && bufSize > 1);
+char *SeekableReadStream::readLine(char *buf, size_t bufSize, bool handleCR) {
+	assert(buf != nullptr && bufSize > 1);
 	char *p = buf;
 	size_t len = 0;
 	char c = 0;
@@ -122,7 +143,7 @@ char *SeekableReadStream::readLine(char *buf, size_t bufSize) {
 	// If end-of-file occurs before any characters are read, return NULL
 	// and the buffer contents remain unchanged.
 	if (eos() || err()) {
-		return 0;
+		return nullptr;
 	}
 
 	// Loop as long as there is still free space in the buffer,
@@ -134,7 +155,7 @@ char *SeekableReadStream::readLine(char *buf, size_t bufSize) {
 			// If end-of-file occurs before any characters are read, return
 			// NULL and the buffer contents remain unchanged.
 			if (len == 0)
-				return 0;
+				return nullptr;
 
 			break;
 		}
@@ -142,18 +163,18 @@ char *SeekableReadStream::readLine(char *buf, size_t bufSize) {
 		// If an error occurs, return NULL and the buffer contents
 		// are indeterminate.
 		if (err())
-			return 0;
+			return nullptr;
 
 		// Check for CR or CR/LF
 		// * DOS and Windows use CRLF line breaks
 		// * Unix and OS X use LF line breaks
 		// * Macintosh before OS X used CR line breaks
-		if (c == CR) {
+		if (c == CR && handleCR) {
 			// Look at the next char -- is it LF? If not, seek back
 			c = readByte();
 
 			if (err()) {
-				return 0; // error: the buffer contents are indeterminate
+				return nullptr; // error: the buffer contents are indeterminate
 			}
 			if (eos()) {
 				// The CR was the last character in the file.
@@ -176,12 +197,12 @@ char *SeekableReadStream::readLine(char *buf, size_t bufSize) {
 	return buf;
 }
 
-String SeekableReadStream::readLine() {
+String SeekableReadStream::readLine(bool handleCR) {
 	// Read a line
 	String line;
 	while (line.lastChar() != '\n') {
 		char buf[256];
-		if (!readLine(buf, 256))
+		if (!readLine(buf, 256, handleCR))
 			break;
 		line += buf;
 	}
@@ -191,8 +212,6 @@ String SeekableReadStream::readLine() {
 
 	return line;
 }
-
-
 
 uint32 SubReadStream::read(void *dataPtr, uint32 dataSize) {
 	if (dataSize > _end - _pos) {
@@ -225,6 +244,8 @@ bool SeekableSubReadStream::seek(int32 offset, int whence) {
 		offset = size() + offset;
 		// fallthrough
 	case SEEK_SET:
+		// Fall through
+	default:
 		_pos = _begin + offset;
 		break;
 	case SEEK_CUR:
@@ -247,6 +268,19 @@ uint32 SafeSeekableSubReadStream::read(void *dataPtr, uint32 dataSize) {
 	return SeekableSubReadStream::read(dataPtr, dataSize);
 }
 
+void SeekableReadStream::hexdump(int len, int bytesPerLine, int startOffset) {
+	uint pos_ = pos();
+	uint size_ = size();
+	uint toRead = MIN<uint>(len + startOffset, size_ - pos_);
+	byte *data = (byte *)calloc(toRead, 1);
+
+	read(data, toRead);
+	Common::hexdump(data, toRead, bytesPerLine, startOffset);
+
+	free(data);
+
+	seek(pos_);
+}
 
 #pragma mark -
 
@@ -316,6 +350,13 @@ uint32 BufferedReadStream::read(void *dataPtr, uint32 dataSize) {
 			uint32 n = _parentStream->read(dataPtr, dataSize);
 			if (_parentStream->eos())
 				_eos = true;
+
+			// Fill the buffer from the user buffer so a seek back in
+			// the stream into the buffered area brings consistent data.
+			_bufSize = MIN(n, _realBufSize);
+			_pos = _bufSize;
+			memcpy(_buf, (byte *)dataPtr + n - _bufSize, _bufSize);
+
 			return alreadyRead + n;
 		}
 
@@ -348,7 +389,7 @@ uint32 BufferedReadStream::read(void *dataPtr, uint32 dataSize) {
 ReadStream *wrapBufferedReadStream(ReadStream *parentStream, uint32 bufSize, DisposeAfterUse::Flag disposeParentStream) {
 	if (parentStream)
 		return new BufferedReadStream(parentStream, bufSize, disposeParentStream);
-	return 0;
+	return nullptr;
 }
 
 #pragma mark -
@@ -379,7 +420,7 @@ BufferedSeekableReadStream::BufferedSeekableReadStream(SeekableReadStream *paren
 bool BufferedSeekableReadStream::seek(int32 offset, int whence) {
 	// If it is a "local" seek, we may get away with "seeking" around
 	// in the buffer only.
-	_eos = false;	// seeking always cancels EOS
+	_eos = false; // seeking always cancels EOS
 
 	int relOffset = 0;
 	switch (whence) {
@@ -425,7 +466,7 @@ bool BufferedSeekableReadStream::seek(int32 offset, int whence) {
 SeekableReadStream *wrapBufferedSeekableReadStream(SeekableReadStream *parentStream, uint32 bufSize, DisposeAfterUse::Flag disposeParentStream) {
 	if (parentStream)
 		return new BufferedSeekableReadStream(parentStream, bufSize, disposeParentStream);
-	return 0;
+	return nullptr;
 }
 
 #pragma mark -
@@ -500,6 +541,8 @@ public:
 
 	virtual bool flush() { return flushBuffer(); }
 
+	virtual int32 pos() const { return _pos; }
+
 };
 
 } // End of anonymous namespace
@@ -507,7 +550,7 @@ public:
 WriteStream *wrapBufferedWriteStream(WriteStream *parentStream, uint32 bufSize) {
 	if (parentStream)
 		return new BufferedWriteStream(parentStream, bufSize);
-	return 0;
+	return nullptr;
 }
 
 } // End of namespace Common

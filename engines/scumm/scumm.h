@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef SCUMM_H
-#define SCUMM_H
+#ifndef SCUMM_SCUMM_H
+#define SCUMM_SCUMM_H
 
 #include "engines/engine.h"
 
@@ -33,6 +33,7 @@
 #include "common/random.h"
 #include "common/rect.h"
 #include "common/rendermode.h"
+#include "common/serializer.h"
 #include "common/str.h"
 #include "common/textconsole.h"
 #include "graphics/surface.h"
@@ -88,8 +89,8 @@ class MusicEngine;
 class Player_Towns;
 class ScummEngine;
 class ScummDebugger;
-class Serializer;
 class Sound;
+class Localizer;
 
 struct Box;
 struct BoxCoords;
@@ -102,61 +103,6 @@ extern ScummEngine *g_scumm;
 enum {
 	NUM_SENTENCE = 6,
 	NUM_SHADOW_PALETTE = 8
-};
-
-/**
- * SCUMM feature flags define for every game which specific set of engine
- * features are used by that game.
- * Note that some of them could be replaced by checks for the SCUMM version.
- */
-enum GameFeatures {
-	/** A demo, not a full blown game. */
-	GF_DEMO                = 1 << 0,
-
-	/** Games with the AKOS costume system (ScummEngine_v7 and subclasses, HE games). */
-	GF_NEW_COSTUMES        = 1 << 2,
-
-	/** Games using XOR encrypted data files. */
-	GF_USE_KEY             = 1 << 4,
-
-	/** Small header games (ScummEngine_v4 and subclasses). */
-	GF_SMALL_HEADER        = 1 << 5,
-
-	/** Old bundle games (ScummEngine_v3old and subclasses). */
-	GF_OLD_BUNDLE          = 1 << 6,
-
-	/** EGA games. */
-	GF_16COLOR             = 1 << 7,
-
-	/** VGA versions of V3 games.  Equivalent to (version == 3 && not GF_16COLOR) */
-	GF_OLD256              = 1 << 8,
-
-	/** Games which have Audio CD tracks. */
-	GF_AUDIOTRACKS         = 1 << 9,
-
-	/**
-	 * Games using only very few local variables in scripts.
-	 * Apparently that is only the case for 256 color version of Indy3.
-	 */
-	GF_FEW_LOCALS          = 1 << 11,
-
-	/** HE games for which localized versions exist */
-	GF_HE_LOCALIZED        = 1 << 13,
-
-	/**
-	 *  HE games with more global scripts and different sprite handling
-	 *  i.e. read it as HE version 9.85. Used for HE98 only.
-	 */
-	GF_HE_985             = 1 << 14,
-
-	/** HE games with 16 bit color */
-	GF_16BIT_COLOR         = 1 << 15,
-
-	/**
-	 * SCUMM v5-v7 Mac games stored in a container file
-	 * Used to differentiate between m68k and PPC versions of Indy4
-	 */
-	GF_MAC_CONTAINER       = 1 << 16
 };
 
 /* SCUMM Debug Channels */
@@ -172,7 +118,8 @@ enum {
 	DEBUG_SOUND	=	1 << 7,		// General Sound Debug
 	DEBUG_ACTORS	=	1 << 8,		// General Actor Debug
 	DEBUG_INSANE	=	1 << 9,		// Track INSANE
-	DEBUG_SMUSH	=	1 << 10		// Track SMUSH
+	DEBUG_SMUSH	=	1 << 10,		// Track SMUSH
+	DEBUG_MOONBASE_AI = 1 << 11		// Moonbase AI
 };
 
 struct VerbSlot;
@@ -218,48 +165,6 @@ enum {
 	MBS_MAX_KEY	= 0x0200
 };
 
-enum ScummGameId {
-	GID_CMI,
-	GID_DIG,
-	GID_FT,
-	GID_INDY3,
-	GID_INDY4,
-	GID_LOOM,
-	GID_MANIAC,
-	GID_MONKEY_EGA,
-	GID_MONKEY_VGA,
-	GID_MONKEY,
-	GID_MONKEY2,
-	GID_PASS,
-	GID_SAMNMAX,
-	GID_TENTACLE,
-	GID_ZAK,
-
-	GID_HEGAME,      // Generic name for all HE games with default behavior
-	GID_PUTTDEMO,
-	GID_FBEAR,
-	GID_PUTTMOON,
-	GID_FUNPACK,
-	GID_PUTTZOO,
-	GID_FREDDI3,
-	GID_BIRTHDAYRED,
-	GID_BIRTHDAYYELLOW,
-	GID_TREASUREHUNT,
-	GID_PUTTRACE,
-	GID_FUNSHOP,	// Used for all three funshops
-	GID_FOOTBALL,
-	GID_FOOTBALL2002,
-	GID_SOCCER,
-	GID_SOCCERMLS,
-	GID_SOCCER2004,
-	GID_BASEBALL2001,
-	GID_BASEBALL2003,
-	GID_BASKETBALL,
-	GID_MOONBASE,
-	GID_PJGAMES,
-	GID_HECUP		// CUP demos
-};
-
 struct SentenceTab {
 	byte verb;
 	byte preposition;
@@ -298,7 +203,14 @@ struct StringTab : StringSlot {
 	}
 };
 
+struct ScummEngine_v0_Delays {
+	bool _screenScroll;
+	uint _objectRedrawCount;
+	uint _objectStripRedrawCount;
+	uint _actorRedrawCount;
+	uint _actorLimbRedrawDrawCount;
 
+};
 
 enum WhereIsObject {
 	WIO_NOT_FOUND = -1,
@@ -367,7 +279,7 @@ class ResourceManager;
 /**
  * Base class for all SCUMM engines.
  */
-class ScummEngine : public Engine {
+class ScummEngine : public Engine, public Common::Serializable {
 	friend class ScummDebugger;
 	friend class CharsetRenderer;
 	friend class CharsetRendererTownsClassic;
@@ -385,7 +297,6 @@ public:
 
 	VerbSlot *_verbs;
 	ObjectData *_objs;
-	ScummDebugger *_debugger;
 
 	// Core variables
 	GameSettings _game;
@@ -408,29 +319,33 @@ protected:
 public:
 	// Constructor / Destructor
 	ScummEngine(OSystem *syst, const DetectorResult &dr);
-	virtual ~ScummEngine();
+	~ScummEngine() override;
 
 	// Engine APIs
 	Common::Error init();
 	Common::Error go();
-	virtual Common::Error run() {
+	Common::Error run() override {
 		Common::Error err;
 		err = init();
 		if (err.getCode() != Common::kNoError)
 			return err;
 		return go();
 	}
-	virtual void errorString(const char *buf_input, char *buf_output, int buf_output_size);
-	virtual GUI::Debugger *getDebugger();
-	virtual bool hasFeature(EngineFeature f) const;
-	virtual void syncSoundSettings();
 
-	virtual Common::Error loadGameState(int slot);
-	virtual bool canLoadGameStateCurrently();
-	virtual Common::Error saveGameState(int slot, const Common::String &desc);
-	virtual bool canSaveGameStateCurrently();
+	void errorString(const char *buf_input, char *buf_output, int buf_output_size) override;
+	bool hasFeature(EngineFeature f) const override;
+	void syncSoundSettings() override;
 
-	virtual void pauseEngineIntern(bool pause);
+	Common::Error loadGameState(int slot) override;
+	bool canLoadGameStateCurrently() override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	bool canSaveGameStateCurrently() override;
+	bool canSaveAutosaveCurrently() override {
+		// Keep base engine autosave code disabled in favour of engine's autosave code
+		return false;
+	}
+
+	void pauseEngineIntern(bool pause) override;
 
 protected:
 	virtual void setupScumm();
@@ -442,8 +357,9 @@ protected:
 	void setupCharsetRenderer();
 	void setupCostumeRenderer();
 
-	virtual void loadLanguageBundle() {}
+	virtual void loadLanguageBundle();
 	void loadCJKFont();
+	void loadKorFont();
 	void setupMusic(int midi);
 	void setTalkSpeed(int talkspeed);
 	int getTalkSpeed();
@@ -486,15 +402,16 @@ protected:
 	Dialog *_messageDialog;
 	Dialog *_versionDialog;
 
-	virtual int runDialog(Dialog &dialog);
 	void confirmExitDialog();
 	void confirmRestartDialog();
 	void pauseDialog();
-	void messageDialog(const char *message);
+	void messageDialog(const Common::U32String &message);
 	void versionDialog();
 
+public:
 	char displayMessage(const char *altButton, const char *message, ...) GCC_PRINTF(3, 4);
 
+protected:
 	byte _fastMode;
 
 	byte _numActors;
@@ -600,10 +517,10 @@ protected:
 	bool saveState(int slot, bool compat, Common::String &fileName);
 	bool loadState(int slot, bool compat);
 	bool loadState(int slot, bool compat, Common::String &fileName);
-	virtual void saveOrLoad(Serializer *s);
-	void saveResource(Serializer *ser, ResType type, ResId idx);
-	void loadResource(Serializer *ser, ResType type, ResId idx);
-	void loadResourceOLD(Serializer *ser, ResType type, ResId idx);	// "Obsolete"
+	void saveLoadWithSerializer(Common::Serializer &s) override;
+	void saveResource(Common::Serializer &ser, ResType type, ResId idx);
+	void loadResource(Common::Serializer &ser, ResType type, ResId idx);
+	void loadResourceOLD(Common::Serializer &ser, ResType type, ResId idx);	// "Obsolete"
 
 	virtual Common::SeekableReadStream *openSaveFileForReading(int slot, bool compat, Common::String &fileName);
 	virtual Common::WriteStream *openSaveFileForWriting(int slot, bool compat, Common::String &fileName);
@@ -704,6 +621,7 @@ protected:
 	virtual int readVar(uint var);
 	virtual void writeVar(uint var, int value);
 
+protected:
 	void beginCutscene(int *args);
 	void endCutscene();
 	void abortCutscene();
@@ -748,9 +666,9 @@ protected:
 //	void nukeResource(ResType type, ResId idx);
 	int getResourceRoomNr(ResType type, ResId idx);
 	virtual uint32 getResourceRoomOffset(ResType type, ResId idx);
-	int getResourceSize(ResType type, ResId idx);
 
 public:
+	int getResourceSize(ResType type, ResId idx);
 	byte *getResourceAddress(ResType type, ResId idx);
 	virtual byte *getStringAddress(ResId idx);
 	byte *getStringAddressVar(int i);
@@ -1096,6 +1014,8 @@ public:
 	// Indy4 Amiga specific
 	byte *_verbPalette;
 
+	ScummEngine_v0_Delays _V0Delay;
+
 protected:
 	int _shadowPaletteSize;
 	byte _currentPalette[3 * 256];
@@ -1130,6 +1050,8 @@ public:
 
 	byte getNumBoxes();
 	byte *getBoxMatrixBaseAddr();
+	byte *getBoxConnectionBase(int box);
+
 	int getNextBox(byte from, byte to);
 
 	void setBoxFlags(int box, int val);
@@ -1153,6 +1075,7 @@ protected:
 		int x1, y1, scale1;
 		int x2, y2, scale2;
 	};
+	friend void syncWithSerializer(Common::Serializer &, ScaleSlot &);
 	ScaleSlot _scaleSlots[20];
 	void setScaleSlot(int slot, int x1, int y1, int scale1, int x2, int y2, int scale2);
 	void setBoxScaleSlot(int box, int slot);
@@ -1182,8 +1105,11 @@ protected:
 	byte _charsetBuffer[512];
 
 	bool _keepText;
+	byte _msgCount;
 
 	int _nextLeft, _nextTop;
+
+	Localizer *_localizer;
 
 	void restoreCharsetBg();
 	void clearCharsetMask();
@@ -1197,6 +1123,7 @@ protected:
 	virtual void CHARSET_1();
 	bool newLine();
 	void drawString(int a, const byte *msg);
+	void fakeBidiString(byte *ltext, bool ignoreVerb);
 	void debugMessage(const byte *msg);
 	void showMessageDialog(const byte *msg);
 
@@ -1214,13 +1141,52 @@ public:
 
 	// Somewhat hackish stuff for 2 byte support (Chinese/Japanese/Korean)
 	bool _useCJKMode;
+	bool _useMultiFont;
+	int _numLoadedFont;
+	int _currentFont;
+	int _2byteShadow;
+
 	int _2byteHeight;
 	int _2byteWidth;
+	int _krStrPost;
 	byte _newLineCharacter;
 	byte *get2byteCharPtr(int idx);
 
-protected:
+	bool isScummvmKorTarget();
+
+//protected:
 	byte *_2byteFontPtr;
+	byte *_2byteMultiFontPtr[20];
+	int _2byteMultiHeight[20];
+	int _2byteMultiWidth[20];
+	int _2byteMultiShadow[20];
+
+private:
+	struct TranslatedLine {
+		uint32 originalTextOffset;
+		uint32 translatedTextOffset;
+	};
+
+	struct TranslationRange {
+		uint32 left;
+		uint32 right;
+
+		TranslationRange(uint32 left_, uint32 right_) : left(left_), right(right_) {}
+		TranslationRange() : left(0), right(0) {}
+	};
+
+	struct TranslationRoom {
+		Common::HashMap<uint32, TranslationRange> scriptRanges;
+	};
+
+	bool _existLanguageFile;
+	byte *_languageBuffer;
+	int _numTranslatedLines;
+	TranslatedLine *_translatedLines;
+	uint16 *_languageLineIndex;
+	Common::HashMap<byte, TranslationRoom> _roomIndex;
+
+	const byte *searchTranslatedLine(const byte *text, const TranslationRange &range, bool useIndex);
 
 public:
 
@@ -1382,6 +1348,7 @@ public:
 
 protected:
 	void towns_drawStripToScreen(VirtScreen *vs, int dstX, int dstY, int srcX, int srcY, int w, int h);
+	void towns_clearStrip(int strip);
 #ifdef USE_RGB_COLOR
 	void towns_setPaletteFromPtr(const byte *ptr, int numcolor = -1);
 	void towns_setTextPaletteFromPtr(const byte *ptr);
@@ -1390,9 +1357,21 @@ protected:
 	void towns_processPalCycleField();
 	void towns_resetPalCycleFields();
 	void towns_restoreCharsetBg();
+	void towns_scriptScrollEffect(int dir);
+
+	void requestScroll(int dir);
+	void scrollLeft() {	requestScroll(-1); }
+	void scrollRight() { requestScroll(1); }
+	void towns_waitForScroll(int waitForDirection, int threshold = 0);
+	void towns_updateGfx();
 
 	Common::Rect _cyclRects[16];
 	int _numCyclRects;
+	int _scrollRequest;
+	int _scrollDeltaAdjust;
+	uint32 _scrollTimer;
+	uint32 _scrollDestOffset;
+	uint16 _scrollFeedStrips[3];
 
 	Common::Rect _curStringRect;
 
@@ -1403,6 +1382,11 @@ protected:
 	static const uint8 _townsLayer2Mask[];
 
 	TownsScreen *_townsScreen;
+#else
+	void scrollLeft() { redrawBGStrip(_gdi->_numStrips - 1, 1); }
+	void scrollRight() { redrawBGStrip(0, 1); }
+	void towns_updateGfx() {}
+	void towns_waitForScroll(int waitForDirection, int threshold = 0) {}
 #endif // DISABLE_TOWNS_DUAL_LAYER_MODE
 };
 

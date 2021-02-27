@@ -64,6 +64,9 @@ struct CinepakFrame {
  * Cinepak decoder.
  *
  * Used by BMP/AVI and PICT/QuickTime.
+ *
+ * Used in engines:
+ *  - sherlock
  */
 class CinepakDecoder : public Codec {
 public:
@@ -88,10 +91,10 @@ private:
 
 	byte *_ditherPalette;
 	bool _dirtyPalette;
-	byte *_rgbLookup;
 	byte *_colorMap;
 	DitherType _ditherType;
 
+	void initializeCodebook(uint16 strip, byte codebookType);
 	void loadCodebook(Common::SeekableReadStream &stream, uint16 strip, byte codebookType, byte chunkID, uint32 chunkSize);
 	void decodeVectors(Common::SeekableReadStream &stream, uint16 strip, byte chunkID, uint32 chunkSize);
 

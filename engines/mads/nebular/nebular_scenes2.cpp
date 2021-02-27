@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -103,7 +103,7 @@ void Scene2xx::sceneEntrySound() {
 				_vm->_sound->command(1);
 			else
 				_vm->_sound->command(9);
-				break;
+			break;
 		case 216:
 			_vm->_sound->command(16);
 			break;
@@ -184,6 +184,8 @@ void Scene201::enter() {
 		case 4:
 			suffixNum = 2;
 			endTrigger = 78;
+			break;
+		default:
 			break;
 		}
 		_globals[kTeleporterCommand] = 0;
@@ -484,7 +486,7 @@ void Scene202::enter() {
 		}
 
 		_scene->loadAnimation(formAnimName('M', -1), 71);
-		_scene->_activeAnimation->setCurrentFrame(200);
+		_scene->_animation[0]->setCurrentFrame(200);
 	} else {
 		if (_ladderTopFl) {
 			_game._player._visible = false;
@@ -596,7 +598,7 @@ void Scene202::step() {
 		break;
 	}
 
-	if (!_scene->_activeAnimation && (_globals[kMeteorologistStatus] != METEOROLOGIST_GONE) && (_meteoClock2 <= _scene->_frameStartTime) && (_meteoClock1 <= _scene->_frameStartTime)) {
+	if (!_scene->_animation[0] && (_globals[kMeteorologistStatus] != METEOROLOGIST_GONE) && (_meteoClock2 <= _scene->_frameStartTime) && (_meteoClock1 <= _scene->_frameStartTime)) {
 		int randVal = _vm->getRandomNumber(1, 500);
 		int threshold = 1;
 		if (_ladderTopFl)
@@ -615,11 +617,11 @@ void Scene202::step() {
 		}
 	}
 
-	if (!_scene->_activeAnimation)
+	if (!_scene->_animation[0])
 		return;
 
 	if (_waitingMeteoFl) {
-		if (_scene->_activeAnimation->getCurrentFrame() >= 200) {
+		if (_scene->_animation[0]->getCurrentFrame() >= 200) {
 			if ((_globals[kMeteorologistWatch] == METEOROLOGIST_TOWER) || _globals[kLadderBroken]) {
 				_scene->_nextSceneId = 213;
 			} else {
@@ -628,7 +630,7 @@ void Scene202::step() {
 			}
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() == 160) && (_meteoFrame != _scene->_activeAnimation->getCurrentFrame())) {
+		if ((_scene->_animation[0]->getCurrentFrame() == 160) && (_meteoFrame != _scene->_animation[0]->getCurrentFrame())) {
 			Common::Point msgPos;
 			int msgFlag;
 			if (!_ladderTopFl) {
@@ -647,15 +649,15 @@ void Scene202::step() {
 		_toTeleportFl = true;
 	}
 
-	if (_scene->_activeAnimation->getCurrentFrame() == _meteoFrame) {
+	if (_scene->_animation[0]->getCurrentFrame() == _meteoFrame) {
 		return;
 	}
 
-	_meteoFrame = _scene->_activeAnimation->getCurrentFrame();
+	_meteoFrame = _scene->_animation[0]->getCurrentFrame();
 	int randVal = _vm->getRandomNumber(1, 1000);
 	int frameStep = -1;
 
-	switch (_scene->_activeAnimation->getCurrentFrame()) {
+	switch (_scene->_animation[0]->getCurrentFrame()) {
 	case 42:
 	case 77:
 	case 96:
@@ -691,10 +693,12 @@ void Scene202::step() {
 		if (randVal <= 700)
 			frameStep = 126;
 		break;
+	default:
+		break;
 	}
 
-	if (frameStep >= 0 && frameStep != _scene->_activeAnimation->getCurrentFrame() + 1) {
-		_scene->_activeAnimation->setCurrentFrame(frameStep);
+	if (frameStep >= 0 && frameStep != _scene->_animation[0]->getCurrentFrame() + 1) {
+		_scene->_animation[0]->setCurrentFrame(frameStep);
 		_meteoFrame = frameStep;
 	}
 }
@@ -797,7 +801,7 @@ void Scene202::actions() {
 		_scene->_nextSceneId = 203;
 	} else if (_action.isAction(VERB_WALK_TOWARDS, NOUN_FIELD_TO_NORTH)) {
 		if (_globals[kMeteorologistStatus] != METEOROLOGIST_GONE) {
-			if (_scene->_activeAnimation)
+			if (_scene->_animation[0])
 				_globals[kMeteorologistStatus] = METEOROLOGIST_PRESENT;
 			else
 				_globals[kMeteorologistStatus] = METEOROLOGIST_ABSENT;
@@ -890,7 +894,7 @@ void Scene202::actions() {
 				_globals._sequenceIndexes[10] = _scene->_sequences.startCycle(_globals._spriteIndexes[9], false, 6);
 				_scene->_sequences.setDepth(_globals._sequenceIndexes[10], 1);
 				_scene->_sequences.setPosition(_globals._sequenceIndexes[10], Common::Point(172, 123));
-				if (_scene->_activeAnimation) {
+				if (_scene->_animation[0]) {
 					_waitingMeteoFl = true;
 					_globals[kMeteorologistWatch] = METEOROLOGIST_GROUND;
 				} else {
@@ -898,7 +902,7 @@ void Scene202::actions() {
 				}
 				break;
 			case 2:
-				if (!_scene->_activeAnimation && !_meteorologistSpecial) {
+				if (!_scene->_animation[0] && !_meteorologistSpecial) {
 					_vm->_dialogs->show(20222);
 				}
 				_scene->_sequences.remove(_globals._sequenceIndexes[10]);
@@ -932,13 +936,13 @@ void Scene202::actions() {
 				_globals._sequenceIndexes[10] = _scene->_sequences.startCycle(_globals._spriteIndexes[9], true, -2);
 				_scene->_sequences.setPosition(_globals._sequenceIndexes[10], Common::Point(247, 82));
 				_scene->_sequences.setDepth(_globals._sequenceIndexes[10], 1);
-				if (_scene->_activeAnimation) {
-					if (_scene->_activeAnimation->getCurrentFrame() > 200) {
+				if (_scene->_animation[0]) {
+					if (_scene->_animation[0]->getCurrentFrame() > 200) {
 						_scene->_sequences.addTimer(120, 2);
 					} else {
 						_waitingMeteoFl = true;
 						_globals[kMeteorologistWatch] = METEOROLOGIST_GONE;
-						if ((_scene->_activeAnimation->getCurrentFrame() >= 44) && (_scene->_activeAnimation->getCurrentFrame() <= 75)) {
+						if ((_scene->_animation[0]->getCurrentFrame() >= 44) && (_scene->_animation[0]->getCurrentFrame() <= 75)) {
 							_scene->_kernelMessages.reset();
 							int msgIndex = _scene->_kernelMessages.add(Common::Point(248, 15), 0x1110, 32, 0, 60, _game.getQuote(100));
 							_scene->_kernelMessages.setQuoted(msgIndex, 4, false);
@@ -952,7 +956,7 @@ void Scene202::actions() {
 				}
 				break;
 			case 2:
-				if (!_scene->_activeAnimation)
+				if (!_scene->_animation[0])
 					_vm->_dialogs->show(20222);
 				_meteorologistSpecial = false;
 				_scene->_sequences.remove(_globals._sequenceIndexes[10]);
@@ -1227,7 +1231,7 @@ void Scene205::enter() {
 
 	if (_globals[kSexOfRex] != SEX_MALE) {
 		_scene->loadAnimation(formAnimName('a', -1));
-		_scene->_activeAnimation->_resetFlag = true;
+		_scene->_animation[0]->_resetFlag = true;
 	} else {
 		_beingKicked = true;
 		_globals._sequenceIndexes[8] = _scene->_sequences.addSpriteCycle(_globals._spriteIndexes[8], false, 8, 1, 0, 0);
@@ -1284,7 +1288,7 @@ void Scene205::step() {
 }
 
 void Scene205::handleWomanSpeech(int quote) {
-	_kernelMessage = _scene->_kernelMessages.add(Common::Point(186, 27), 0xFBFA, 0, 0, 9999999, _game.getQuote(quote));
+	_kernelMessage = _scene->_kernelMessages.add(Common::Point(186, 27), 0xFBFA, 0, 0, INDEFINITE_TIMEOUT, _game.getQuote(quote));
 }
 
 void Scene205::actions() {
@@ -1379,8 +1383,8 @@ void Scene205::actions() {
 			_scene->_sequences.updateTimeout(_globals._sequenceIndexes[9], -1);
 			_vm->_sound->command(27);
 		} else if (_game._trigger == 1) {
-			if (_scene->_activeAnimation != nullptr)
-				_scene->_activeAnimation->resetSpriteSetsCount();
+			if (_scene->_animation[0] != nullptr)
+				_scene->_animation[0]->resetSpriteSetsCount();
 
 			_vm->_dialogs->show(20516);
 			_scene->_reloadSceneFlag = true;
@@ -1405,9 +1409,9 @@ void Scene205::actions() {
 			_vm->_dialogs->show(20503);
 		else if (_action.isAction(VERB_LOOK, NOUN_HUT))
 			_vm->_dialogs->show(20504);
-		else if (_action.isAction(VERB_LOOK, NOUN_CHICKEN) && (_action._mainObjectSource == 4))
+		else if (_action.isAction(VERB_LOOK, NOUN_CHICKEN) && (_action._mainObjectSource == CAT_HOTSPOT))
 			_vm->_dialogs->show(20505);
-		else if (_action.isAction(VERB_TAKE, NOUN_CHICKEN) && (_action._mainObjectSource == 4))
+		else if (_action.isAction(VERB_TAKE, NOUN_CHICKEN) && (_action._mainObjectSource == CAT_HOTSPOT))
 			_vm->_dialogs->show(20506);
 		else if (_action.isAction(VERB_LOOK, NOUN_CHICKEN_ON_SPIT))
 			_vm->_dialogs->show(20507);
@@ -1702,6 +1706,8 @@ void Scene208::updateTrap() {
 		_scene->_dynamicHotspots[idx]._articleNumber = PREP_ON;
 		}
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1746,9 +1752,9 @@ void Scene208::enter() {
 }
 
 void Scene208::step() {
-	if (_boundingFl && _scene->_activeAnimation &&
-			(_rhotundaTime <= _scene->_activeAnimation->getCurrentFrame())) {
-		_rhotundaTime = _scene->_activeAnimation->getCurrentFrame();
+	if (_boundingFl && _scene->_animation[0] &&
+			(_rhotundaTime <= _scene->_animation[0]->getCurrentFrame())) {
+		_rhotundaTime = _scene->_animation[0]->getCurrentFrame();
 
 		if (_rhotundaTime == 125)
 			_scene->_sequences.remove(_globals._sequenceIndexes[4]);
@@ -1778,6 +1784,8 @@ void Scene208::step() {
 		break;
 	case 82:
 		_game._player._stepEnabled = true;
+		break;
+	default:
 		break;
 	}
 }
@@ -2022,6 +2030,8 @@ void Scene209::handlePause() {
 		else
 			_pauseMode = 0;
 		break;
+	default:
+		break;
 	}
 }
 
@@ -2032,6 +2042,8 @@ void Scene209::initPauseCounterThreshold() {
 		_pauseCounterThreshold = _vm->getRandomNumber(7,12);
 		_pauseMode = 2;
 		_pauseCounter = 0;
+		break;
+	default:
 		break;
 	}
 }
@@ -2077,6 +2089,9 @@ void Scene209::handlePeek() {
 		_scene->_hotspots.activate(227, false);
 		_playingAnimFl = false;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2108,6 +2123,9 @@ void Scene209::handleVerticalMove() {
 		_pauseMode = 1;
 		_playingAnimFl = false;
 		_scene->_hotspots.activate(227, false);
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2151,6 +2169,9 @@ void Scene209::handleLookStay() {
 	case 149:
 		_playingAnimFl = false;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2175,6 +2196,9 @@ void Scene209::handleLookRight() {
 		_playingAnimFl = false;
 		if (_dodgeFl)
 			_shouldDodgeFl = true;
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2203,6 +2227,9 @@ void Scene209::handleBlink() {
 		_playingAnimFl = false;
 		if (_dodgeFl)
 			_shouldDodgeFl = true;
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2250,6 +2277,9 @@ void Scene209::handleGetBinoculars() {
 	case 165:
 		_vm->_sound->command(18);
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2279,6 +2309,9 @@ void Scene209::handleBinocularBlink() {
 		if (_fallFl)
 			_shouldFallFl = true;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2303,6 +2336,8 @@ void Scene209::handleBinocularScan() {
 			break;
 		case 2:
 			_globals._sequenceIndexes[3] = _scene->_sequences.startPingPongCycle(_globals._spriteIndexes[3], false, 12, 4, 0, 0);
+			break;
+		default:
 			break;
 		}
 		_scene->_sequences.setAnimRange(_globals._sequenceIndexes[3], 23, 25);
@@ -2333,6 +2368,9 @@ void Scene209::handleBinocularScan() {
 		_playingAnimFl = false;
 		if (_fallFl)
 			_shouldFallFl = true;
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2371,6 +2409,9 @@ void Scene209::handleJumpInTree() {
 		_pauseMode = 1;
 		_playingAnimFl = false;
 		_scene->_hotspots.activate(227, false);
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2424,6 +2465,9 @@ void Scene209::handleTongue() {
 		_removeMonkeyFl = false;
 		}
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2468,6 +2512,9 @@ void Scene209::handleStandFromPeek() {
 		_playingAnimFl = false;
 		_counter = 0;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2494,6 +2541,9 @@ void Scene209::handleStandBlink() {
 	case 249:
 		_playingAnimFl = false;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2512,6 +2562,9 @@ void Scene209::handleJumpAndHide() {
 		_pauseMode = 1;
 		_scene->_hotspots.activate(227, false);
 		_playingAnimFl = false;
+		break;
+
+	default:
 		break;
 	}
 }
@@ -2617,6 +2670,9 @@ void Scene209::handleMonkeyEating() {
 	case 210:
 		_playingAnimFl = false;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2699,6 +2755,9 @@ void Scene209::handleMonkeyFall() {
 		_vm->_dialogs->show(20910);
 		_game._player._stepEnabled = true;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2756,6 +2815,9 @@ void Scene209::handleMonkey1() {
 		_pauseMode = 0;
 		_scene->_sequences.addTimer(1, 196);
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2791,6 +2853,9 @@ void Scene209::handleMonkey2() {
 		_game._player._visible = true;
 		_game._player._stepEnabled = true;
 		break;
+
+	default:
+		break;
 	}
 }
 
@@ -2824,6 +2889,9 @@ void Scene209::handleDodge() {
 		} else {
 			_scene->_kernelMessages.add(Common::Point(0, 0), 0x1110, 34, 0, 120, _game.getQuote(136));
 		}
+		break;
+
+	default:
 		break;
 	}
 }
@@ -3251,6 +3319,9 @@ void Scene209::step() {
 		case 239:
 			_vm->_sound->command(23);
 			break;
+
+		default:
+			break;
 		}
 	}
 
@@ -3402,6 +3473,9 @@ void Scene209::actions() {
 		_dialogAbortVal = 5;
 		_action._inProgress = false;
 		return;
+
+	default:
+		break;
 	}
 
 	if (_globals[kMonkeyStatus] == MONKEY_HAS_BINOCULARS) {
@@ -3462,6 +3536,9 @@ void Scene209::actions() {
 
 		case 3:
 			break;
+
+		default:
+			break;
 		}
 		_action._inProgress = false;
 		return;
@@ -3494,6 +3571,9 @@ void Scene209::actions() {
 		case 3:
 			_vm->_dialogs->showItem (OBJ_BINOCULARS, 0x51AF);
 			_scene->_sprites.remove(_globals._spriteIndexes[10]);
+			break;
+
+		default:
 			break;
 		}
 		_action._inProgress = false;
@@ -3689,6 +3769,9 @@ void Scene210::handleConversations() {
 		case 8:
 			handleConversation8();
 			break;
+
+		default:
+			break;
 		}
 	}
 }
@@ -3714,6 +3797,9 @@ void Scene210::handleConversation1() {
 	case 184:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3730,6 +3816,9 @@ void Scene210::handleConversation2() {
 	case 189:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3750,6 +3839,9 @@ void Scene210::handleConversation3() {
 	case 196:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3767,6 +3859,9 @@ void Scene210::handleConversation5() {
 	case 207:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3783,6 +3878,9 @@ void Scene210::handleConversation6() {
 	case 213:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3801,6 +3899,9 @@ void Scene210::handleConversation7() {
 	case 220:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -3819,6 +3920,9 @@ void Scene210::handleConversation8() {
 	case 227:
 		setDialogNode(0);
 		break;
+
+		default:
+			break;
 	}
 }
 
@@ -4064,7 +4168,7 @@ void Scene210::setDialogNode(int node) {
 			_vm->_palette->lock();
 			_scene->_kernelMessages.reset();
 			_scene->freeAnimation();
-			_scene->_activeAnimation = nullptr;
+			_scene->_animation[0] = nullptr;
 			_scene->resetScene();
 
 			_globals._spriteIndexes[1] = _scene->_sprites.addSprites(formAnimName('c', -1));
@@ -4103,13 +4207,19 @@ void Scene210::setDialogNode(int node) {
 			_globals[kTwinklesStatus] = TWINKLES_GONE;
 			_scene->_nextSceneId = 216;
 			break;
+
+		default:
+			break;
 		}
+		break;
+
+	default:
 		break;
 	}
 }
 
 void Scene210::handleTwinklesSpeech(int quoteId, int shiftX, uint32 delay) {
-	_scene->_kernelMessages.add(Common::Point(10, 70 + (shiftX * 14)), 0xFDFC, 0, 0, (delay == 0) ? 9999999 : delay, _game.getQuote(quoteId));
+	_scene->_kernelMessages.add(Common::Point(10, 70 + (shiftX * 14)), 0xFDFC, 0, 0, (delay == 0) ? INDEFINITE_TIMEOUT : delay, _game.getQuote(quoteId));
 }
 
 void Scene210::newNode(int node) {
@@ -4260,11 +4370,13 @@ void Scene210::enter() {
 			quote = 0xDD;
 			number = 2;
 			break;
+		default:
+			break;
 		}
 
 		restoreDialogNode(_curDialogNode, quote, number);
-		if (_scene->_activeAnimation)
-			_scene->_activeAnimation->setCurrentFrame(131);
+		if (_scene->_animation[0])
+			_scene->_animation[0]->setCurrentFrame(131);
 	}
 
 	_vm->_palette->setEntry(252, 63, 63, 10);
@@ -4274,9 +4386,9 @@ void Scene210::enter() {
 }
 
 void Scene210::step() {
-	if ((_twinkleAnimationType == 1) && _scene->_activeAnimation) {
-		if (_twinklesCurrentFrame != _scene->_activeAnimation->getCurrentFrame()) {
-			_twinklesCurrentFrame = _scene->_activeAnimation->getCurrentFrame();
+	if ((_twinkleAnimationType == 1) && _scene->_animation[0]) {
+		if (_twinklesCurrentFrame != _scene->_animation[0]->getCurrentFrame()) {
+			_twinklesCurrentFrame = _scene->_animation[0]->getCurrentFrame();
 			int reset_frame = -1;
 			int random = _vm->getRandomNumber(1, 1000);
 
@@ -4393,11 +4505,14 @@ void Scene210::step() {
 					}
 				}
 				break;
+
+			default:
+				break;
 			}
 
 			if (reset_frame >= 0) {
-				if (reset_frame != _scene->_activeAnimation->getCurrentFrame()) {
-					_scene->_activeAnimation->setCurrentFrame(reset_frame);
+				if (reset_frame != _scene->_animation[0]->getCurrentFrame()) {
+					_scene->_animation[0]->setCurrentFrame(reset_frame);
 					_twinklesCurrentFrame = reset_frame;
 				}
 
@@ -4411,9 +4526,9 @@ void Scene210::step() {
 		}
 	}
 
-	if ((_twinkleAnimationType == 2) && _scene->_activeAnimation) {
-		if (_twinklesCurrentFrame != _scene->_activeAnimation->getCurrentFrame()) {
-			_twinklesCurrentFrame = _scene->_activeAnimation->getCurrentFrame();
+	if ((_twinkleAnimationType == 2) && _scene->_animation[0]) {
+		if (_twinklesCurrentFrame != _scene->_animation[0]->getCurrentFrame()) {
+			_twinklesCurrentFrame = _scene->_animation[0]->getCurrentFrame();
 			int reset_frame = -1;
 
 			if (_twinklesCurrentFrame == 53) {
@@ -4422,8 +4537,8 @@ void Scene210::step() {
 			} else if ((_twinklesCurrentFrame == 75) && _shouldTalk)
 				reset_frame = 60;
 
-			if ((reset_frame >= 0) && (reset_frame != _scene->_activeAnimation->getCurrentFrame())) {
-				_scene->_activeAnimation->setCurrentFrame(reset_frame);
+			if ((reset_frame >= 0) && (reset_frame != _scene->_animation[0]->getCurrentFrame())) {
+				_scene->_animation[0]->setCurrentFrame(reset_frame);
 				_twinklesCurrentFrame = reset_frame;
 			}
 		}
@@ -4501,6 +4616,9 @@ void Scene210::actions() {
 			_conv1.start();
 			_curDialogNode = 1;
 			break;
+
+		default:
+			break;
 		}
 	} else if (_action.isAction(VERB_GIVE, NOUN_NATIVE_WOMAN) && _game._objects.isInInventory(_game._objects.getIdFromDesc(_action._activeAction._objectNameId))) {
 		switch (_game._trigger) {
@@ -4516,6 +4634,9 @@ void Scene210::actions() {
 		case 1:
 			_game._player._stepEnabled = true;
 			_shouldMoveHead = false;
+			break;
+
+		default:
 			break;
 		}
 	} else if (_action.isAction(VERB_WALK_DOWN, NOUN_PATH_TO_NORTH) || _action.isAction(VERB_WALK_TOWARDS, NOUN_HUT_TO_NORTH)) {
@@ -4539,6 +4660,9 @@ void Scene210::actions() {
 			_scene->_dynamicHotspots.setPosition(_doorway, Common::Point(168, 127), FACING_NORTH);
 			_scene->_dynamicHotspots.setCursor(_doorway, CURSOR_GO_UP);
 			break;
+
+		default:
+			break;
 		}
 	} else if ((_action.isAction(VERB_PULL, NOUN_CURTAIN) || _action.isAction(VERB_CLOSE, NOUN_CURTAIN)) && _globals[kCurtainOpen]) {
 		switch (_game._trigger) {
@@ -4560,6 +4684,8 @@ void Scene210::actions() {
 			_scene->_dynamicHotspots.remove(_doorway);
 			_game._player._stepEnabled = true;
 			_globals[kCurtainOpen] = false;
+			break;
+		default:
 			break;
 		}
 	} else if (_action.isAction(VERB_LOOK, NOUN_HUT)) {
@@ -4646,7 +4772,7 @@ void Scene211::enter() {
 		_game._player._stepEnabled = false;
 		_game._player._visible = false;
 		_scene->loadAnimation(formAnimName('A', -1), 100);
-		_scene->_activeAnimation->setCurrentFrame(169);
+		_scene->_animation[0]->setCurrentFrame(169);
 	} else if (_scene->_priorSceneId != RETURNING_FROM_DIALOG) {
 		_game._player._playerPos = Common::Point(310, 31);
 		_game._player._facing = FACING_SOUTHWEST;
@@ -4721,12 +4847,15 @@ void Scene211::step() {
 				_ambushFl = false;
 				_globals[kMonkeyStatus] = MONKEY_HAS_BINOCULARS;
 				break;
+
+			default:
+				break;
 			}
 		}
 	}
 
-	if (_ambushFl && (_scene->_activeAnimation->getCurrentFrame() > _monkeyFrame)) {
-		_monkeyFrame = _scene->_activeAnimation->getCurrentFrame();
+	if (_ambushFl && (_scene->_animation[0]->getCurrentFrame() > _monkeyFrame)) {
+		_monkeyFrame = _scene->_animation[0]->getCurrentFrame();
 		switch (_monkeyFrame) {
 		case 2: {
 			int msgIndex = _scene->_kernelMessages.add(Common::Point(12, 4), 0xFDFC, 0, 0, 60, _game.getQuote(157));
@@ -4788,6 +4917,9 @@ void Scene211::step() {
 			_scrollY += 14;
 			}
 			break;
+
+		default:
+			break;
 		}
 	}
 
@@ -4798,9 +4930,9 @@ void Scene211::step() {
 			_wakeFl = false;
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() > _monkeyFrame) {
-			_monkeyFrame = _scene->_activeAnimation->getCurrentFrame();
-			switch (_scene->_activeAnimation->getCurrentFrame()) {
+		if (_scene->_animation[0]->getCurrentFrame() > _monkeyFrame) {
+			_monkeyFrame = _scene->_animation[0]->getCurrentFrame();
+			switch (_scene->_animation[0]->getCurrentFrame()) {
 			case 177: {
 				int msgIndex = _scene->_kernelMessages.add(Common::Point(63, _scrollY), 0x1110, 0, 0, 180, _game.getQuote(165));
 				_scene->_kernelMessages.setQuoted(msgIndex, 4, true);
@@ -4827,6 +4959,9 @@ void Scene211::step() {
 				_scene->_kernelMessages.setQuoted(msgIndex, 4, true);
 				_scrollY += 14;
 				}
+				break;
+
+			default:
 				break;
 			}
 		}
@@ -5101,6 +5236,9 @@ void Scene214::step() {
 			_devilRunningFl = false;
 			}
 			break;
+
+		default:
+			break;
 		}
 	}
 }
@@ -5138,6 +5276,9 @@ void Scene214::actions() {
 			_game._player._stepEnabled = true;
 			_vm->_dialogs->showItem(OBJ_POISON_DARTS, 0x53A5);
 			break;
+
+		default:
+			break;
 		}
 	} else if (_action.isAction(VERB_TAKE, NOUN_BLOWGUN) && (_game._trigger || _game._objects.isInRoom(OBJ_BLOWGUN))) {
 		switch (_game._trigger) {
@@ -5166,6 +5307,9 @@ void Scene214::actions() {
 		case 3:
 			_game._player._stepEnabled = true;
 			_vm->_dialogs->showItem(OBJ_BLOWGUN, 0x329);
+			break;
+
+		default:
 			break;
 		}
 	} else if (_action.isAction(VERB_LOOK, NOUN_WINDOW))
@@ -5312,6 +5456,9 @@ void Scene215::actions() {
 				_game._player._visible = true;
 				_game._player._stepEnabled = true;
 				_scene->_sequences.updateTimeout(-1, _globals._sequenceIndexes[2]);
+				break;
+
+			default:
 				break;
 			}
 		} else {

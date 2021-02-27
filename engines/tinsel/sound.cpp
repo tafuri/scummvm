@@ -27,7 +27,6 @@
 #include "tinsel/dw.h"
 #include "tinsel/config.h"
 #include "tinsel/music.h"
-#include "tinsel/strres.h"
 #include "tinsel/tinsel.h"
 #include "tinsel/sysvar.h"
 #include "tinsel/background.h"
@@ -37,7 +36,6 @@
 #include "common/system.h"
 
 #include "audio/mixer.h"
-#include "audio/decoders/adpcm.h"
 #include "audio/decoders/flac.h"
 #include "audio/decoders/mp3.h"
 #include "audio/decoders/raw.h"
@@ -375,7 +373,7 @@ bool SoundManager::offscreenChecks(int x, int &y) {
 		return true;
 
 	// convert x to offset from screen center
-	x -= PlayfieldGetCenterX(FIELD_WORLD);
+	x -= _vm->_bg->PlayfieldGetCenterX(FIELD_WORLD);
 
 	if (x < -SCREEN_WIDTH || x > SCREEN_WIDTH) {
 		// A long way offscreen, ignore it
@@ -394,7 +392,7 @@ int8 SoundManager::getPan(int x) {
 	if (x == -1)
 		return 0;
 
-	x -= PlayfieldGetCenterX(FIELD_WORLD);
+	x -= _vm->_bg->PlayfieldGetCenterX(FIELD_WORLD);
 
 	if (x == 0)
 		return 0;
@@ -487,7 +485,7 @@ void SoundManager::setSFXVolumes(uint8 volume) {
 void SoundManager::showSoundError(const char *errorMsg, const char *soundFile) {
 	Common::String msg;
 	msg = Common::String::format(errorMsg, soundFile);
-	GUI::MessageDialog dialog(msg, "OK");
+	GUI::MessageDialog dialog(msg.c_str(), "OK");
 	dialog.runModal();
 
 	error("%s", msg.c_str());

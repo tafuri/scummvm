@@ -651,7 +651,7 @@ void ScummEngine::writeVar(uint var, int value) {
 
 		_scummVars[var] = value;
 
-		if ((_varwatch == (int)var) || (_varwatch == 0)) {
+		if ((_varwatch == (int)var || _varwatch == 0) && _currentScript < NUM_SCRIPT_SLOT) {
 			if (vm.slot[_currentScript].number < 100)
 				debug(1, "vars[%d] = %d (via script-%d)", var, value, vm.slot[_currentScript].number);
 			else
@@ -1336,6 +1336,8 @@ void ScummEngine_v2::runInputScript(int clickArea, int val, int mode) {
 	case kInventoryClickArea:		// Inventory clicked
 		VAR(VAR_CLICK_OBJECT) = val;
 		break;
+	default:
+		break;
 	}
 
 	memset(args, 0, sizeof(args));
@@ -1522,8 +1524,16 @@ void ScummEngine::endCutscene() {
 	vm.cutSceneScript[vm.cutSceneStackPointer] = 0;
 	vm.cutScenePtr[vm.cutSceneStackPointer] = 0;
 
-	if (0 == vm.cutSceneStackPointer)
+	if (0 == vm.cutSceneStackPointer) {
+		// WORKAROUND bug #5624: Due to poor translation of the v2 script to
+		// v5 an if statement jumps in the middle of a cutscene causing a
+		// endCutscene() without a begin cutscene()
+		if (_game.id == GID_ZAK && _game.platform == Common::kPlatformFMTowns &&
+			vm.slot[_currentScript].number == 205 && _currentRoom == 185) {
+			return;
+		}
 		error("Cutscene stack underflow");
+	}
 	vm.cutSceneStackPointer--;
 
 	if (VAR(VAR_CUTSCENE_END_SCRIPT))

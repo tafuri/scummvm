@@ -20,9 +20,6 @@
  *
  */
 
-#include "gui/dialog.h"
-#include "gui/widget.h"
-
 #include "tsage/tsage.h"
 #include "tsage/core.h"
 #include "tsage/dialogs.h"
@@ -181,7 +178,7 @@ void RightClickDialog::execute() {
 		}
 
 		g_system->delayMillis(10);
-		GLOBALS._screenSurface.updateScreen();
+		GLOBALS._screen.update();
 	}
 
 	_gfxManager.deactivate();
@@ -211,6 +208,8 @@ void RightClickDialog::execute() {
 	case 6:
 		// Dialog options
 		Ringworld::OptionsDialog::show();
+		break;
+	default:
 		break;
 	}
 }
@@ -391,7 +390,7 @@ void InventoryDialog::execute() {
 		Event event;
 		while (!g_globals->_events.getEvent(event) && !g_vm->shouldQuit()) {
 			g_system->delayMillis(10);
-			GLOBALS._screenSurface.updateScreen();
+			GLOBALS._screen.update();
 		}
 		if (g_vm->shouldQuit())
 			break;
@@ -439,7 +438,7 @@ void InventoryDialog::execute() {
 			// Inventory item selected
 			InvObject *invObject = static_cast<GfxInvImage *>(hiliteObj)->_invObject;
 			if (lookFlag) {
-				g_globals->_screenSurface.displayText(invObject->_description);
+				g_globals->_screen.displayText(invObject->_description);
 			} else {
 				RING_INVENTORY._selectedItem = invObject;
 				invObject->setCursor();

@@ -28,13 +28,11 @@
  */
 
 #include "common/system.h"
+#include "common/util.h"
 #include "gui/message.h"
 
-#include "hugo/game.h"
-#include "hugo/hugo.h"
+#include "hugo/dialogs.h"
 #include "hugo/util.h"
-#include "hugo/sound.h"
-#include "hugo/text.h"
 
 namespace Hugo {
 
@@ -89,10 +87,14 @@ void reverseByte(byte *data) {
 }
 
 void notifyBox(const Common::String &msg) {
+	notifyBox(Common::U32String(msg));
+}
+
+void notifyBox(const Common::U32String &msg) {
 	if (msg.empty())
 		return;
 
-	GUI::MessageDialog dialog(msg, "OK");
+	GUI::MessageDialog dialog(msg);
 	dialog.runModal();
 }
 
@@ -108,10 +110,14 @@ Common::String promptBox(const Common::String &msg) {
 }
 
 bool yesNoBox(const Common::String &msg) {
+	return yesNoBox(Common::U32String(msg));
+}
+
+bool yesNoBox(const Common::U32String &msg) {
 	if (msg.empty())
 		return 0;
 
-	GUI::MessageDialog dialog(msg, "YES", "NO");
+	GUI::MessageDialog dialog(msg, Common::U32String("YES"), Common::U32String("NO"));
 	return (dialog.runModal() == GUI::kMessageOK);
 }
 

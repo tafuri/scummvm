@@ -24,7 +24,6 @@
 #include "common/memstream.h"
 #include "common/textconsole.h"
 
-#include "audio/mixer.h"
 #include "audio/decoders/raw.h"
 #include "audio/decoders/wave.h"
 
@@ -97,6 +96,8 @@ bool SoundDesc::load(SoundType type, byte *data, uint32 dSize) {
 		return loadSND(data, dSize);
 	case SOUND_WAV:
 		return loadWAV(data, dSize);
+	default:
+		break;
 	}
 
 	return false;

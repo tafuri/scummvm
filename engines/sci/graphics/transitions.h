@@ -40,8 +40,8 @@ enum {
 	SCI_TRANSITIONS_STRAIGHT_FROM_LEFT			= 3,
 	SCI_TRANSITIONS_STRAIGHT_FROM_BOTTOM		= 4,
 	SCI_TRANSITIONS_STRAIGHT_FROM_TOP			= 5,
-	SCI_TRANSITIONS_DIAGONALROLL_FROMCENTER		= 6,
-	SCI_TRANSITIONS_DIAGONALROLL_TOCENTER		= 7,
+	SCI_TRANSITIONS_DIAGONALROLL_TOCENTER		= 6,
+	SCI_TRANSITIONS_DIAGONALROLL_FROMCENTER		= 7,
 	SCI_TRANSITIONS_BLOCKS						= 8,
 	SCI_TRANSITIONS_PIXELATION					= 9,
 	SCI_TRANSITIONS_FADEPALETTE					= 10,
@@ -89,6 +89,7 @@ private:
 	void diagonalRollFromCenter(bool blackoutFlag);
 	void diagonalRollToCenter(bool blackoutFlag);
 	bool doCreateFrame(uint32 shouldBeAtMsec);
+	void updateScreen();
 	void updateScreenAndWait(uint32 shouldBeAtMsec);
 
 	GfxScreen *_screen;

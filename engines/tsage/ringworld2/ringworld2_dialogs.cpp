@@ -20,11 +20,6 @@
  *
  */
 
-#include "common/translation.h"
-
-#include "gui/dialog.h"
-#include "gui/widget.h"
-
 #include "tsage/tsage.h"
 #include "tsage/core.h"
 #include "tsage/dialogs.h"
@@ -154,7 +149,7 @@ int RightClickDialog::execute() {
 		}
 
 		g_system->delayMillis(10);
-		GLOBALS._screenSurface.updateScreen();
+		GLOBALS._screen.update();
 	}
 
 	// Execute the specified action
@@ -184,6 +179,8 @@ int RightClickDialog::execute() {
 	case 5:
 		// Options dialog
 		result = 1;
+		break;
+	default:
 		break;
 	}
 

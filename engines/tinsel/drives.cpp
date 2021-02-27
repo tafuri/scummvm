@@ -30,7 +30,7 @@
 
 namespace Tinsel {
 
-// FIXME: Avoid non-const global vars
+// These vars are reset upon engine destruction
 
 char g_currentCD = '1';
 
@@ -40,6 +40,14 @@ static char g_nextCD = '\0';
 static uint32 g_lastTime = 0;
 extern LANGUAGE g_sampleLanguage;
 
+void ResetVarsDrives() {
+	g_currentCD = '1';
+
+	g_bChangingCD = false;
+	g_nextCD = '\0';
+
+	g_lastTime = 0;
+}
 
 void CdCD(CORO_PARAM) {
 	CORO_BEGIN_CONTEXT;
@@ -150,7 +158,7 @@ bool GotoCD() {
 bool TinselFile::_warningShown = false;
 
 TinselFile::TinselFile() : ReadStreamEndian(TinselV1Mac) {
-	_stream = NULL;
+	_stream = nullptr;
 }
 
 TinselFile::~TinselFile() {
@@ -189,7 +197,7 @@ bool TinselFile::open(const Common::String &filename) {
 
 void TinselFile::close() {
 	delete _stream;
-	_stream = NULL;
+	_stream = nullptr;
 }
 
 int32 TinselFile::pos() const {

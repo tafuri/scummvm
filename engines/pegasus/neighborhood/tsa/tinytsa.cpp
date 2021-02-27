@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -251,6 +251,8 @@ void TinyTSA::clickInHotspot(const Input &input, const Hotspot *clickedSpot) {
 			requestExtraSequence(kTinyTSA37WSCToDepart, 0, kFilterNoInput);
 			requestExtraSequence(kTinyTSA37PegasusDepart, kExtraCompletedFlag, kFilterNoInput);
 			return;
+		default:
+			break;
 		}
 	}
 
@@ -286,6 +288,8 @@ void TinyTSA::arriveAt(const RoomID room, const DirectionConstant direction) {
 		break;
 	case kPlayerLockedInPegasus:
 		showMainJumpMenu();
+		break;
+	default:
 		break;
 	}
 }
@@ -362,6 +366,8 @@ void TinyTSA::receiveNotification(Notification *notification, const Notification
 				GameState.setWSCRobotDead(false);
 				GameState.setWSCRobotGone(false);
 				break;
+			default:
+				break;
 			};
 			break;
 		case kTinyTSA37TimeJumpToPegasus:
@@ -394,6 +400,8 @@ void TinyTSA::receiveNotification(Notification *notification, const Notification
 				case kPlayerOnWayToWSC:
 					g_opticalChip->playOpMemMovie(kMercurySpotID);
 					break;
+				default:
+					break;
 				}
 			}
 
@@ -418,6 +426,8 @@ void TinyTSA::receiveNotification(Notification *notification, const Notification
 		case kTinyTSA37CancelMars:
 		case kTinyTSA37CancelWSC:
 			showMainJumpMenu();
+			break;
+		default:
 			break;
 		}
 	}

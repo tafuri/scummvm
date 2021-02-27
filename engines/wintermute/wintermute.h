@@ -20,19 +20,25 @@
  *
  */
 
-#ifndef WINTERMUTE_H
-#define WINTERMUTE_H
+#ifndef WINTERMUTE_WINTERMUTE_H
+#define WINTERMUTE_WINTERMUTE_H
 
 #include "engines/engine.h"
-#include "engines/advancedDetector.h"
 #include "gui/debugger.h"
-#include "engines/wintermute/game_description.h"
+#include "common/fs.h"
+#include "wintermute/detection.h"
 
 namespace Wintermute {
 
 class Console;
 class BaseGame;
 class SystemClassRegistry;
+class DebuggerController;
+
+const int INT_MAX_VALUE  = 0x7fffffff;
+const int INT_MIN_VALUE  = -INT_MAX_VALUE - 1;
+const int UINT_MAX_VALUE = 0xffffffff;
+
 // our engine debug channels
 enum {
 	kWintermuteDebugLog = 1 << 0, // The debug-logs from the original engine
@@ -47,30 +53,30 @@ class WintermuteEngine : public Engine {
 public:
 	WintermuteEngine(OSystem *syst, const WMEGameDescription *desc);
 	WintermuteEngine();
-	~WintermuteEngine();
+	~WintermuteEngine() override;
 
-	virtual GUI::Debugger *getDebugger() { return _debugger; }
-	void trigDebugger() { _trigDebug = true; }
+	virtual Wintermute::Console *getConsole() { return _debugger; }
 
-	virtual Common::Error run();
-	virtual bool hasFeature(EngineFeature f) const;
+	Common::Error run() override;
+	bool hasFeature(EngineFeature f) const override;
 	Common::SaveFileManager *getSaveFileMan() { return _saveFileMan; }
-	virtual Common::Error loadGameState(int slot);
-	virtual bool canLoadGameStateCurrently();
-	virtual Common::Error saveGameState(int slot, const Common::String &desc);
-	virtual bool canSaveGameStateCurrently();
+	Common::Error loadGameState(int slot) override;
+	bool canLoadGameStateCurrently() override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	bool canSaveGameStateCurrently() override;
 	// For detection-purposes:
 	static bool getGameInfo(const Common::FSList &fslist, Common::String &name, Common::String &caption);
 private:
-	bool _trigDebug;
 	int init();
 	void deinit();
 	int messageLoop();
-	GUI::Debugger *_debugger;
+	Wintermute::Console *_debugger;
 	BaseGame *_game;
+	Wintermute::DebuggerController *_dbgController;
 	const WMEGameDescription *_gameDescription;
 
 	friend class Console;
+	friend class DebuggerController;
 };
 
 } // End of namespace Wintermute

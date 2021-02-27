@@ -27,6 +27,15 @@
 
 namespace Common {
 
+/**
+ * @defgroup common_rendermode Render modes
+ * @ingroup common
+ *
+ * @brief API for render modes.
+ *
+ * @{
+ */
+
 class String;
 
 /**
@@ -45,7 +54,10 @@ enum RenderMode {
 	kRenderAmiga = 6,
 	kRenderFMTowns = 7,
 	kRenderPC9821 = 8,
-	kRenderPC9801 = 9
+	kRenderPC9801 = 9,
+	kRenderApple2GS = 10,
+	kRenderAtariST = 11,
+	kRenderMacintosh = 12
 };
 
 struct RenderModeDescription {
@@ -67,6 +79,7 @@ extern String renderMode2GUIO(RenderMode id);
 // TODO: Rename the following to something better; also, document it
 extern String allRenderModesGUIOs();
 
+/** @} */
 
 } // End of namespace Common
 

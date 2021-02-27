@@ -152,8 +152,7 @@ bool WiiFilesystemNode::getChildren(AbstractFSList &list, ListMode mode, bool hi
 	if (_path.empty())
 		return getDevopChildren(list, mode, hidden);
 
-	DIR* dp = opendir (_path.c_str());
-	DIR* tmpdir;
+	DIR *dp = opendir (_path.c_str());
 
 	if (dp == NULL)
 		return false;
@@ -166,27 +165,21 @@ bool WiiFilesystemNode::getChildren(AbstractFSList &list, ListMode mode, bool hi
 
 		Common::String newPath(_path);
 		if (newPath.lastChar() != '/')
-		  newPath += '/';
+			newPath += '/';
 		newPath += pent->d_name;
-	  
-		bool isDir = false;
-		tmpdir = opendir(newPath.c_str());
-		if(tmpdir)
-		{
-			isDir = true;
-			closedir(tmpdir);
-		}
-		
+
+		bool isDir = ( pent->d_type == DT_DIR );
+
 		if ((mode == Common::FSNode::kListFilesOnly && isDir) ||
 			(mode == Common::FSNode::kListDirectoriesOnly && !isDir))
 			continue;
-		
+
 		struct stat st;
 		st.st_mode = 0;
 		st.st_mode |= ( isDir ? S_IFDIR : 0 );
 		st.st_mode |= S_IRUSR;
 		st.st_mode |= S_IWUSR;
-			
+
 		list.push_back(new WiiFilesystemNode(newPath, &st));
 	}
 
@@ -206,11 +199,38 @@ AbstractFSNode *WiiFilesystemNode::getParent() const {
 }
 
 Common::SeekableReadStream *WiiFilesystemNode::createReadStream() {
-	return StdioStream::makeFromPath(getPath(), false);
+	StdioStream *readStream = StdioStream::makeFromPath(getPath(), false);
+
+	// disable newlib's buffering, the device libraries handle caching
+	if (readStream) {
+		readStream->setBufferSize(0);
+	}
+
+	return readStream;
 }
 
 Common::WriteStream *WiiFilesystemNode::createWriteStream() {
-	return StdioStream::makeFromPath(getPath(), true);
+	StdioStream *writeStream = StdioStream::makeFromPath(getPath(), true);
+
+	// disable newlib's buffering, the device libraries handle caching
+	if (writeStream) {
+		writeStream->setBufferSize(0);
+	}
+
+	return writeStream;
+}
+
+bool WiiFilesystemNode::createDirectory() {
+	if(!_exists) {
+ 		if (mkdir(_path.c_str(), 0755) == 0) {
+			_exists = true;
+			_isDirectory = true;
+			_isReadable = true;
+			_isWritable = true;
+		}
+	}
+
+	return _exists && _isDirectory;
 }
 
 #endif //#if defined(__WII__)

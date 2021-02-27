@@ -92,6 +92,7 @@ Testsuite::~Testsuite() {
 void Testsuite::reset() {
 	_numTestsPassed = 0;
 	_numTestsExecuted = 0;
+	_numTestsSkipped = 0;
 	_toQuit = kLoopNormal;
 	for (Common::Array<Test *>::iterator i = _testsToExecute.begin(); i != _testsToExecute.end(); ++i) {
 		(*i)->passed = false;
@@ -110,12 +111,12 @@ void Testsuite::genReport() const {
 }
 
 bool Testsuite::handleInteractiveInput(const Common::String &textToDisplay, const char *opt1, const char *opt2, OptionSelected result) {
-	GUI::MessageDialog prompt(textToDisplay, opt1, opt2);
+	GUI::MessageDialog prompt(textToDisplay.c_str(), opt1, opt2);
 	return prompt.runModal() == result ? true : false;
 }
 
 void Testsuite::displayMessage(const Common::String &textToDisplay, const char *defaultButton) {
-	GUI::MessageDialog prompt(textToDisplay, defaultButton);
+	GUI::MessageDialog prompt(textToDisplay.c_str(), defaultButton);
 	prompt.runModal();
 }
 
@@ -217,7 +218,7 @@ uint Testsuite::parseEvents() {
 				break;
 
 			case Common::EVENT_QUIT:
-			case Common::EVENT_RTL:
+			case Common::EVENT_RETURN_TO_LAUNCHER:
 				return kEngineQuit;
 
 			default:
@@ -244,7 +245,7 @@ void Testsuite::updateStats(const char *prefix, const char *info, uint testNum, 
 	byte *buffer = new byte[lRect * wRect];
 	memset(buffer, 0, sizeof(byte) * lRect * wRect);
 
-	int wShaded = (int) (wRect * (((float)testNum) / numTests));
+	int wShaded = (int)(wRect * (((float)testNum) / numTests));
 
 	// draw the boundary
 	memset(buffer, barColor, sizeof(byte) * wRect);
@@ -283,6 +284,11 @@ void Testsuite::execute() {
 	pt.y += getLineSeparation();
 	int numEnabledTests = getNumTestsEnabled();
 
+	if (!numEnabledTests)
+		return;
+
+	prepare();
+
 	for (Common::Array<Test *>::iterator i = _testsToExecute.begin(); i != _testsToExecute.end(); ++i) {
 		if (!(*i)->enabled) {
 			logPrintf("Info! Skipping Test: %s, Skipped by configuration.\n", ((*i)->featureName).c_str());
@@ -314,8 +320,8 @@ void Testsuite::execute() {
 		}
 
 		updateStats("Test", ((*i)->featureName).c_str(), count, numEnabledTests, pt);
-		// TODO: Display a screen here to user with details of upcoming test, he can skip it or Quit or RTL
-		// Check if user wants to quit/RTL/Skip next test by parsing events.
+		// TODO: Display a screen here to user with details of upcoming test, he can skip it or Quit or return to launcher
+		// Check if user wants to quit/return to launcher/skip next test by parsing events.
 		// Quit directly if explicitly requested
 
 		if (Engine::shouldQuit()) {

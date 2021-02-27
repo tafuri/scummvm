@@ -20,7 +20,10 @@
  *
  */
 
+#include "common/config-manager.h"
+#include "common/savefile.h"
 #include "common/system.h"
+#include "common/translation.h"
 
 #include "sci/sci.h"
 #include "sci/debug.h"
@@ -28,13 +31,25 @@
 #include "sci/engine/state.h"
 #include "sci/engine/kernel.h"
 #include "sci/engine/gc.h"
+#ifdef ENABLE_SCI32
+#include "sci/engine/guest_additions.h"
+#endif
+#include "sci/engine/savegame.h"
 #include "sci/graphics/cursor.h"
+#include "sci/graphics/palette.h"
+#ifdef ENABLE_SCI32
+#include "sci/graphics/cursor32.h"
+#include "sci/graphics/frameout.h"
+#endif
 #include "sci/graphics/maciconbar.h"
 #include "sci/console.h"
+#ifdef ENABLE_SCI32
+#include "sci/engine/hoyle5poker.h"
+#endif
 
 namespace Sci {
 
-reg_t kRestartGame(EngineState *s, int argc, reg_t *argv) {
+reg_t kRestartGame16(EngineState *s, int argc, reg_t *argv) {
 	s->shrinkStackToBase();
 
 	s->abortScriptProcessing = kAbortRestartGame; // Force vm to abort ASAP
@@ -66,7 +81,7 @@ reg_t kGameIsRestarting(EngineState *s, int argc, reg_t *argv) {
 		// low it is in the animate list. This worked somewhat in older PCs, but
 		// not in modern computers. We throttle the scene in order to allow the
 		// stones to display, otherwise the game scripts reset them too soon.
-		// Fixes bug #3127824.
+		// Fixes bug #5543.
 		if (s->currentRoomNumber() == 100) {
 			s->_throttleTrigger = true;
 			neededSleep = 60;
@@ -81,19 +96,29 @@ reg_t kGameIsRestarting(EngineState *s, int argc, reg_t *argv) {
 			neededSleep = 60;
 		}
 		break;
-	case GID_LSL3:
-		// LSL3 calculates a machinespeed variable during game startup
-		// (right after the filthy questions). This one would go through w/o
-		// throttling resulting in having to do 1000 pushups or something. Another
-		// way of handling this would be delaying incrementing of "machineSpeed"
-		// selector.
-		if (s->currentRoomNumber() == 290)
-			s->_throttleTrigger = true;
+	case GID_KQ6: {
+		// KQ6 has talking inventory items that animate in the inventory window.
+		//  This is done with unthrottled inner loops which we replace with
+		//  calls to kGameIsRestarting so that the screen updates and responds
+		//  to input. Since this can happen in any room, we detect if the caller
+		//  is inventory script 907. See kq6PatchTalkingInventory.
+		if (s->_executionStack.size() >= 2) {
+			Common::List<ExecStack>::const_iterator iter = s->_executionStack.reverse_begin();
+			--iter; // skip this kernel call
+			if (iter->type == EXEC_STACK_TYPE_CALL) {
+				int callerScriptNumber = s->_segMan->getScript(iter->addr.pc.getSegment())->getScriptNumber();
+				if (callerScriptNumber == 907) {
+					s->_throttleTrigger = true;
+					neededSleep = 90; // talk animation interval
+				}
+			}
+		}
 		break;
+	}
 	case GID_SQ4:
 		// In SQ4 (floppy and CD) the sequel police appear way too quickly in
 		// the Skate-o-rama rooms, resulting in all sorts of timer issues, like
-		// #3109139 (which occurs because a police officer instantly teleports
+		// #5514 (which occurs because a police officer instantly teleports
 		// just before Roger exits and shoots him). We throttle these scenes a
 		// bit more, in order to prevent timer bugs related to the sequel police.
 		if (s->currentRoomNumber() == 405 || s->currentRoomNumber() == 406 ||
@@ -218,8 +243,7 @@ enum {
 
 reg_t kGetTime(EngineState *s, int argc, reg_t *argv) {
 	TimeDate loc_time;
-	uint32 elapsedTime = g_engine->getTotalPlayTime();
-	int retval = 0; // Avoid spurious warning
+	uint16 retval = 0; // Avoid spurious warning
 
 	g_system->getTimeAndDate(loc_time);
 
@@ -232,11 +256,15 @@ reg_t kGetTime(EngineState *s, int argc, reg_t *argv) {
 
 	switch (mode) {
 	case KGETTIME_TICKS :
-		retval = elapsedTime * 60 / 1000;
+		retval = g_sci->getTickCount();
 		debugC(kDebugLevelTime, "GetTime(elapsed) returns %d", retval);
 		break;
 	case KGETTIME_TIME_12HOUR :
-		retval = ((loc_time.tm_hour % 12) << 12) | (loc_time.tm_min << 6) | (loc_time.tm_sec);
+		loc_time.tm_hour %= 12;
+		if (loc_time.tm_hour == 0) {
+			loc_time.tm_hour = 12;
+		}
+		retval = (loc_time.tm_hour << 12) | (loc_time.tm_min << 6) | (loc_time.tm_sec);
 		debugC(kDebugLevelTime, "GetTime(12h) returns %d", retval);
 		break;
 	case KGETTIME_TIME_24HOUR :
@@ -244,10 +272,18 @@ reg_t kGetTime(EngineState *s, int argc, reg_t *argv) {
 		debugC(kDebugLevelTime, "GetTime(24h) returns %d", retval);
 		break;
 	case KGETTIME_DATE :
-		// Year since 1980 (0 = 1980, 1 = 1981, etc.)
-		retval = loc_time.tm_mday | ((loc_time.tm_mon + 1) << 5) | (((loc_time.tm_year - 80) & 0x7f) << 9);
+	{
+		// SCI0 late: Year since 1920 (0 = 1920, 1 = 1921, etc)
+		// SCI01 and newer: Year since 1980 (0 = 1980, 1 = 1981, etc)
+		// Atari ST SCI0 late versions use the newer base year.
+		int baseYear = 80;
+		if (getSciVersion() == SCI_VERSION_0_LATE && g_sci->getPlatform() == Common::kPlatformDOS) {
+			baseYear = 20;
+		}
+		retval = loc_time.tm_mday | ((loc_time.tm_mon + 1) << 5) | (((loc_time.tm_year - baseYear) & 0x7f) << 9);
 		debugC(kDebugLevelTime, "GetTime(date) returns %d", retval);
 		break;
+	}
 	default:
 		error("Attempt to use unknown GetTime mode %d", mode);
 		break;
@@ -269,26 +305,33 @@ reg_t kMemory(EngineState *s, int argc, reg_t *argv) {
 	switch (argv[0].toUint16()) {
 	case K_MEMORY_ALLOCATE_CRITICAL: {
 		int byteCount = argv[1].toUint16();
-		// WORKAROUND:
+		// Sierra themselves allocated at least 2 bytes more than requested.
+		// Probably as a safety margin. And they also made size even.
+		//
+		// This behavior is required by at least these:
 		//  - pq3 (multilingual) room 202
 		//     when plotting crimes, allocates the returned bytes from kStrLen
 		//     on "W" and "E" and wants to put a string in there, which doesn't
 		//     fit of course.
 		//  - lsl5 (multilingual) room 280
 		//     allocates memory according to a previous kStrLen for the name of
-		//     the airport ladies (bug #3093818), which isn't enough
-
-		// We always allocate 1 byte more, because of this
-		byteCount++;
+		//     the airport ladies (bug #5478), which isn't enough
+		byteCount += 2 + (byteCount & 1);
 
 		if (!s->_segMan->allocDynmem(byteCount, "kMemory() critical", &s->r_acc)) {
 			error("Critical heap allocation failed");
 		}
 		break;
 	}
-	case K_MEMORY_ALLOCATE_NONCRITICAL:
-		s->_segMan->allocDynmem(argv[1].toUint16(), "kMemory() non-critical", &s->r_acc);
+	case K_MEMORY_ALLOCATE_NONCRITICAL: {
+		int byteCount = argv[1].toUint16();
+
+		// See above
+		byteCount += 2 + (byteCount & 1);
+
+		s->_segMan->allocDynmem(byteCount, "kMemory() non-critical", &s->r_acc);
 		break;
+	}
 	case K_MEMORY_FREE :
 		if (!s->_segMan->freeDynmem(argv[1])) {
 			if (g_sci->getGameId() == GID_QFG1VGA) {
@@ -347,6 +390,8 @@ reg_t kMemory(EngineState *s, int argc, reg_t *argv) {
 		}
 		break;
 	}
+	default:
+		break;
 	}
 
 	return s->r_acc;
@@ -395,6 +440,32 @@ reg_t kGetConfig(EngineState *s, int argc, reg_t *argv) {
 	} else if (setting == "startroom") {
 		// Debug setting in LSL7, specifies the room to start from.
 		s->_segMan->strcpy(data, "");
+	} else if (setting == "game") {
+		// Hoyle 5 startup, specifies the number of the game to start.
+		if (g_sci->getGameId() == GID_HOYLE5 &&
+			!g_sci->getResMan()->testResource(ResourceId(kResourceTypeScript, 100)) &&
+			g_sci->getResMan()->testResource(ResourceId(kResourceTypeScript, 700))) {
+			// Special case for Hoyle 5 Bridge: only one game is included (Bridge),
+			// so mimic the setting in 700.cfg and set the starting room number to 700.
+			s->_segMan->strcpy(data, "700");
+		} else {
+			s->_segMan->strcpy(data, "");
+		}
+	} else if (setting == "laptop") {
+		// Hoyle 5 startup.
+		s->_segMan->strcpy(data, "");
+	} else if (setting == "jumpto") {
+		// Hoyle 5 startup.
+		s->_segMan->strcpy(data, "");
+	} else if (setting == "klonchtsee") {
+		// Hoyle 5 - starting Solitaire.
+		s->_segMan->strcpy(data, "");
+	} else if (setting == "klonchtarr") {
+		// Hoyle 5 - starting Solitaire.
+		s->_segMan->strcpy(data, "");
+	} else if (setting == "deflang") {
+		// MGDX 4-language startup.
+		s->_segMan->strcpy(data, "");
 	} else {
 		error("GetConfig: Unknown configuration setting %s", setting.c_str());
 	}
@@ -405,6 +476,10 @@ reg_t kGetConfig(EngineState *s, int argc, reg_t *argv) {
 // Likely modelled after the Windows 3.1 function GetPrivateProfileInt:
 // http://msdn.microsoft.com/en-us/library/windows/desktop/ms724345%28v=vs.85%29.aspx
 reg_t kGetSierraProfileInt(EngineState *s, int argc, reg_t *argv) {
+	if (g_sci->getPlatform() != Common::kPlatformWindows) {
+		return s->r_acc;
+	}
+
 	Common::String category = s->_segMan->getString(argv[0]);	// always "config"
 	category.toLowercase();
 	Common::String setting = s->_segMan->getString(argv[1]);
@@ -432,6 +507,14 @@ reg_t kGetWindowsOption(EngineState *s, int argc, reg_t *argv) {
 	}
 }
 
+extern Common::String format(const Common::String &source, int argc, const reg_t *argv);
+
+reg_t kPrintDebug(EngineState *s, int argc, reg_t *argv) {
+	const Common::String debugString = s->_segMan->getString(argv[0]);
+	debugC(kDebugLevelGame, "%s", format(debugString, argc - 1, argv + 1).c_str());
+	return s->r_acc;
+}
+
 #endif
 
 // kIconBar is really a subop of kMacPlatform for SCI1.1 Mac
@@ -447,8 +530,7 @@ reg_t kIconBar(EngineState *s, int argc, reg_t *argv) {
 
 	switch (argv[0].toUint16()) {
 	case 0: // InitIconBar
-		for (int i = 0; i < argv[1].toUint16(); i++)
-			g_sci->_gfxMacIconBar->addIcon(argv[i + 2]);
+		g_sci->_gfxMacIconBar->initIcons(argv[1].toUint16(), &argv[2]);
 		break;
 	case 1: // DisposeIconBar
 		warning("kIconBar(Dispose)");
@@ -486,10 +568,7 @@ reg_t kMacPlatform(EngineState *s, int argc, reg_t *argv) {
 		// Subop 0 has changed a few times
 		// In SCI1, its usage is still unknown
 		// In SCI1.1, it's NOP
-		// In SCI32, it's used for remapping cursor ID's
-		if (getSciVersion() >= SCI_VERSION_2_1) // Set Mac cursor remap
-			g_sci->_gfxCursor->setMacCursorRemapList(argc - 1, argv + 1);
-		else if (getSciVersion() != SCI_VERSION_1_1)
+		if (getSciVersion() != SCI_VERSION_1_1)
 			warning("Unknown SCI1 kMacPlatform(0) call");
 		break;
 	case 4: // Handle icon bar code
@@ -500,7 +579,7 @@ reg_t kMacPlatform(EngineState *s, int argc, reg_t *argv) {
 		break;	// removed warning, as it produces a lot of spam in the console
 	case 2: // Unknown, "UseNextWaitEvent" (Various)
 	case 3: // Unknown, "ProcessOpenDocuments" (Various)
-	case 5: // Unknown, plays a sound (KQ7)
+	case 5: // Unknown
 	case 6: // Unknown, menu-related (Unused?)
 		warning("Unhandled kMacPlatform(%d)", argv[0].toUint16());
 		break;
@@ -511,67 +590,340 @@ reg_t kMacPlatform(EngineState *s, int argc, reg_t *argv) {
 	return s->r_acc;
 }
 
+#ifdef ENABLE_SCI32
+// kMacKq7InitializeSave is a subop of kMacPlatform32.
+//  KQ7 Mac would display a native Save dialog with the prompt "Who's game?"
+//  and store the result in a global variable inside the interpreter
+//  for subsequent calls to kMacKq7SaveGame.
+reg_t kMacKq7InitializeSave(EngineState *s) {
+	s->_kq7MacSaveGameId = g_sci->_guestAdditions->runSaveRestore(true, s->_kq7MacSaveGameDescription);
+	s->_kq7MacSaveGameId = shiftSciToScummVMSaveId(s->_kq7MacSaveGameId);
+	return (s->_kq7MacSaveGameId != -1) ? TRUE_REG : NULL_REG;
+}
+
+// kMacKq7SaveGame is a subop of kMacPlatform32.
+//  Saves the game using the current save id and description that's set
+//  when initializing or restoring a saved game.
+reg_t kMacKq7SaveGame(EngineState *s) {
+	if (s->_kq7MacSaveGameId == -1) {
+		error("kMacKq7SaveGame: save game hasn't been initialized");
+	}
+
+	const reg_t version = s->variables[VAR_GLOBAL][kGlobalVarVersion];
+	const Common::String versionString = s->_segMan->getString(version);
+	if (gamestate_save(s, s->_kq7MacSaveGameId, s->_kq7MacSaveGameDescription, versionString)) {
+		return TRUE_REG;
+	}
+	return NULL_REG;
+}
+
+// kMacKq7RestoreGame is a subop of kMacPlatform32.
+//  KQ7 Mac would display a native Open dialog with the prompt "Who's game?"
+//  and store the result in a global variable inside the interpreter to
+//  use in subsequent calls to kMacKq7SaveGame before restoring.
+reg_t kMacKq7RestoreGame(EngineState *s) {
+	s->_kq7MacSaveGameId = g_sci->_guestAdditions->runSaveRestore(false, s->_kq7MacSaveGameDescription);
+	s->_kq7MacSaveGameId = shiftSciToScummVMSaveId(s->_kq7MacSaveGameId);
+	if (s->_kq7MacSaveGameId == -1) {
+		return NULL_REG;
+	}
+
+	// gamestate_restore() resets s->_kq7MacSaveGameId and 
+	//  s->_kq7MacSaveGameDescription so save and restore them.
+	int kq7MacSaveGameId = s->_kq7MacSaveGameId;
+	Common::String kq7MacSaveGameDescription = s->_kq7MacSaveGameDescription;
+	bool success = gamestate_restore(s, s->_kq7MacSaveGameId);
+	s->_kq7MacSaveGameId = kq7MacSaveGameId;
+	s->_kq7MacSaveGameDescription = kq7MacSaveGameDescription;
+
+	return success ? TRUE_REG : NULL_REG;
+}
+
+// kMacInitializeSave is a subop of kMacPlatform32.
+reg_t kMacInitializeSave(EngineState *s, int argc, reg_t *argv) {
+	return TRUE_REG; // NULL_REG if i/o errors
+}
+
+// kMacSaveGame is a subop of kMacPlatform32.
+reg_t kMacSaveGame(EngineState *s, int argc, reg_t *argv) {
+	g_sci->_gfxFrameout->kernelFrameOut(true); // see kSaveGame32
+
+	const int saveId = shiftSciToScummVMSaveId(argv[1].toUint16());
+	const Common::String description = s->_segMan->getString(argv[2]);
+	const reg_t version = s->variables[VAR_GLOBAL][kGlobalVarVersion];
+	const Common::String versionString = s->_segMan->getString(version);
+	if (gamestate_save(s, saveId, description, versionString)) {
+		return TRUE_REG;
+	}
+	return NULL_REG;
+}
+
+// kMacRestoreGame is a subop of kMacPlatform32.
+reg_t kMacRestoreGame(EngineState *s, int argc, reg_t *argv) {
+	const int saveId = shiftSciToScummVMSaveId(argv[1].toUint16());
+	if (gamestate_restore(s, saveId)) {
+		return TRUE_REG;
+	}
+	return NULL_REG;
+}
+
+reg_t kMacPlatform32(EngineState *s, int argc, reg_t *argv) {
+	switch (argv[0].toUint16()) {
+	case 0: // build cursor view map
+		g_sci->_gfxCursor32->setMacCursorRemapList(argc - 1, argv + 1);
+		return s->r_acc;
+
+	case 1: // compact/purge mac memory
+	case 2: // hands-off/hands-on for mac menus
+		return s->r_acc;
+
+	// Subops 3-5 are used for custom saving and restoring but they
+	//  changed completely between each game that uses them.
+	//
+	//  KQ7:        3-5 with no parameters
+	//  Shivers:    3-5 with parameters
+	//  Lighthouse: 3 with sub-subops: -1, 0, and 1 (TODO)
+	case 3:
+		if (argc == 1) {
+			return kMacKq7InitializeSave(s);
+		} else if (argc == 3) {
+			return kMacInitializeSave(s, argc - 1, argv + 1);
+		} 
+		break;
+	case 4:
+		if (argc == 1) {
+			return kMacKq7SaveGame(s);
+		} else if (argc == 4) {
+			return kMacSaveGame(s, argc - 1, argv + 1);
+		}
+		break;
+	case 5:
+		if (argc == 1) {
+			return kMacKq7RestoreGame(s);
+		} else if (argc == 3) {
+			return kMacRestoreGame(s, argc - 1, argv + 1);
+		}
+		break;
+
+	// Subops 6-11 are used for saving and restoring by Mother Goose only.
+	case 6:
+		return kMacInitializeSave(s, argc - 1, argv + 1);
+	case 7:
+		return kMacSaveGame(s, argc - 1, argv + 1);
+	case 8:
+		return kMacRestoreGame(s, argc - 1, argv + 1);
+	case 9:
+		return kGetSaveFiles32(s, argc - 1, argv + 1);
+	case 10:
+		return kMakeSaveCatName(s, argc - 1, argv + 1);
+	case 11:
+		return kMakeSaveFileName(s, argc - 1, argv + 1);
+
+	// Phantasmagoria volume
+	case 12:
+		return g_sci->_soundCmd->kDoSoundMasterVolume(s, argc - 1, argv + 1);
+
+	default:
+		break;
+	}
+
+	error("Unknown kMacPlatform32(%d)", argv[0].toUint16());
+	return s->r_acc;
+}
+#endif
+
 enum kSciPlatforms {
+	kSciPlatformMacintosh = 0,
 	kSciPlatformDOS = 1,
 	kSciPlatformWindows = 2
 };
 
-enum kPlatformOps {
-	kPlatformUnk0 = 0,
-	kPlatformCDSpeed = 1,
-	kPlatformUnk2 = 2,
-	kPlatformCDCheck = 3,
-	kPlatformGetPlatform = 4,
-	kPlatformUnk5 = 5,
-	kPlatformIsHiRes = 6,
-	kPlatformIsItWindows = 7
-};
-
 reg_t kPlatform(EngineState *s, int argc, reg_t *argv) {
+	enum Operation {
+		kPlatformUnknown        = 0,
+		kPlatformGetPlatform    = 4,
+		kPlatformUnknown5       = 5,
+		kPlatformIsHiRes        = 6,
+		kPlatformWin311OrHigher = 7
+	};
+
 	bool isWindows = g_sci->getPlatform() == Common::kPlatformWindows;
 
-	if (argc == 0 && getSciVersion() < SCI_VERSION_2) {
+	if (argc == 0) {
 		// This is called in KQ5CD with no parameters, where it seems to do some
 		// graphics driver check. This kernel function didn't have subfunctions
 		// then. If 0 is returned, the game functions normally, otherwise all
 		// the animations show up like a slideshow (e.g. in the intro). So we
-		// return 0. However, the behavior changed for kPlatform with no
-		// parameters in SCI32.
+		// return 0.
 		return NULL_REG;
+	}
+
+	if (g_sci->forceHiresGraphics()) {
+		// force Windows platform, so that hires-graphics are enabled
+		isWindows = true;
 	}
 
 	uint16 operation = (argc == 0) ? 0 : argv[0].toUint16();
 
 	switch (operation) {
-	case kPlatformCDSpeed:
-		// TODO: Returns CD Speed?
-		warning("STUB: kPlatform(CDSpeed)");
-		break;
-	case kPlatformUnk2:
-		// Always returns 2
-		return make_reg(0, 2);
-	case kPlatformCDCheck:
-		// TODO: Some sort of CD check?
-		warning("STUB: kPlatform(CDCheck)");
-		break;
-	case kPlatformUnk0:
-		// For Mac versions, kPlatform(0) with other args has more functionality
+	case kPlatformUnknown:
+		// For Mac versions, kPlatform(0) with other args has more functionality. Otherwise, fall through.
 		if (g_sci->getPlatform() == Common::kPlatformMacintosh && argc > 1)
 			return kMacPlatform(s, argc - 1, argv + 1);
-		// Otherwise, fall through
+		// fall through
 	case kPlatformGetPlatform:
-		return make_reg(0, (isWindows) ? kSciPlatformWindows : kSciPlatformDOS);
-	case kPlatformUnk5:
+		if (isWindows)
+			return make_reg(0, kSciPlatformWindows);
+		else if (g_sci->getPlatform() == Common::kPlatformMacintosh)
+			return make_reg(0, kSciPlatformMacintosh);
+		else
+			return make_reg(0, kSciPlatformDOS);
+	case kPlatformUnknown5:
 		// This case needs to return the opposite of case 6 to get hires graphics
 		return make_reg(0, !isWindows);
 	case kPlatformIsHiRes:
-		return make_reg(0, isWindows);
-	case kPlatformIsItWindows:
+	case kPlatformWin311OrHigher:
 		return make_reg(0, isWindows);
 	default:
 		error("Unsupported kPlatform operation %d", operation);
 	}
 
+	return NULL_REG;
+}
+
+extern int showScummVMDialog(const Common::U32String &message, const Common::U32String &altButton = Common::U32String(), bool alignCenter = true);
+
+#ifdef ENABLE_SCI32
+reg_t kPlatform32(EngineState *s, int argc, reg_t *argv) {
+	enum Operation {
+		kGetPlatform   = 0,
+		kGetCDSpeed    = 1,
+		kGetColorDepth = 2,
+		kGetCDDrive    = 3
+	};
+
+	Operation operation;
+	if (getSciVersion() < SCI_VERSION_2_1_MIDDLE) {
+		if (argc == 0 || argv[0].toSint16() == 0) {
+			operation = kGetPlatform;
+		} else {
+			return NULL_REG;
+		}
+	} else {
+		operation = argc > 0 ? (Operation)argv[0].toSint16() : kGetPlatform;
+	}
+
+	switch (operation) {
+	case kGetPlatform:
+		switch (g_sci->getPlatform()) {
+		case Common::kPlatformDOS:
+			return make_reg(0, kSciPlatformDOS);
+		case Common::kPlatformWindows:
+			return make_reg(0, kSciPlatformWindows);
+		case Common::kPlatformMacintosh:
+			// For Mac versions, kPlatform(0) with other args has more functionality
+			if (argc > 1) {
+				return kMacPlatform32(s, argc - 1, argv + 1);
+			} else {
+				// SCI32 Mac claims to be DOS. GK1 depends on this in order to play its
+				//  view-based slideshow movies. It appears that Sierra opted to change
+				//  this return value instead of updating the game scripts for Mac.
+				return make_reg(0, kSciPlatformDOS);
+			}
+		default:
+			error("Unknown platform %d", g_sci->getPlatform());
+		}
+	case kGetColorDepth:
+		if (g_sci->getGameId() == GID_PHANTASMAGORIA2) {
+			return make_reg(0, /* 16-bit color */ 3);
+		} else {
+			return make_reg(0, /* 256 color */ 2);
+		}
+	case kGetCDSpeed:
+		// The value `4` comes from Rama DOS resource.cfg installed in DOSBox,
+		// and seems to correspond to the highest expected CD speed value
+		return make_reg(0, 4);
+	case kGetCDDrive:
+	default:
+		return NULL_REG;
+	}
+}
+
+reg_t kWebConnect(EngineState *s, int argc, reg_t *argv) {
+	const Common::String baseUrl = "https://web.archive.org/web/1996/";
+	const Common::String gameUrl = argc > 0 ? s->_segMan->getString(argv[0]) : "http://www.sierra.com";
+	return make_reg(0, g_system->openUrl(baseUrl + gameUrl));
+}
+
+reg_t kWinExec(EngineState *s, int argc, reg_t *argv) {
+	return NULL_REG;
+}
+
+reg_t kWinDLL(EngineState *s, int argc, reg_t *argv) {
+	uint16 operation = argv[0].toUint16();
+	Common::String dllName = s->_segMan->getString(argv[1]);
+
+	switch (operation) {
+	case 0:	// load DLL
+		if (dllName == "PENGIN16.DLL")
+			showScummVMDialog(_("The Poker logic is hardcoded in an external DLL, and is not implemented yet. There exists some dummy logic for now, where opponent actions are chosen randomly"));
+
+		// This is originally a call to LoadLibrary() and to the Watcom function GetIndirectFunctionHandle
+		return make_reg(0, 1000);	// fake ID for loaded DLL, normally returned from Windows LoadLibrary()
+	case 1: // free DLL
+		// In the original, FreeLibrary() was called here for the loaded DLL
+		return TRUE_REG;
+	case 2:	// call DLL function
+		if (dllName == "PENGIN16.DLL") {
+			// Poker engine logic for Hoyle 5
+			// This is originally a call to the Watcom function InvokeIndirectFunction()
+			SciArray *data = s->_segMan->lookupArray(argv[2]);
+			return hoyle5PokerEngine(data);
+		} else {
+			error("kWinDLL: Unknown DLL to invoke: %s", dllName.c_str());
+			return NULL_REG;
+		}
+	default:
+		return NULL_REG;
+	}
+}
+
+#endif
+
+reg_t kKawaHacks(EngineState *s, int argc, reg_t *argv) {
+	switch (argv[0].toUint16()) {
+	case 0: { // DoAlert
+		showScummVMDialog(s->_segMan->getString(argv[1]));
+		return NULL_REG;
+	}
+	case 1: { // ZaWarudo
+		// Invert the color palette for the specified range.
+		uint16 from = argv[1].toUint16();
+		uint16 to = argv[2].toUint16();
+		Palette pal = g_sci->_gfxPalette16->_sysPalette;
+		for (uint16 i = from; i <= to; i++)
+		{
+			pal.colors[i].r = 255 - pal.colors[i].r;
+			pal.colors[i].g = 255 - pal.colors[i].g;
+			pal.colors[i].b = 255 - pal.colors[i].b;
+		}
+		g_sci->_gfxPalette16->set(&pal, true);
+ 		return NULL_REG;
+	}
+ 	case 2: // SetTitleColors
+		// Unused, would change the colors for plain windows' title bars.
+		return NULL_REG;
+	case 3: // IsDebug
+ 		// Return 1 if running with an internal debugger, 2 if we have AddMenu support, 3 if both.
+		return make_reg(0, 3);
+	default:
+		break;
+	}
+	return NULL_REG;
+}
+reg_t kKawaDbugStr(EngineState *s, int argc, reg_t *argv)
+{
+	debug("%s", Common::String::format(s->_segMan->getString(argv[0]).c_str(), argc - 1, argv + 1).c_str());
 	return NULL_REG;
 }
 
@@ -586,18 +938,28 @@ reg_t kEmpty(EngineState *s, int argc, reg_t *argv) {
 reg_t kStub(EngineState *s, int argc, reg_t *argv) {
 	Kernel *kernel = g_sci->getKernel();
 	int kernelCallNr = -1;
+	int kernelSubCallNr = -1;
 
 	Common::List<ExecStack>::const_iterator callIterator = s->_executionStack.end();
 	if (callIterator != s->_executionStack.begin()) {
 		callIterator--;
 		ExecStack lastCall = *callIterator;
-		kernelCallNr = lastCall.debugSelector;
+		kernelCallNr = lastCall.debugKernelFunction;
+		kernelSubCallNr = lastCall.debugKernelSubFunction;
 	}
 
-	Common::String warningMsg = "Dummy function k" + kernel->getKernelName(kernelCallNr) +
-								Common::String::format("[%x]", kernelCallNr) +
-								" invoked. Params: " +
-								Common::String::format("%d", argc) + " (";
+	Common::String warningMsg;
+	if (kernelSubCallNr == -1) {
+		warningMsg = "Dummy function k" + kernel->getKernelName(kernelCallNr) +
+		             Common::String::format("[%x]", kernelCallNr);
+	} else {
+		warningMsg = "Dummy function k" + kernel->getKernelName(kernelCallNr, kernelSubCallNr) +
+		             Common::String::format("[%x:%x]", kernelCallNr, kernelSubCallNr);
+
+	}
+
+	warningMsg += " invoked. Params: " +
+	              Common::String::format("%d", argc) + " (";
 
 	for (int i = 0; i < argc; i++) {
 		warningMsg +=  Common::String::format("%04x:%04x", PRINT_REG(argv[i]));

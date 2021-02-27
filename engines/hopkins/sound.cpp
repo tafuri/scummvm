@@ -26,6 +26,8 @@
 #include "hopkins/hopkins.h"
 
 #include "audio/decoders/adpcm_intern.h"
+#include "audio/decoders/wave.h"
+#include "audio/softsynth/pcspk.h"
 #include "common/system.h"
 #include "common/config-manager.h"
 #include "common/file.h"
@@ -46,7 +48,7 @@ public:
 		stream->seek(4, SEEK_CUR);
 	}
 
-	void reset() {
+	void reset() override {
 		DVI_ADPCMStream::reset();
 		_status.ima_ch[0].last = _startValue[0];
 		_status.ima_ch[1].last = _startValue[1];
@@ -95,24 +97,24 @@ public:
 		}
 	}
 
-	~TwaAudioStream() {
+	~TwaAudioStream() override {
 		delete _cueStream;
 		_cueStream = NULL;
 	}
 
-	virtual bool isStereo() const {
+	bool isStereo() const override {
 		return _cueStream ? _cueStream->isStereo() : true;
 	}
 
-	virtual int getRate() const {
+	int getRate() const override {
 		return _cueStream ? _cueStream->getRate() : 22050;
 	}
 
-	virtual bool endOfData() const {
+	bool endOfData() const override {
 		return _cueStream == NULL;
 	}
 
-	virtual int readBuffer(int16 *buffer, const int numSamples) {
+	int readBuffer(int16 *buffer, const int numSamples) override {
 		if (!_cueStream)
 			return 0;
 
@@ -258,6 +260,8 @@ void SoundManager::loadAnimSound() {
 		loadWav("SOUND80.WAV", 1);
 		loadWav("SOUND82.WAV", 2);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -295,6 +299,8 @@ void SoundManager::playAnimSound(int animFrame) {
 		case 122:
 			if (_vm->getLanguage() != Common::PL_POL)
 				playSample(4);
+			break;
+		default:
 			break;
 		}
 	} else if (_specialSoundNum == 1 && animFrame == 17)
@@ -524,10 +530,10 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 	bool fileFoundFl = false;
 	_vm->_fileIO->searchCat(filename + ".WAV", RES_VOI, fileFoundFl);
 	if (fileFoundFl) {
-		if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS)
+		if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS) {
 			filename = "ENG_VOI.RES";
-		// Win95 and Linux versions uses another set of names
-		else {
+		} else {
+			// Win95 and Linux versions uses another set of names
 			switch (_vm->_globals->_language) {
 			case LANG_FR:
 				filename = "RES_VFR.RES";
@@ -538,6 +544,8 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 			case LANG_SP:
 				filename = "RES_VES.RES";
 				break;
+			default:
+				break;
 			}
 		}
 
@@ -546,10 +554,10 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 	} else {
 		_vm->_fileIO->searchCat(filename + ".APC", RES_VOI, fileFoundFl);
 		if (fileFoundFl) {
-			if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS)
+			if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS) {
 				filename = "ENG_VOI.RES";
-			// Win95 and Linux versions uses another set of names
-			else {
+			} else {
+				// Win95 and Linux versions uses another set of names
 				switch (_vm->_globals->_language) {
 				case LANG_FR:
 					filename = "RES_VFR.RES";
@@ -560,6 +568,8 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 				case LANG_SP:
 					filename = "RES_VES.RES";
 					break;
+				default:
+					break;
 				}
 			}
 
@@ -568,10 +578,10 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 		} else {
 			_vm->_fileIO->searchCat(filename + ".RAW", RES_VOI, fileFoundFl);
 			if (fileFoundFl) {
-				if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS)
+				if (_vm->getPlatform() == Common::kPlatformOS2 || _vm->getPlatform() == Common::kPlatformBeOS) {
 					filename = "ENG_VOI.RES";
-				// Win95 and Linux versions uses another set of names
-				else {
+				} else {
+					// Win95 and Linux versions uses another set of names
 					switch (_vm->_globals->_language) {
 					case LANG_FR:
 						filename = "RES_VFR.RES";
@@ -581,6 +591,8 @@ bool SoundManager::mixVoice(int voiceId, int voiceMode, bool dispTxtFl) {
 						break;
 					case LANG_SP:
 						filename = "RES_VES.RES";
+						break;
+					default:
 						break;
 					}
 				}

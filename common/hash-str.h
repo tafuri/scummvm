@@ -29,10 +29,8 @@
 namespace Common {
 
 uint hashit(const char *str);
-uint hashit_lower(const char *str);	// Generate a hash based on the lowercase version of the string
-inline uint hashit(const String &str) { return hashit(str.c_str()); }
+uint hashit_lower(const char *str); // Generate a hash based on the lowercase version of the string
 inline uint hashit_lower(const String &str) { return hashit_lower(str.c_str()); }
-
 
 // FIXME: The following functors obviously are not consistently named
 
@@ -41,7 +39,7 @@ struct CaseSensitiveString_EqualTo {
 };
 
 struct CaseSensitiveString_Hash {
-	uint operator()(const String& x) const { return hashit(x.c_str()); }
+	uint operator()(const String& x) const { return x.hash(); }
 };
 
 
@@ -53,8 +51,6 @@ struct IgnoreCase_Hash {
 	uint operator()(const String& x) const { return hashit_lower(x.c_str()); }
 };
 
-
-
 // Specalization of the Hash functor for String objects.
 // We do case sensitve hashing here, because that is what
 // the default EqualTo is compatible with. If one wants to use
@@ -64,7 +60,14 @@ struct IgnoreCase_Hash {
 template<>
 struct Hash<String> {
 	uint operator()(const String& s) const {
-		return hashit(s.c_str());
+		return s.hash();
+	}
+};
+
+template<>
+struct Hash<U32String> {
+	uint operator()(const U32String& s) const {
+		return s.hash();
 	}
 };
 
@@ -78,9 +81,6 @@ struct Hash<const char *> {
 // String map -- by default case insensitive
 typedef HashMap<String, String, IgnoreCase_Hash, IgnoreCase_EqualTo> StringMap;
 
-
-
 } // End of namespace Common
-
 
 #endif

@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,25 +40,25 @@ public:
 	PressureDoor(Neighborhood *, bool isUpperDoor, const HotSpotID, const HotSpotID,
 			const HotSpotID, TimeValue pressureSoundIn, TimeValue pressureSoundOut,
 			TimeValue equalizeSoundIn, TimeValue equalizeSoundOut);
-	virtual ~PressureDoor() {}
+	~PressureDoor() override {}
 
 	void incrementPressure(const HotSpotID);
 	void stopChangingPressure();
 
 	void playAgainstRobot();
 
-	bool canSolve();
-	void doSolve();
+	bool canSolve() override;
+	void doSolve() override;
 
 protected:
-	virtual void openInteraction();
-	virtual void initInteraction();
-	virtual void closeInteraction();
+	void openInteraction() override;
+	void initInteraction() override;
+	void closeInteraction() override;
 
-	virtual void activateHotspots();
-	virtual void clickInHotspot(const Input &, const Hotspot *);
+	void activateHotspots() override;
+	void clickInHotspot(const Input &, const Hotspot *) override;
 
-	virtual void receiveNotification(Notification *, const NotificationFlags);
+	void receiveNotification(Notification *, const NotificationFlags) override;
 
 	Movie _levelsMovie;
 	TimeScale _levelsScale;

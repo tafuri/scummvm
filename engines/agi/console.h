@@ -50,6 +50,7 @@ private:
 	bool Cmd_SetObj(int argc, const char **argv);
 	bool Cmd_RunOpcode(int argc, const char **argv);
 	bool Cmd_Agiver(int argc, const char **argv);
+	bool Cmd_Version(int argc, const char **argv);
 	bool Cmd_Flags(int argc, const char **argv);
 	bool Cmd_Vars(int argc, const char **argv);
 	bool Cmd_Objs(int argc, const char **argv);
@@ -61,6 +62,13 @@ private:
 	bool Cmd_Cont(int argc, const char **argv);
 	bool Cmd_Room(int argc, const char **argv);
 	bool Cmd_BT(int argc, const char **argv);
+	bool Cmd_ShowMap(int argc, const char **argv);
+	bool Cmd_ScreenObj(int argc, const char **argv);
+	bool Cmd_VmVars(int argc, const char **argv);
+	bool Cmd_VmFlags(int argc, const char **argv);
+	bool Cmd_DisableAutomaticSave(int argc, const char **argv);
+
+	bool parseInteger(const char *argument, int &result);
 
 private:
 	AgiEngine *_vm;
@@ -69,7 +77,7 @@ private:
 class MickeyConsole : public GUI::Debugger {
 public:
 	MickeyConsole(MickeyEngine *mickey);
-	virtual ~MickeyConsole() {}
+	~MickeyConsole() override {}
 
 private:
 	MickeyEngine *_mickey;
@@ -82,7 +90,7 @@ private:
 class WinnieConsole : public GUI::Debugger {
 public:
 	WinnieConsole(WinnieEngine *winnie);
-	virtual ~WinnieConsole() {}
+	~WinnieConsole() override {}
 
 private:
 	WinnieEngine *_winnie;

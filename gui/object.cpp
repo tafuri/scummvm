@@ -30,40 +30,38 @@
 namespace GUI {
 
 GuiObject::GuiObject(const Common::String &name)
-	: _x(-1000), _y(-1000), _w(0), _h(0), _name(name), _firstWidget(0), _textDrawableArea(Common::Rect(0, 0, 0, 0)) {
-	reflowLayout();
+	: _x(-1000), _y(-1000), _w(0), _h(0), _useRTL(true), _name(name), _firstWidget(nullptr) {
 }
 
 GuiObject::~GuiObject() {
 	delete _firstWidget;
-	_firstWidget = 0;
+	_firstWidget = nullptr;
 }
 
 void GuiObject::reflowLayout() {
 	if (!_name.empty()) {
-		if (!g_gui.xmlEval()->getWidgetData(_name, _x, _y, _w, _h)) {
-			error("Could not load widget position for '%s'", _name.c_str());
-		}
-
-		if (_x < 0)
-			error("Widget <%s> has x < 0 (%d)", _name.c_str(), _x);
-		if (_x >= g_gui.getWidth())
-			error("Widget <%s> has x > %d (%d)", _name.c_str(), g_gui.getWidth(), _x);
-		if (_x + _w > g_gui.getWidth())
-			error("Widget <%s> has x + w > %d (%d)", _name.c_str(), g_gui.getWidth(), _x + _w);
-		if (_y < 0)
-			error("Widget <%s> has y < 0 (%d)", _name.c_str(), _y);
-		if (_y >= g_gui.getHeight())
-			error("Widget <%s> has y > %d (%d)", _name.c_str(), g_gui.getHeight(), _y);
-		if (_y + _h > g_gui.getHeight())
-			error("Widget <%s> has y + h > %d (%d)", _name.c_str(), g_gui.getHeight(), _y + _h);
+		int16 w, h;
+		bool useRTL = true;
+//		if (!g_gui.xmlEval()->getWidgetData(_name, _x, _y, w, h, useRTL) || w == -1 || h == -1) {
+//			warning("widget h: %d	w: %d", h, w);
+//			error("Unable to load widget position for '%s'. Please check your theme files", _name.c_str());
+//		}
+	
+		//symbian fix!!!
+	g_gui.xmlEval()->getWidgetData(_name, _x, _y, w, h, useRTL);
+	if (w == -1 || h == -1) {
+		error("Unable to load widget position for '%s'. Please check your theme files", _name.c_str());
+	}
+		_w = w;
+		_h = h;
+		_useRTL = useRTL;
 	}
 }
 
 void GuiObject::removeWidget(Widget *del) {
 	if (del == _firstWidget) {
 		Widget *del_next = del->next();
-		del->setNext(0);
+		del->setNext(nullptr);
 		_firstWidget = del_next;
 		return;
 	}
@@ -72,12 +70,16 @@ void GuiObject::removeWidget(Widget *del) {
 	while (w) {
 		if (w->next() == del) {
 			Widget *del_next = del->next();
-			del->setNext(0);
+			del->setNext(nullptr);
 			w->setNext(del_next);
 			return;
 		}
 		w = w->next();
 	}
+}
+
+Common::Rect GuiObject::getClipRect() const {
+	return Common::Rect(getAbsX(), getAbsY(), getAbsX() + getWidth(), getAbsY() + getHeight());
 }
 
 } // End of namespace GUI

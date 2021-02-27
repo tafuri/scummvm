@@ -23,40 +23,17 @@
 #ifndef BACKENDS_GRAPHICS_GPH_H
 #define BACKENDS_GRAPHICS_GPH_H
 
-#include "backends/graphics/surfacesdl/surfacesdl-graphics.h"
-#include "graphics/scaler/aspect.h" // for aspect2Real
-#include "graphics/scaler/downscaler.h"
+#include "backends/graphics/downscalesdl/downscalesdl-graphics.h"
 
-enum {
-	GFX_HALF = 12
-};
-
-class GPHGraphicsManager : public SurfaceSdlGraphicsManager {
+class GPHGraphicsManager : public DownscaleSdlGraphicsManager {
 public:
 	GPHGraphicsManager(SdlEventSource *boss, SdlWindow *window);
 
-	bool hasFeature(OSystem::Feature f);
-	void setFeatureState(OSystem::Feature f, bool enable);
-	bool getFeatureState(OSystem::Feature f);
-	int getDefaultGraphicsMode() const;
+	void initSize(uint w, uint h, const Graphics::PixelFormat *format = NULL) override;
+	bool loadGFXMode() override;
 
-	void initSize(uint w, uint h, const Graphics::PixelFormat *format = NULL);
-	const OSystem::GraphicsMode *getSupportedGraphicsModes() const;
-	bool setGraphicsMode(const char *name);
-	bool setGraphicsMode(int mode);
-	void setGraphicsModeIntern();
-	void internUpdateScreen();
-	void showOverlay();
-	void hideOverlay();
-	bool loadGFXMode();
-	void drawMouse();
-	void undrawMouse();
-	virtual void warpMouse(int x, int y);
-
-	SurfaceSdlGraphicsManager::MousePos *getMouseCurState();
-	SurfaceSdlGraphicsManager::VideoState *getVideoMode();
-
-	virtual void transformMouseCoordinates(Common::Point &point);
+protected:
+	void setupHardwareSize() override;
 };
 
 #endif /* BACKENDS_GRAPHICS_GPH_H */

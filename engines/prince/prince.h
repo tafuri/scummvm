@@ -8,20 +8,20 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  */
 
-#ifndef PRINCE_H
-#define PRINCE_H
+#ifndef PRINCE_PRINCE_H
+#define PRINCE_PRINCE_H
 
 #include "common/random.h"
 #include "common/system.h"
@@ -48,10 +48,10 @@
 #include "prince/mob.h"
 #include "prince/object.h"
 #include "prince/pscr.h"
+#include "prince/detection.h"
 
 namespace Prince {
 
-struct PrinceGameDescription;
 struct SavegameHeader;
 
 class PrinceEngine;
@@ -69,6 +69,18 @@ class Hero;
 class Animation;
 class Room;
 class Pscr;
+
+struct SavegameHeader {
+	uint8 version;
+	Common::String saveName;
+	Graphics::Surface *thumbnail;
+	int16 saveYear, saveMonth, saveDay;
+	int16 saveHour, saveMinutes;
+	uint32 playTime;
+};
+
+#define kSavegameStrSize 14
+#define kSavegameStr "SCUMMVM_PRINCE"
 
 struct Text {
 	const char *_str;
@@ -160,7 +172,7 @@ struct Anim {
 		case kAnimX:
 			return _x;
 		default:
-			error("getAnimData() - Wrong offset type: %d", (int) offset);
+			error("getAnimData() - Wrong offset type: %d", (int)offset);
 		}
 	}
 
@@ -168,7 +180,7 @@ struct Anim {
 		if (offset == kAnimX) {
 			_x = value;
 		} else {
-			error("setAnimData() - Wrong offset: %d, value: %d", (int) offset, value);
+			error("setAnimData() - Wrong offset: %d, value: %d", (int)offset, value);
 		}
 	}
 };
@@ -249,21 +261,24 @@ enum Type {
 
 class PrinceEngine : public Engine {
 protected:
-	Common::Error run();
+	Common::Error run() override;
 
 public:
 	PrinceEngine(OSystem *syst, const PrinceGameDescription *gameDesc);
-	virtual ~PrinceEngine();
+	~PrinceEngine() override;
 
-	virtual bool hasFeature(EngineFeature f) const;
-	virtual void pauseEngineIntern(bool pause);
-	virtual bool canSaveGameStateCurrently();
-	virtual bool canLoadGameStateCurrently();
-	virtual Common::Error saveGameState(int slot, const Common::String &desc);
-	virtual Common::Error loadGameState(int slot);
+	bool scummVMSaveLoadDialog(bool isSave);
 
-	static bool readSavegameHeader(Common::InSaveFile *in, SavegameHeader &header);
-	Common::String generateSaveName(int slot);
+	bool hasFeature(EngineFeature f) const override;
+	void pauseEngineIntern(bool pause) override;
+	bool canSaveGameStateCurrently() override;
+	bool canLoadGameStateCurrently() override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	Common::Error loadGameState(int slot) override;
+
+	void playVideo(Common::String videoFilename);
+
+	WARN_UNUSED_RESULT static bool readSavegameHeader(Common::InSaveFile *in, SavegameHeader &header, bool skipThumbnail = true);
 	void writeSavegameHeader(Common::OutSaveFile *out, SavegameHeader &header);
 	void syncGame(Common::SeekableReadStream *readStream, Common::WriteStream *writeStream);
 	bool loadGame(int slotNumber);
@@ -289,6 +304,8 @@ public:
 	uint32 _mobTranslationSize;
 	byte *_mobTranslationData;
 
+	bool _missingVoice;
+
 	bool loadLocation(uint16 locationNr);
 	bool loadAnim(uint16 animNr, bool loop);
 	bool loadVoice(uint32 textSlot, uint32 sampleSlot, const Common::String &name);
@@ -311,8 +328,6 @@ public:
 	void freeAllSamples();
 
 	void setVoice(uint16 slot, uint32 sampleSlot, uint16 flag);
-
-	virtual GUI::Debugger *getDebugger();
 
 	void changeCursor(uint16 curId);
 	void printAt(uint32 slot, uint8 color, char *s, uint16 x, uint16 y);

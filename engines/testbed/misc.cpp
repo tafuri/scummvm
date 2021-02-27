@@ -39,7 +39,7 @@ void MiscTests::criticalSection(void *arg) {
 	SharedVars &sv = *((SharedVars *)arg);
 
 	Testsuite::logDetailedPrintf("Before critical section: %d %d\n", sv.first, sv.second);
-	g_system->lockMutex(sv.mutex);
+	sv.mutex->lock();
 
 	// In any case, the two vars must be equal at entry, if mutex works fine.
 	// verify this here.
@@ -58,7 +58,7 @@ void MiscTests::criticalSection(void *arg) {
 
 	sv.second *= sv.first;
 	Testsuite::logDetailedPrintf("After critical section: %d %d\n", sv.first, sv.second);
-	g_system->unlockMutex(sv.mutex);
+	sv.mutex->unlock();
 
 	g_system->getTimerManager()->removeTimerProc(criticalSection);
 }
@@ -132,17 +132,17 @@ TestExitStatus MiscTests::testMutexes() {
 		Testsuite::writeOnScreen("Installing mutex", Common::Point(0, 100));
 	}
 
-	SharedVars sv = {1, 1, true, g_system->createMutex()};
+	SharedVars sv = {1, 1, true, new Common::Mutex()};
 
 	if (g_system->getTimerManager()->installTimerProc(criticalSection, 100000, &sv, "testbedMutex")) {
 		g_system->delayMillis(150);
 	}
 
-	g_system->lockMutex(sv.mutex);
+	sv.mutex->lock();
 	sv.first++;
 	g_system->delayMillis(1000);
 	sv.second *= sv.first;
-	g_system->unlockMutex(sv.mutex);
+	sv.mutex->unlock();
 
 	// wait till timed process exits
 	if (ConfParams.isSessionInteractive()) {
@@ -151,7 +151,7 @@ TestExitStatus MiscTests::testMutexes() {
 	g_system->delayMillis(3000);
 
 	Testsuite::logDetailedPrintf("Final Value: %d %d\n", sv.first, sv.second);
-	g_system->deleteMutex(sv.mutex);
+	delete sv.mutex;
 
 	if (sv.resultSoFar && 6 == sv.second) {
 		return kTestPassed;
@@ -160,10 +160,34 @@ TestExitStatus MiscTests::testMutexes() {
 	return kTestFailed;
 }
 
+TestExitStatus MiscTests::testOpenUrl() {
+	Common::String info = "Testing openUrl() method.\n"
+		"In this test we'll try to open scummvm.org in your default browser.";
+
+	if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
+		Testsuite::logPrintf("Info! Skipping test : openUrl()\n");
+		return kTestSkipped;
+	}
+
+	if (!g_system->openUrl("https://scummvm.org/")) {
+		Testsuite::logPrintf("Info! openUrl() says it couldn't open the url (probably not supported on this platform)\n");
+		return kTestFailed;
+	}
+
+	if (Testsuite::handleInteractiveInput("Was ScummVM able to open 'https://scummvm.org/' in your default browser?", "Yes", "No", kOptionRight)) {
+		Testsuite::logDetailedPrintf("Error! openUrl() is not working!\n");
+		return kTestFailed;
+	}
+
+	Testsuite::logDetailedPrintf("openUrl() is OK\n");
+	return kTestPassed;
+}
+
 MiscTestSuite::MiscTestSuite() {
 	addTest("Datetime", &MiscTests::testDateTime, false);
 	addTest("Timers", &MiscTests::testTimers, false);
 	addTest("Mutexes", &MiscTests::testMutexes, false);
+	addTest("openUrl", &MiscTests::testOpenUrl, true);
 }
 
 } // End of namespace Testbed

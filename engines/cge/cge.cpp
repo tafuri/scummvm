@@ -75,7 +75,6 @@ CGEEngine::CGEEngine(OSystem *syst, const ADGameDescription *gameDescription)
 	_midiPlayer = nullptr;
 	_miniShp = nullptr;
 	_miniShpList = nullptr;
-	_console = nullptr;
 	_sprTv = nullptr;
 	_sprK1 = nullptr;
 	_sprK2 = nullptr;
@@ -140,7 +139,7 @@ void CGEEngine::init() {
 	_resman = new ResourceManager();
 
 	// Create debugger console
-	_console = new CGEConsole(this);
+	setDebugger(new CGEConsole(this));
 
 	// Initialize engine objects
 	_font = new Font(this, "CGE");
@@ -172,8 +171,6 @@ void CGEEngine::init() {
 void CGEEngine::deinit() {
 	// Remove all of our debug levels here
 	DebugMan.clearAllDebugChannels();
-
-	delete _console;
 
 	// Delete engine objects
 	delete _vga;
@@ -219,7 +216,7 @@ Common::Error CGEEngine::run() {
 	}
 
 	// Initialize graphics using following:
-	initGraphics(kScrWidth, kScrHeight, false);
+	initGraphics(kScrWidth, kScrHeight);
 
 	// Setup necessary game objects
 	init();
@@ -229,9 +226,9 @@ Common::Error CGEEngine::run() {
 	// If game is finished, display ending message
 	if (_flag[3]) {
 		Common::String msg = Common::String(_text->getText(kSayTheEnd));
-		if (msg.size() != 0) {
+		if (!msg.empty()) {
 			g_system->delayMillis(10);
-			GUI::MessageDialog dialog(msg, "OK");
+			GUI::MessageDialog dialog(msg);
 			dialog.runModal();
 		}
 	}
@@ -244,7 +241,7 @@ Common::Error CGEEngine::run() {
 
 bool CGEEngine::hasFeature(EngineFeature f) const {
 	return
-		(f == kSupportsRTL) ||
+		(f == kSupportsReturnToLauncher) ||
 		(f == kSupportsLoadingDuringRuntime) ||
 		(f == kSupportsSavingDuringRuntime);
 }

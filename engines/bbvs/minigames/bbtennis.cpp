@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -81,6 +81,8 @@ void MinigameBbTennis::buildDrawList(DrawList &drawList) {
 		break;
 	case 2:
 		buildDrawList2(drawList);
+		break;
+	default:
 		break;
 	}
 }
@@ -153,6 +155,8 @@ void MinigameBbTennis::buildDrawList1(DrawList &drawList) {
 				}
 				break;
 
+			default:
+				break;
 			}
 
 			drawList.add(index, x, y, priority);
@@ -255,6 +259,8 @@ void MinigameBbTennis::initObjects() {
 	case 2:
 		initObjects2();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -306,6 +312,8 @@ void MinigameBbTennis::initVars() {
 	case 2:
 		initVars2();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -348,6 +356,8 @@ bool MinigameBbTennis::updateStatus(int mouseX, int mouseY, uint mouseButtons) {
 		return updateStatus1(mouseX, mouseY, mouseButtons);
 	case 2:
 		return updateStatus2(mouseX, mouseY, mouseButtons);
+	default:
+		break;
 	}
 	return false;
 }
@@ -480,6 +490,8 @@ void MinigameBbTennis::updateObjs() {
 		case 7:
 			updateEnemyTennisBall(i);
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -516,7 +528,7 @@ void MinigameBbTennis::updateObjs() {
 		}
 		obj->blinkCtr = _vm->getRandom(64) + 60;
 		_tennisPlayerDelay = _vm->getRandom(128) + 400 - _playerDecrease;
-		if (_vm->getRandom(10) == 1 && !isAnySoundPlaying(kAllSounds, 0x11))
+		if (_vm->getRandom(10) == 1 && !isAnySoundPlaying(kAllSounds, 11))
 			playSound(kYuppieEnteringCourtSounds[_vm->getRandom(2)]);
 	}
 
@@ -691,6 +703,8 @@ void MinigameBbTennis::updateSquirrel(int objIndex) {
 			}
 			break;
 
+		default:
+			break;
 	}
 
 	if (obj->status != 4) {
@@ -862,6 +876,8 @@ void MinigameBbTennis::updateTennisPlayer(int objIndex) {
 	case 8:
 		break;
 
+	default:
+		break;
 	}
 
 	if (obj->status != 8) {
@@ -940,6 +956,8 @@ void MinigameBbTennis::updateThrower(int objIndex) {
 		}
 		break;
 
+	default:
+		break;
 	}
 
 	if (obj->status != 3) {
@@ -1023,6 +1041,9 @@ void MinigameBbTennis::updateNetPlayer(int objIndex) {
 		}
 		break;
 
+	case 4:
+		break;
+
 	case 5:
 		if (--obj->ticks == 0) {
 			++obj->frameIndex;
@@ -1032,9 +1053,8 @@ void MinigameBbTennis::updateNetPlayer(int objIndex) {
 		}
 		break;
 
-	case 4:
+	default:
 		break;
-
 	}
 
 	if (obj->status < 4 && obj->frameIndex != 31) {
@@ -1171,6 +1191,8 @@ void MinigameBbTennis::makeEnemyBall(int x, int y, int frameIndex) {
 		obj->fltStepY = (float)((y - 180) / 6);
 		break;
 
+	default:
+		break;
 	}
 
 }

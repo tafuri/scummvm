@@ -3,6 +3,7 @@
 #
 ###############################################
 
+ifeq ($(LOAD_RULES_MK), 1)
 
 # Copy the list of objects to a new variable. The name of the new variable
 # contains the module name, a trick we use so we can keep multiple different
@@ -20,12 +21,17 @@ ifdef TOOL_EXECUTABLE
 # TODO: Refactor this, so that even our master executable can use this rule?
 ################################################
 TOOL-$(MODULE) := $(MODULE)/$(TOOL_EXECUTABLE)$(EXEEXT)
+TOOL_LIBS-$(TOOL-$(MODULE)) := $(TOOL_LIBS)
+TOOL_CFLAGS-$(TOOL-$(MODULE)) := $(TOOL_CFLAGS)
+
 $(TOOL-$(MODULE)): $(MODULE_OBJS-$(MODULE)) $(TOOL_DEPS)
-	$(QUIET_CXX)$(CXX) $(LDFLAGS) $+ -o $@
+	+$(QUIET_LINK)$(LD) $(LDFLAGS) $(TOOL_CFLAGS-$@) $+ $(TOOL_LIBS-$@) -o $@
 
 # Reset TOOL_* vars
 TOOL_EXECUTABLE:=
 TOOL_DEPS:=
+TOOL_CFLAGS:=
+TOOL_LIBS:=
 
 # Add to "devtools" target
 devtools: $(TOOL-$(MODULE))
@@ -42,13 +48,20 @@ ifdef PLUGIN
 PLUGIN-$(MODULE) := plugins/$(PLUGIN_PREFIX)$(notdir $(MODULE))$(PLUGIN_SUFFIX)
 $(PLUGIN-$(MODULE)): $(MODULE_OBJS-$(MODULE)) $(PLUGIN_EXTRA_DEPS)
 	$(QUIET)$(MKDIR) plugins
-	$(QUIET_PLUGIN)$(CXX) $(filter-out $(PLUGIN_EXTRA_DEPS),$+) $(PLUGIN_LDFLAGS) -o $@
+	+$(QUIET_PLUGIN)$(LD) $(SAVED_LDFLAGS) $(filter-out $(PLUGIN_EXTRA_DEPS),$+) $(PLUGIN_LDFLAGS) -o $@
 
 # Reset PLUGIN var
 PLUGIN:=
 
 # Add to "plugins" target
 plugins: $(PLUGIN-$(MODULE))
+
+ifdef SPLIT_DWARF
+$(PLUGIN-$(MODULE)).dwp: $(PLUGIN-$(MODULE))
+	$(QUIET_DWP)$(DWP) -e $<
+
+plugins: $(PLUGIN-$(MODULE)).dwp
+endif
 
 # Add to the PLUGINS variable
 PLUGINS += $(PLUGIN-$(MODULE))
@@ -86,5 +99,10 @@ endif # TOOL_EXECUTABLE
 clean: clean-$(MODULE)
 clean-$(MODULE): clean-% :
 	-$(RM) $(MODULE_OBJS-$*) $(MODULE_LIB-$*) $(PLUGIN-$*) $(TOOL-$*)
+ifdef SPLIT_DWARF
+	-$(RM) $(MODULE_OBJS-$*:.o=.dwo)
+endif
 
 .PHONY: clean-$(MODULE) $(MODULE)
+
+endif # LOAD_RULES_MK

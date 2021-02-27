@@ -55,7 +55,7 @@ protected:
 	}
 
 public:
-	WrappedLineFormatter(Font *font) : _font(font) { }
+	WrappedLineFormatter(Font *font) : _font(font), _lines(0), _lineWidth(0) { }
 	virtual ~WrappedLineFormatter() { }
 
 	virtual void calc(const Common::String &text, uint16 maxwidth) {
@@ -108,7 +108,7 @@ class StringExtent_NS : public WrappedLineFormatter {
 	uint	_width, _height;
 
 protected:
-	virtual Common::String expand(const Common::String &token) {
+	Common::String expand(const Common::String &token) override {
 		if (token.compareToIgnoreCase("%p") == 0) {
 			return Common::String("/");
 		}
@@ -116,7 +116,7 @@ protected:
 		return token;
 	}
 
-	virtual void setup() {
+	void setup() override {
 		_width = _height = 0;
 
 		_line.clear();
@@ -124,19 +124,19 @@ protected:
 		_width = 0;
 	}
 
-	virtual void action() {
+	void action() override {
 		if (_lineWidth > _width) {
 			_width = _lineWidth;
 		}
 		_height = _lines * _font->height();
 	}
 
-	virtual void end() {
+	void end() override {
 		action();
 	}
 
 public:
-	StringExtent_NS(Font *font) : WrappedLineFormatter(font) { }
+	StringExtent_NS(Font *font) : WrappedLineFormatter(font), _width(0), _height(0) { }
 
 	uint width() const { return _width; }
 	uint height() const { return _height; }
@@ -152,7 +152,7 @@ class StringWriter_NS : public WrappedLineFormatter {
 	Graphics::Surface	*_surf;
 
 protected:
-	virtual Common::String expand(const Common::String& token) {
+	Common::String expand(const Common::String& token) override {
 		if (token.compareToIgnoreCase("%p") == 0) {
 			Common::String t(_vm->_password);
 			for (int i = t.size(); i < 7; i++) {
@@ -169,10 +169,10 @@ protected:
 		return token;
 	}
 
-	virtual void setup() {
+	void setup() override {
 	}
 
-	virtual void action() {
+	void action() override {
 		if (_line.empty()) {
 			return;
 		}
@@ -184,12 +184,13 @@ protected:
 		_font->drawString(dst, _surf->w, _line.c_str());
 	}
 
-	virtual void end() {
+	void end() override {
 		action();
 	}
 
 public:
-	StringWriter_NS(Parallaction_ns *vm, Font *font) : WrappedLineFormatter(font), _vm(vm) { }
+	StringWriter_NS(Parallaction_ns *vm, Font *font) : WrappedLineFormatter(font), _vm(vm),
+		_width(0), _height(0), _color(0), _surf(NULL) { }
 
 	void write(const Common::String &text, uint maxWidth, byte color, Graphics::Surface *surf) {
 		StringExtent_NS	se(_font);
@@ -264,14 +265,14 @@ class BalloonManager_ns : public BalloonManager {
 
 public:
 	BalloonManager_ns(Parallaction_ns *vm, Font *font);
-	~BalloonManager_ns();
+	~BalloonManager_ns() override;
 
-	void reset();
-	int setLocationBalloon(const Common::String &text, bool endGame);
-	int setDialogueBalloon(const Common::String &text, uint16 winding, TextColor textColor);
-	int setSingleBalloon(const Common::String &text, uint16 x, uint16 y, uint16 winding, TextColor textColor);
-	void setBalloonText(uint id, const Common::String &text, TextColor textColor);
-	int hitTestDialogueBalloon(int x, int y);
+	void reset() override;
+	int setLocationBalloon(const Common::String &text, bool endGame) override;
+	int setDialogueBalloon(const Common::String &text, uint16 winding, TextColor textColor) override;
+	int setSingleBalloon(const Common::String &text, uint16 x, uint16 y, uint16 winding, TextColor textColor) override;
+	void setBalloonText(uint id, const Common::String &text, TextColor textColor) override;
+	int hitTestDialogueBalloon(int x, int y) override;
 };
 
 int16 BalloonManager_ns::_dialogueBalloonX[5] = { 80, 120, 150, 150, 150 };
@@ -444,7 +445,7 @@ class StringExtent_BR : public WrappedLineFormatter {
 	uint	_width, _height;
 
 protected:
-	virtual void setup() {
+	void setup() override {
 		_width = _height = 0;
 
 		_line.clear();
@@ -452,19 +453,19 @@ protected:
 		_width = 0;
 	}
 
-	virtual void action() {
+	void action() override {
 		if (_lineWidth > _width) {
 			_width = _lineWidth;
 		}
 		_height = _lines * _font->height();
 	}
 
-	virtual void end() {
+	void end() override {
 		action();
 	}
 
 public:
-	StringExtent_BR(Font *font) : WrappedLineFormatter(font) { }
+	StringExtent_BR(Font *font) : WrappedLineFormatter(font), _width(0), _height(0) { }
 
 	uint width() const { return _width; }
 	uint height() const { return _height; }
@@ -480,14 +481,15 @@ class StringWriter_BR : public WrappedLineFormatter {
 	Graphics::Surface	*_surf;
 
 protected:
-	StringWriter_BR(Font *font, byte color) : WrappedLineFormatter(font) {
+	StringWriter_BR(Font *font, byte color) : WrappedLineFormatter(font), _width(0), _height(0),
+			_color(color), _x(0), _y(0), _surf(NULL) {
 
 	}
 
-	virtual void setup() {
+	void setup() override {
 	}
 
-	virtual void action() {
+	void action() override {
 		if (_line.empty()) {
 			return;
 		}
@@ -499,12 +501,13 @@ protected:
 		_font->drawString(dst, _surf->w, _line.c_str());
 	}
 
-	virtual void end() {
+	void end() override {
 		action();
 	}
 
 public:
-	StringWriter_BR(Font *font) : WrappedLineFormatter(font) { }
+	StringWriter_BR(Font *font) : WrappedLineFormatter(font), _width(0), _height(0),
+			_color(0), _x(0), _y(0), _surf(NULL) { }
 
 	void write(const Common::String &text, uint maxWidth, byte color, Graphics::Surface *surf) {
 		StringExtent_BR	se(_font);
@@ -550,14 +553,14 @@ class BalloonManager_br : public BalloonManager {
 
 public:
 	BalloonManager_br(Parallaction_br *vm, Font *font);
-	~BalloonManager_br();
+	~BalloonManager_br() override;
 
-	void reset();
-	int setLocationBalloon(const Common::String &text, bool endGame);
-	int setDialogueBalloon(const Common::String &text, uint16 winding, TextColor textColor);
-	int setSingleBalloon(const Common::String &text, uint16 x, uint16 y, uint16 winding, TextColor textColor);
-	void setBalloonText(uint id, const Common::String &text, TextColor textColor);
-	int hitTestDialogueBalloon(int x, int y);
+	void reset() override;
+	int setLocationBalloon(const Common::String &text, bool endGame) override;
+	int setDialogueBalloon(const Common::String &text, uint16 winding, TextColor textColor) override;
+	int setSingleBalloon(const Common::String &text, uint16 x, uint16 y, uint16 winding, TextColor textColor) override;
+	void setBalloonText(uint id, const Common::String &text, TextColor textColor) override;
+	int hitTestDialogueBalloon(int x, int y) override;
 };
 
 

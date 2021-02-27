@@ -25,12 +25,21 @@
 
 #include "common/array.h"
 #include "common/str.h"
+#include "common/ustr.h"
 #include "common/ptr.h"
-
 
 namespace Graphics {
 struct Surface;
 }
+
+/**
+ * @defgroup engines_savestate Save states
+ * @ingroup engines
+ *
+ * @brief API for managing save states.
+ *
+ * @{
+ */
 
 /**
  * Object describing a save state.
@@ -44,8 +53,15 @@ struct Surface;
  * Saves are writable and deletable by default.
  */
 class SaveStateDescriptor {
+private:
+	enum SaveType {
+		kSaveTypeUndetermined,
+		kSaveTypeRegular,
+		kSaveTypeAutosave
+	};
 public:
 	SaveStateDescriptor();
+	SaveStateDescriptor(int s, const Common::U32String &d);
 	SaveStateDescriptor(int s, const Common::String &d);
 
 	/**
@@ -61,12 +77,13 @@ public:
 	/**
 	 * @param desc A human readable description of the save state.
 	 */
-	void setDescription(const Common::String &desc) { _description = desc; }
+	void setDescription(const Common::String &desc) { _description = desc.decode(); }
+	void setDescription(const Common::U32String &desc) { _description = desc; }
 
 	/**
 	 * @return A human readable description of the save state.
 	 */
-	const Common::String &getDescription() const { return _description; }
+	const Common::U32String &getDescription() const { return _description; }
 
 	/** Optional entries only included when querying via MetaEngine::querySaveMetaInfo */
 
@@ -91,6 +108,24 @@ public:
 	bool getWriteProtectedFlag() const { return _isWriteProtected; }
 
 	/**
+	 * Defines whether the save state is "locked" because is being synced.
+	 */
+	void setLocked(bool state) {
+		_isLocked = state;
+
+		//just in case:
+		if (state) {
+			setDeletableFlag(false);
+			setWriteProtectedFlag(true);
+		}
+	}
+
+	/**
+	* Queries whether the save state is "locked" because is being synced.
+	*/
+	bool getLocked() const { return _isLocked; }
+
+	/**
 	 * Return a thumbnail graphics surface representing the savestate visually.
 	 * This is usually a scaled down version of the game graphics. The size
 	 * should be either 160x100 or 160x120 pixels, depending on the aspect
@@ -104,6 +139,7 @@ public:
 	 * Hence the caller must not delete the surface.
 	 */
 	void setThumbnail(Graphics::Surface *t);
+	void setThumbnail(Common::SharedPtr<Graphics::Surface> t) { _thumbnail = t; }
 
 	/**
 	 * Sets the date the save state was created.
@@ -159,6 +195,23 @@ public:
 	 */
 	const Common::String &getPlayTime() const { return _playTime; }
 
+	/**
+	 * Returns the time the game was played before the save state was created
+	 * in milliseconds.
+	 *
+	 * It defaults to 0.
+	 */
+	uint32 getPlayTimeMSecs() const { return _playTimeMSecs; }
+
+	/**
+	 * Sets whether the save is an autosave
+	 */
+	void setAutosave(bool autosave);
+
+	/**
+	 * Returns true whether the save is an autosave
+	 */
+	bool isAutosave() const;
 private:
 	/**
 	 * The saveslot id, as it would be passed to the "-x" command line switch.
@@ -168,7 +221,7 @@ private:
 	/**
 	 * A human readable description of the save state.
 	 */
-	Common::String _description;
+	Common::U32String _description;
 
 	/**
 	 * Whether the save state can be deleted.
@@ -179,6 +232,11 @@ private:
 	 * Whether the save state is write protected.
 	 */
 	bool _isWriteProtected;
+
+	/**
+	 * Whether the save state is "locked" because is being synced.
+	 */
+	bool _isLocked;
 
 	/**
 	 * Human readable description of the date the save state was created.
@@ -197,13 +255,32 @@ private:
 	Common::String _playTime;
 
 	/**
+	 * The time the game was played before the save state was created
+	 * in milliseconds.
+	 */
+	uint32 _playTimeMSecs;
+
+	/**
 	 * The thumbnail of the save state.
 	 */
 	Common::SharedPtr<Graphics::Surface> _thumbnail;
+
+	/**
+	 * Save file type
+	 */
+	SaveType _saveType;
 };
 
 /** List of savestates. */
 typedef Common::Array<SaveStateDescriptor> SaveStateList;
 
-
+/**
+ * Comparator object to compare SaveStateDescriptor's based on slot.
+ */
+struct SaveStateDescriptorSlotComparator {
+	bool operator()(const SaveStateDescriptor &x, const SaveStateDescriptor &y) const {
+		return x.getSaveSlot() < y.getSaveSlot();
+	}
+};
+/** @} */
 #endif

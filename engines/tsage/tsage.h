@@ -20,13 +20,10 @@
  *
  */
 
-#ifndef TSAGE_H
-#define TSAGE_H
+#ifndef TSAGE_TSAGE_H
+#define TSAGE_TSAGE_H
 
 #include "engines/engine.h"
-#include "common/rect.h"
-#include "audio/mixer.h"
-#include "common/file.h"
 #include "gui/debugger.h"
 
 #include "tsage/core.h"
@@ -35,22 +32,10 @@
 #include "tsage/events.h"
 #include "tsage/graphics.h"
 #include "tsage/resources.h"
+#include "tsage/detection.h"
 
 
 namespace TsAGE {
-
-enum {
-	GType_Ringworld = 0,
-	GType_BlueForce = 1,
-	GType_Ringworld2 = 2
-};
-
-enum {
-	GF_DEMO = 1 << 0,
-	GF_CD = 1 << 1,
-	GF_FLOPPY = 1 << 2,
-	GF_ALT_REGIONS = 1 << 3
-};
 
 enum {
 	kRingDebugScripts = 1 << 0,
@@ -59,25 +44,15 @@ enum {
 	ktSageDebugGraphics = 1 << 3
 };
 
-struct tSageGameDescription;
-
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 200
-#define SCREEN_CENTER_X 160
-#define SCREEN_CENTER_Y 100
-#define UI_INTERFACE_Y 168
-
 class TSageEngine : public Engine {
 private:
 	const tSageGameDescription *_gameDescription;
 public:
 	TSageEngine(OSystem *system, const tSageGameDescription *gameDesc);
-	~TSageEngine();
-	virtual bool hasFeature(EngineFeature f) const;
+	~TSageEngine() override;
+	bool hasFeature(EngineFeature f) const override;
 
 	MemoryManager _memoryManager;
-	Debugger *_debugger;
-	GUI::Debugger *getDebugger() { return _debugger; }
 
 	const char *getGameId() const;
 	uint32 getGameID() const;
@@ -85,13 +60,12 @@ public:
 	Common::String getPrimaryFilename() const;
 
 	virtual Common::Error init();
-	virtual Common::Error run();
-	virtual bool canLoadGameStateCurrently();
-	virtual bool canSaveGameStateCurrently();
-	virtual Common::Error loadGameState(int slot);
-	virtual Common::Error saveGameState(int slot, const Common::String &desc);
-	virtual void syncSoundSettings();
-	Common::String generateSaveName(int slot);
+	Common::Error run() override;
+	bool canLoadGameStateCurrently() override;
+	bool canSaveGameStateCurrently() override;
+	Common::Error loadGameState(int slot) override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	void syncSoundSettings() override;
 
 	void initialize();
 	void deinitialize();

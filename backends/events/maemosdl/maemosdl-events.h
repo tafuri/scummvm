@@ -26,32 +26,30 @@
 #define BACKEND_EVENTS_SDL_MAEMO_H
 
 #include "backends/events/sdl/sdl-events.h"
-#include "backends/platform/maemo/maemo.h"
-#include "backends/graphics/surfacesdl/surfacesdl-graphics.h"
 
 namespace Maemo {
 
 /**
  * SDL events manager for Maemo
  */
-class MaemoSdlEventSource : public SdlEventSource {
+class MaemoSdlEventSource final : public SdlEventSource {
 public:
 	MaemoSdlEventSource();
 
 	bool toggleClickMode();
 protected:
-	virtual bool remapKey(SDL_Event &ev, Common::Event &event);
-	virtual bool handleMouseButtonDown(SDL_Event &ev, Common::Event &event);
-	virtual bool handleMouseButtonUp(SDL_Event &ev, Common::Event &event);
+	virtual bool remapKey(SDL_Event &ev, Common::Event &event) override;
+	virtual bool handleMouseButtonDown(SDL_Event &ev, Common::Event &event) override;
+	virtual bool handleMouseButtonUp(SDL_Event &ev, Common::Event &event) override;
 
 	bool _clickEnabled;
 };
 
-class MaemoSdlEventObserver : public Common::EventObserver {
+class MaemoSdlEventObserver final : public Common::EventObserver {
 public:
 	MaemoSdlEventObserver(MaemoSdlEventSource *eventSource);
 
-	virtual bool notifyEvent(const Common::Event &event);
+	virtual bool notifyEvent(const Common::Event &event) override;
 private:
 	MaemoSdlEventSource *_eventSource;
 };

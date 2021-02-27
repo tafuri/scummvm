@@ -100,7 +100,7 @@ public:
 	// Constructor
 	// -----------
 	GraphicEngine(Kernel *pKernel);
-	~GraphicEngine();
+	~GraphicEngine() override;
 
 	// Interface
 	// ---------
@@ -272,13 +272,13 @@ public:
 
 	// Resource-Managing Methods
 	// --------------------------
-	virtual Resource *loadResource(const Common::String &fileName);
-	virtual bool canLoadResource(const Common::String &fileName);
+	Resource *loadResource(const Common::String &fileName) override;
+	bool canLoadResource(const Common::String &fileName) override;
 
 	// Persistence Methods
 	// -------------------
-	virtual bool persist(OutputPersistenceBlock &writer);
-	virtual bool unpersist(InputPersistenceBlock &reader);
+	bool persist(OutputPersistenceBlock &writer) override;
+	bool unpersist(InputPersistenceBlock &reader) override;
 
 	static void ARGBColorToLuaColor(lua_State *L, uint color);
 	static uint luaColorToARGBColor(lua_State *L, int stackIndex);
@@ -310,8 +310,6 @@ private:
 	uint _frameTimeSampleSlot;
 
 private:
-	byte *_backBuffer;
-
 	RenderObjectPtr<Panel> _mainPanelPtr;
 
 	Common::ScopedPtr<RenderObjectManager> _renderObjectManagerPtr;

@@ -341,6 +341,22 @@ void ScummEngine_v90he::setupScummVars() {
 		VAR_NUM_UNK = 131;
 	}
 }
+
+void ScummEngine_v100he::setupScummVars() {
+	ScummEngine_v90he::setupScummVars();
+
+	if (_game.id == GID_MOONBASE) {
+		VAR_REMOTE_START_SCRIPT = 98;
+		VAR_NETWORK_AVAILABLE = 100;
+		VAR_NETWORK_RECEIVE_ARRAY_SCRIPT = 101;
+		VAR_U32_USER_VAR_A = 108;
+		VAR_U32_USER_VAR_B = 109;
+		VAR_U32_USER_VAR_C = 110;
+		VAR_U32_USER_VAR_D = 111;
+		VAR_U32_USER_VAR_E = 112;
+		VAR_U32_USER_VAR_F = 113;
+	}
+}
 #endif
 
 #ifdef ENABLE_SCUMM_7_8
@@ -720,6 +736,18 @@ void ScummEngine_v99he::resetScummVars() {
 		// Specific to Nimbus Games version.
 		VAR(156) = 1;
 		VAR(157) = 0;
+	}
+}
+
+void ScummEngine_v100he::resetScummVars() {
+	ScummEngine_v99he::resetScummVars();
+
+	if (_game.id == GID_MOONBASE) {
+#ifdef USE_LIBCURL
+		VAR(VAR_NETWORK_AVAILABLE) = 1;
+#else
+		VAR(VAR_NETWORK_AVAILABLE) = 0;
+#endif
 	}
 }
 #endif

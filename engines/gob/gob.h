@@ -25,17 +25,13 @@
 
 #include "common/random.h"
 #include "common/system.h"
-#include "common/savefile.h"
 
 #include "graphics/pixelformat.h"
 
 #include "engines/engine.h"
 
 #include "gob/console.h"
-
-namespace GUI {
-class StaticTextWidget;
-}
+#include "gob/detection/detection.h"
 
 /**
  * This is the namespace of the Gob engine.
@@ -75,7 +71,6 @@ class PalAnim;
 class Scenery;
 class Util;
 class SaveLoad;
-class GobConsole;
 class PreGob;
 
 #define WRITE_VAR_UINT32(var, val)  _vm->_inter->_variables->writeVar32(var, val)
@@ -109,48 +104,6 @@ enum Endianness {
 	kEndiannessBE
 };
 
-// WARNING: Reordering these will invalidate save games!
-//          Add new games to the bottom of the list.
-enum GameType {
-	kGameTypeNone = 0,
-	kGameTypeGob1,
-	kGameTypeGob2,
-	kGameTypeGob3,
-	kGameTypeWoodruff,
-	kGameTypeBargon,
-	kGameTypeWeen,
-	kGameTypeLostInTime,
-	kGameTypeInca2,
-	kGameTypeDynasty,
-	kGameTypeUrban,
-	kGameTypePlaytoons,
-	kGameTypeBambou,
-	kGameTypeFascination,
-	kGameTypeGeisha,
-	kGameTypeAdi2,
-	kGameTypeAdi4,
-	kGameTypeAdibou2,
-	kGameTypeAdibou1,
-	kGameTypeAbracadabra,
-	kGameTypeBabaYaga,
-	kGameTypeLittleRed,
-	kGameTypeOnceUponATime, // Need more inspection to see if Baba Yaga or Abracadabra
-	kGameTypeAJWorld,
-	kGameTypeCrousti
-};
-
-enum Features {
-	kFeaturesNone      =      0,
-	kFeaturesCD        = 1 << 0,
-	kFeaturesEGA       = 1 << 1,
-	kFeaturesAdLib     = 1 << 2,
-	kFeaturesSCNDemo   = 1 << 3,
-	kFeaturesBATDemo   = 1 << 4,
-	kFeatures640x480   = 1 << 5,
-	kFeatures800x600   = 1 << 6,
-	kFeaturesTrueColor = 1 << 7
-};
-
 enum EndiannessMethod {
 	kEndiannessMethodLE,     ///< Always little endian.
 	kEndiannessMethodBE,     ///< Always big endian.
@@ -173,8 +126,6 @@ enum {
 	kDebugDemo       = 1 << 11
 };
 
-struct GOBGameDescription;
-
 class GobEngine : public Engine {
 private:
 	GameType _gameType;
@@ -186,10 +137,10 @@ private:
 	uint32 _pauseStart;
 
 	// Engine APIs
-	virtual Common::Error run();
-	virtual bool hasFeature(EngineFeature f) const;
-	virtual void pauseEngineIntern(bool pause);
-	virtual void syncSoundSettings();
+	Common::Error run() override;
+	bool hasFeature(EngineFeature f) const override;
+	void pauseEngineIntern(bool pause) override;
+	void syncSoundSettings() override;
 
 	Common::Error initGameParts();
 	Common::Error initGraphics();
@@ -263,12 +214,10 @@ public:
 
 	void setTrueColor(bool trueColor);
 
-	GUI::Debugger *getDebugger() { return _console; }
-
 	const Graphics::PixelFormat &getPixelFormat() const;
 
 	GobEngine(OSystem *syst);
-	virtual ~GobEngine();
+	~GobEngine() override;
 
 	void initGame(const GOBGameDescription *gd);
 };

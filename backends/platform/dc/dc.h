@@ -22,7 +22,6 @@
 
 #include "backends/base-backend.h"
 #include <graphics/surface.h>
-#include <graphics/colormasks.h>
 #include <graphics/palette.h>
 #include <ronin/soundcommon.h>
 #include "backends/timer/default/default-timer.h"
@@ -57,21 +56,17 @@ class DCHardware {
 };
 
 class DCCDManager : public DefaultAudioCDManager {
-  // Initialize the specified CD drive for audio playback.
-  bool openCD(int drive);
+public:
+	// Poll cdrom status
+	// Returns true if cd audio is playing
+	bool isPlaying() const override;
 
-  // Poll cdrom status
-  // Returns true if cd audio is playing
-  bool pollCD();
+	// Play cdrom audio track
+	bool play(int track, int numLoops, int startFrame, int duration, bool onlyEmulate = false,
+		Audio::Mixer::SoundType soundType = Audio::Mixer::kMusicSoundType) override;
 
-  // Play cdrom audio track
-  void playCD(int track, int num_loops, int start_frame, int duration);
-
-  // Stop cdrom audio track
-  void stopCD();
-
-  // Update cdrom audio status
-  void updateCD();
+	// Stop cdrom audio track
+	void stop() override;
 };
 
 class OSystem_Dreamcast : private DCHardware, public EventsBaseBackend, public PaletteManager, public FilesystemFactory
@@ -94,24 +89,12 @@ class OSystem_Dreamcast : private DCHardware, public EventsBaseBackend, public P
   // Query the state of the specified feature.
   bool getFeatureState(Feature f);
 
-  // Retrieve a list of all graphics modes supported by this backend.
-  const GraphicsMode *getSupportedGraphicsModes() const;
-
-  // Return the ID of the 'default' graphics mode.
-  int getDefaultGraphicsMode() const;
-
-  // Switch to the specified graphics mode.
-  bool setGraphicsMode(int mode);
-
-  // Determine which graphics mode is currently active.
-  int getGraphicsMode() const;
-
   // Set colors of the palette
   PaletteManager *getPaletteManager() { return this; }
 protected:
 	// PaletteManager API
   void setPalette(const byte *colors, uint start, uint num);
-  void grabPalette(byte *colors, uint start, uint num);
+  void grabPalette(byte *colors, uint start, uint num) const;
 
 public:
 
@@ -150,7 +133,7 @@ public:
   void setCursorPalette(const byte *colors, uint start, uint num);
 
   // Shaking is used in SCUMM. Set current shake position.
-  void setShakePos(int shake_pos);
+  void setShakePos(int shake_x_pos, int shake_y_pos);
 
   // Get the number of milliseconds since the program was started.
   uint32 getMillis(bool skipRecord = false);
@@ -171,12 +154,13 @@ public:
   // Overlay
   int16 getOverlayHeight();
   int16 getOverlayWidth();
+  bool isOverlayVisible() const { return _overlay_visible; }
   void showOverlay();
   void hideOverlay();
   void clearOverlay();
   void grabOverlay(void *buf, int pitch);
   void copyRectToOverlay(const void *buf, int pitch, int x, int y, int w, int h);
-  virtual Graphics::PixelFormat getOverlayFormat() const { return Graphics::createPixelFormat<4444>(); }
+  virtual Graphics::PixelFormat getOverlayFormat() const { return Graphics::PixelFormat(2, 4, 4, 4, 4, 8, 4, 0, 12); }
 
   // Mutex handling
   MutexRef createMutex();
@@ -186,7 +170,7 @@ public:
 
   // Set a window caption or any other comparable status display to the
   // given value.
-  void setWindowCaption(const char *caption);
+  void setWindowCaption(const Common::U32String &caption);
 
   // Modulatized backend
   Audio::Mixer *getMixer() { return _mixer; }
@@ -206,7 +190,7 @@ public:
 
   int _ms_cur_x, _ms_cur_y, _ms_cur_w, _ms_cur_h, _ms_old_x, _ms_old_y;
   int _ms_hotspot_x, _ms_hotspot_y, _ms_visible, _devpoll, _last_screen_refresh;
-  int _current_shake_pos, _screen_w, _screen_h;
+  int _current_shake_x_pos, _current_shake_y_pos, _screen_w, _screen_h;
   int _overlay_x, _overlay_y;
   unsigned char *_ms_buf;
   uint32 _ms_keycolor;
@@ -255,6 +239,11 @@ public:
  protected:
   Plugin* createPlugin(const Common::FSNode &node) const;
   bool isPluginFilename(const Common::FSNode &node) const;
+  void addCustomDirectories(Common::FSList &dirs) const;
+ public:
+  PluginList getPlugins();
+ private:
+  const char *pluginCustomDirectory;
 #endif
 };
 
@@ -262,4 +251,7 @@ public:
 extern int handleInput(struct mapledev *pad,
 		       int &mouse_x, int &mouse_y,
 		       byte &shiftFlags, Interactive *inter = NULL);
-extern bool selectGame(char *&, char *&, Common::Language &, Common::Platform &, class Icon &);
+extern bool selectGame(char *&, char *&, char *&, Common::Language &, Common::Platform &, class Icon &);
+#ifdef DYNAMIC_MODULES
+extern bool selectPluginDir(Common::String &selection, const Common::FSNode &base);
+#endif

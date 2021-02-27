@@ -97,18 +97,22 @@ BaseSoundBuffer *BaseSoundMgr::addSound(const Common::String &filename, Audio::M
 		return nullptr;
 	}
 
+	if (filename.empty()) {
+		// At least one game, Bickadoodle, calls playSound with an empty filename, see #6594
+		BaseEngine::LOG(0, "addSound called with empty filename");
+	}
+
 	BaseSoundBuffer *sound;
 
 	Common::String useFilename = filename;
+	useFilename.toLowercase();
 	// try to switch WAV to OGG file (if available)
-	AnsiString ext = PathUtil::getExtension(filename);
-	if (StringUtil::compareNoCase(ext, "wav")) {
-		AnsiString path = PathUtil::getDirectoryName(filename);
-		AnsiString name = PathUtil::getFileNameWithoutExtension(filename);
-
-		AnsiString newFile = PathUtil::combine(path, name + "ogg");
-		if (BaseFileManager::getEngineInstance()->hasFile(newFile)) {
-			useFilename = newFile;
+	if (useFilename.hasSuffix(".wav")) {
+		Common::String oggFilename = useFilename;
+		oggFilename.erase(oggFilename.size() - 4);
+		oggFilename = oggFilename + ".ogg";
+		if (BaseFileManager::getEngineInstance()->hasFile(oggFilename)) {
+			useFilename = oggFilename;
 		}
 	}
 
@@ -186,6 +190,9 @@ bool BaseSoundMgr::setVolume(Audio::Mixer::SoundType type, int volume) {
 		break;
 	case Audio::Mixer::kPlainSoundType:
 		error("Plain sound type shouldn't be used in WME");
+		break;
+	default:
+		break;
 	}
 	g_engine->syncSoundSettings();
 

@@ -108,23 +108,20 @@ const char *PoMessageList::operator[](int index) const {
 }
 
 PoMessageEntryList::PoMessageEntryList(const char *lang) :
-	_lang(NULL), _charset(NULL), _langName(NULL),
+	_lang(NULL), _langName(NULL), _langNameAlt(NULL), _useUTF8(true),
 	_list(NULL), _size(0), _allocated(0)
 {
 	_lang = new char[1 + strlen(lang)];
 	strcpy(_lang, lang);
-	// Set default charset to empty string
-	_charset = new char[1];
-	_charset[0] = '\0';
 	// Set default langName to lang
-	_langName = new char[1 + strlen(lang)];
-	strcpy(_langName, lang);
+	_langNameAlt = new char[1 + strlen(lang)];
+	strcpy(_langNameAlt, lang);
 }
 
 PoMessageEntryList::~PoMessageEntryList() {
 	delete[] _lang;
-	delete[] _charset;
 	delete[] _langName;
+	delete[] _langNameAlt;
 	for (int i = 0; i < _size; ++i)
 		delete _list[i];
 	delete[] _list;
@@ -134,15 +131,19 @@ void PoMessageEntryList::addMessageEntry(const char *translation, const char *me
 	if (*message == '\0') {
 		// This is the header.
 		// We get the charset and the language name from the translation string
-		char *str = parseLine(translation, "Language:");
+		char *str = parseLine(translation, "X-Language-name:");
 		if (str != NULL) {
 			delete[] _langName;
 			_langName = str;
 		}
-		str = parseLine(translation, "charset=");
+		str = parseLine(translation, "Language:");
 		if (str != NULL) {
-			delete[] _charset;
-			_charset = str;
+			delete[] _langNameAlt;
+			_langNameAlt = str;
+		}
+		str = parseLine(translation, "charset=");
+		if (strcmp(str, "utf-8") != 0 && strcmp(str, "UTF-8") != 0) {
+			_useUTF8 = false;
 		}
 		return;
 	}
@@ -236,11 +237,11 @@ const char *PoMessageEntryList::language() const {
 }
 
 const char *PoMessageEntryList::languageName() const {
-	return _langName;
+	return _langName ? _langName : _langNameAlt;
 }
 
-const char *PoMessageEntryList::charset() const {
-	return _charset;
+bool PoMessageEntryList::useUTF8() const {
+	return _useUTF8;
 }
 
 int PoMessageEntryList::size() const {
@@ -259,8 +260,8 @@ PoMessageEntryList *parsePoFile(const char *file, PoMessageList& messages) {
 	if (!inFile)
 		return NULL;
 
-	char msgidBuf[1024], msgctxtBuf[1024], msgstrBuf[1024];
-	char line[1024], *currentBuf = msgstrBuf;
+	char msgidBuf[2048], msgctxtBuf[2048], msgstrBuf[2048];
+	char line[2048], *currentBuf = msgstrBuf;
 
 	// Get language from file name and create PoMessageEntryList
 	int index = 0, start_index = strlen(file) - 1;

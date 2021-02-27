@@ -24,15 +24,14 @@
 #define SCUMM_DIALOGS_H
 
 #include "common/str.h"
+#include "common/ustr.h"
+#include "common/keyboard.h"
 #include "gui/dialog.h"
-#include "gui/widget.h"
 #include "engines/dialogs.h"
 
-#include "scumm/detection.h"
-
 namespace GUI {
-class ListWidget;
 class CommandSender;
+class StaticTextWidget;
 }
 
 
@@ -47,14 +46,15 @@ public:
 
 protected:
 	typedef Common::String String;
+	typedef Common::U32String U32String;
 };
 
 #ifndef DISABLE_HELP
 class ScummMenuDialog : public MainMenuDialog {
 public:
 	ScummMenuDialog(ScummEngine *scumm);
-	~ScummMenuDialog();
-	virtual void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data);
+	~ScummMenuDialog() override;
+	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) override;
 
 protected:
 	GUI::Dialog		*_helpDialog;
@@ -70,32 +70,33 @@ protected:
 class InfoDialog : public ScummDialog {
 protected:
 	ScummEngine		*_vm;
-	String _message;
+	U32String _message;
 	GUI::StaticTextWidget *_text;
+	GUI::ThemeEngine::FontStyle _style;
 
 public:
 	// arbitrary message
-	InfoDialog(ScummEngine *scumm, const String& message);
+	InfoDialog(ScummEngine *scumm, const U32String &message);
 	// from resources
 	InfoDialog(ScummEngine *scumm, int res);
 
-	void setInfoText(const String& message);
+	void setInfoText(const U32String &message);
 
-	virtual void handleMouseDown(int x, int y, int button, int clickCount) {
+	void handleMouseDown(int x, int y, int button, int clickCount) override {
 		setResult(0);
 		close();
 	}
-	virtual void handleKeyDown(Common::KeyState state) {
+	void handleKeyDown(Common::KeyState state) override {
 		setResult(state.ascii);
 		close();
 	}
 
-	virtual void reflowLayout();
+	void reflowLayout() override;
 
 protected:
 
 	// Query a string from the resources
-	const String queryResString(int stringno);
+	const U32String queryResString(int stringno);
 };
 
 /**
@@ -105,7 +106,7 @@ protected:
 class PauseDialog : public InfoDialog {
 public:
 	PauseDialog(ScummEngine *scumm, int res);
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 };
 
 /**
@@ -115,7 +116,7 @@ public:
 class ConfirmDialog : public InfoDialog {
 public:
 	ConfirmDialog(ScummEngine *scumm, int res);
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 
 protected:
 	char _yesKey, _noKey;
@@ -127,23 +128,23 @@ protected:
  */
 class ValueDisplayDialog : public GUI::Dialog {
 public:
-	ValueDisplayDialog(const Common::String& label, int minVal, int maxVal, int val, uint16 incKey, uint16 decKey);
+	ValueDisplayDialog(const Common::U32String &label, int minVal, int maxVal, int val, uint16 incKey, uint16 decKey);
 
-	virtual void open();
-	virtual void drawDialog();
-	virtual void handleTickle();
-	virtual void handleMouseDown(int x, int y, int button, int clickCount) {
+	void open() override;
+	void drawDialog(GUI::DrawLayer layerToDraw) override;
+	void handleTickle() override;
+	void handleMouseDown(int x, int y, int button, int clickCount) override {
 		close();
 	}
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 
-	virtual void reflowLayout();
+	void reflowLayout() override;
 
 protected:
 	enum {
 		kDisplayDelay = 1500
 	};
-	Common::String _label;
+	Common::U32String _label;
 	const int _min, _max;
 	const uint16 _incKey, _decKey;
 	int _percentBarWidth;
@@ -159,12 +160,12 @@ class SubtitleSettingsDialog : public InfoDialog {
 public:
 	SubtitleSettingsDialog(ScummEngine *scumm, int value);
 
-	virtual void open();
-	virtual void handleTickle();
-	virtual void handleMouseDown(int x, int y, int button, int clickCount) {
+	void open() override;
+	void handleTickle() override;
+	void handleMouseDown(int x, int y, int button, int clickCount) override {
 		close();
 	}
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 protected:
 	int _value;
 	uint32 _timer;
@@ -176,13 +177,13 @@ protected:
 class Indy3IQPointsDialog : public InfoDialog {
 public:
 	Indy3IQPointsDialog(ScummEngine *scumm, char* text);
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 };
 
 class DebugInputDialog : public InfoDialog {
 public:
 	DebugInputDialog(ScummEngine *scumm, char* text);
-	virtual void handleKeyDown(Common::KeyState state);
+	void handleKeyDown(Common::KeyState state) override;
 	bool done;
 	Common::String buffer;
 	Common::String mainText;
@@ -197,7 +198,7 @@ public:
 
 	int getSelectedDifficulty() const { return _difficulty; }
 protected:
-	virtual void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data);
+	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) override;
 
 private:
 	enum {

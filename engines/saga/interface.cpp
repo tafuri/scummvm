@@ -332,6 +332,9 @@ void Interface::saveReminderCallback(void *refCon) {
 }
 
 void Interface::updateSaveReminder() {
+	// CHECKME: This is potentially called from a different thread because it is
+	// called from a timer callback. However, it does not seem to take any
+	// precautions to avoid race conditions.
 	if (_active && _panelMode == kPanelMain) {
 		_saveReminderState = _saveReminderState % _vm->getDisplayInfo().saveReminderNumSprites + 1;
 		drawStatusBar();
@@ -473,6 +476,8 @@ void Interface::setMode(int mode) {
 			// In the IHNM demo, this panel mode is set by the scripts
 			// to flip through the pages of the help system
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -652,6 +657,9 @@ bool Interface::processAscii(Common::KeyState keystate) {
 		case '9':
 			converseSetPos(ascii);
 			break;
+
+		default:
+			break;
 		}
 		break;
 	case kPanelMap:
@@ -704,6 +712,8 @@ bool Interface::processAscii(Common::KeyState keystate) {
 			}
 		}
 #endif
+		break;
+	default:
 		break;
 	}
 	return false;
@@ -864,7 +874,7 @@ void Interface::calcOptionSaveSlider() {
 
 void Interface::drawPanelText(InterfacePanel *panel, PanelButton *panelButton) {
 	const char *text;
-	int textWidth;
+	int textWidth, textHeight;
 	Rect rect;
 	Point textPoint;
 	KnownColor textShadowKnownColor = kKnownColorVerbTextShadow;
@@ -897,19 +907,35 @@ void Interface::drawPanelText(InterfacePanel *panel, PanelButton *panelButton) {
 	}
 
 	panel->calcPanelButtonRect(panelButton, rect);
+	if (_vm->getGameId() == GID_ITE) {
+		textWidth = _vm->_font->getStringWidth(kKnownFontMedium, text, 0, kFontNormal);
+		textHeight = _vm->_font->getHeight(kKnownFontMedium);
+	} else {
+		textWidth = _vm->_font->getStringWidth(kKnownFontVerb, text, 0, kFontNormal);
+		textHeight = _vm->_font->getHeight(kKnownFontVerb);
+	}
 	if (panelButton->xOffset < 0) {
-		if (_vm->getGameId() == GID_ITE)
-			textWidth = _vm->_font->getStringWidth(kKnownFontMedium, text, 0, kFontNormal);
-		else
-			textWidth = _vm->_font->getStringWidth(kKnownFontVerb, text, 0, kFontNormal);
+		// Special case: Centered to dialog. This is used for things like the
+		// title of a dialog.
 		rect.left += 2 + (panel->imageWidth - 1 - textWidth) / 2;
+	} else {
+		// The standard case is used for the things that look a bit like buttons
+		// but are not clickable, e.g. texts like "Music", "Sound", etc.
+		if (_vm->getGameId() == GID_ITE && _vm->getPlatform() != Common::kPlatformPC98) {
+			rect.left = rect.right - textWidth - 3;
+		} else {
+			rect.left = (rect.right + rect.left - textWidth) / 2;
+			if (_vm->getGameId() == GID_ITE)
+				rect.left += 4;
+		}
+		rect.top = (rect.top + rect.bottom - textHeight) / 2;
 	}
 
 	textPoint.x = rect.left;
-	textPoint.y = rect.top + 1;
+	textPoint.y = rect.top + (_vm->getPlatform() == Common::kPlatformPC98 ? 0 : 1);
 
 	_vm->_font->textDraw(textFont, text, textPoint,
-						_vm->KnownColor2ColorId(kKnownColorVerbText), _vm->KnownColor2ColorId(textShadowKnownColor), kFontShadow);
+						_vm->KnownColor2ColorId(kKnownColorVerbText), _vm->KnownColor2ColorId(textShadowKnownColor), _vm->getPlatform() == Common::kPlatformPC98 ?  kFontOutline : kFontShadow);
 }
 
 void Interface::drawOption() {
@@ -1057,6 +1083,8 @@ void Interface::setQuit(PanelButton *panelButton) {
 #endif
 				_vm->quitGame();
 			break;
+		default:
+			break;
 	}
 }
 
@@ -1130,6 +1158,8 @@ void Interface::setLoad(PanelButton *panelButton) {
 			// IHNM only
 			setMode(kPanelOption);
 			break;
+		default:
+			break;
 	}
 }
 
@@ -1152,8 +1182,9 @@ void Interface::processStatusTextInput(Common::KeyState keystate) {
 		}
 		_statusTextInputPos--;
 		_statusTextInputString[_statusTextInputPos] = 0;
+		break;
 	default:
-		if (_statusTextInputPos >= STATUS_TEXT_INPUT_MAX) {
+		if (_statusTextInputPos >= STATUS_TEXT_INPUT_MAX - 1) { // -1 because of the null termination
 			break;
 		}
 		if (Common::isAlnum(keystate.ascii) || (keystate.ascii == ' ')) {
@@ -1185,6 +1216,7 @@ bool Interface::processTextInput(Common::KeyState keystate) {
 			break;
 		}
 		_textInputPos--;
+		// fall through
 	case Common::KEYCODE_DELETE:
 		if (_textInputPos <= _textInputStringLength) {
 			if (_textInputPos != 1) {
@@ -1391,6 +1423,8 @@ void Interface::setSave(PanelButton *panelButton) {
 			_textInput = false;
 			setMode(kPanelOption);
 			break;
+		default:
+			break;
 	}
 }
 
@@ -1544,6 +1578,9 @@ void Interface::handleChapterSelectionClick(const Point& mousePoint) {
 			o = _vm->_actor->getObj(obj);
 			script = o->_scriptEntrypointNumber;
 			break;
+
+		default:
+			break;
 		}
 
 		if (script > 0) {
@@ -1653,6 +1690,8 @@ void Interface::setOption(PanelButton *panelButton) {
 
 		ConfMan.setBool("subtitles", _vm->_subtitlesEnabled);
 		ConfMan.setBool("voices", _vm->_voicesEnabled);
+		break;
+	default:
 		break;
 	}
 }
@@ -1848,6 +1887,9 @@ void Interface::update(const Point& mousePoint, int updateFlag) {
 			_vm->_scene->showIHNMDemoSpecialScreen();
 #endif
 		break;
+
+	default:
+		break;
 	}
 
 	_lastMousePoint = mousePoint;
@@ -1859,8 +1901,10 @@ void Interface::drawStatusBar() {
 	int stringWidth;
 	int color;
 	// The default colors in the Spanish version of IHNM are shifted by one
-	// Fixes bug #1848016 - "IHNM: Wrong Subtitles Color (Spanish)"
-	int offset = (_vm->getLanguage() == Common::ES_ESP) ? 1 : 0;
+	// Fixes bug #1848016 - "IHNM: Wrong Subtitles Color (Spanish)". This
+	// also applies to the German and French versions (bug #7064 - "IHNM:
+	// text mistake in german version").
+	int offset = (_vm->getFeatures() & GF_IHNM_COLOR_FIX) ? 1 : 0;
 
 	// Disable the status text in IHNM when the chapter is 8
 	if (_vm->getGameId() == GID_IHNM && _vm->_scene->currentChapterNumber() == 8)
@@ -2278,8 +2322,13 @@ void Interface::drawPanelButtonText(InterfacePanel *panel, PanelButton *panelBut
 		else if (!_vm->_subtitlesEnabled && _vm->_voicesEnabled)
 			textId = kTextAudio;
 		break;
+	default:
+		break;
 	}
 	if (_vm->getGameId() == GID_ITE) {
+		if (textId > kTextEnterProtectAnswer)
+			error("This should not happen. Please report to ScummVM Team how you achieved this error.");
+
 		text = _vm->getTextString(textId);
 		textFont = kKnownFontMedium;
 		textShadowKnownColor = kKnownColorVerbTextShadow;
@@ -2343,7 +2392,7 @@ void Interface::drawPanelButtonText(InterfacePanel *panel, PanelButton *panelBut
 	}
 
 	_vm->_font->textDraw(textFont, text, point,
-		_vm->KnownColor2ColorId(textColor), _vm->KnownColor2ColorId(textShadowKnownColor), kFontShadow);
+		_vm->KnownColor2ColorId(textColor), _vm->KnownColor2ColorId(textShadowKnownColor), _vm->getPlatform() == Common::kPlatformPC98 ?  kFontOutline : kFontShadow);
 }
 
 void Interface::drawPanelButtonArrow(InterfacePanel *panel, PanelButton *panelButton) {
@@ -2396,7 +2445,7 @@ void Interface::drawVerbPanelText(PanelButton *panelButton, KnownColor textKnown
 
 	_vm->_font->textDraw(kKnownFontVerb, text, point,
 						_vm->KnownColor2ColorId(textKnownColor), _vm->KnownColor2ColorId(textShadowKnownColor),
-						(textShadowKnownColor != kKnownColorTransparent) ? kFontShadow : kFontNormal);
+						(textShadowKnownColor != kKnownColorTransparent) ? (_vm->getPlatform() == Common::kPlatformPC98 ?  kFontOutline : kFontShadow) : kFontNormal);
 }
 
 
@@ -2506,13 +2555,16 @@ void Interface::converseDisplayTextLines() {
 	byte bulletForegnd;
 	byte bulletBackgnd;
 	const char *str;
-	char bullet[2] = {
-		(char)0xb7, 0
+	static const char bulletStr[3][3] = {
+		"\xb7", "\x81\x45", ">"
 	};
-	Rect rect(8, _vm->getDisplayInfo().converseTextLines * _vm->getDisplayInfo().converseTextHeight);
-	Point textPoint;
+	const char *bullet = (_vm->getGameId() == GID_ITE) ? (_vm->getPlatform() == Common::kPlatformPC98 ? bulletStr[1] : bulletStr[0]) : bulletStr[2];
 
 	assert(_conversePanel.buttonsCount >= 6);
+	Rect rect(8, _vm->getDisplayInfo().converseTextLines * _vm->getDisplayInfo().converseTextHeight);
+	rect.moveTo(_conversePanel.x + _conversePanel.buttons[0].xOffset, _conversePanel.y + _conversePanel.buttons[0].yOffset);
+
+	Point textPoint;
 
 	if (_vm->getGameId() == GID_ITE) {
 		bulletForegnd = kITEColorGreen;
@@ -2520,16 +2572,13 @@ void Interface::converseDisplayTextLines() {
 	} else {
 		bulletForegnd = _vm->KnownColor2ColorId(kKnownColorBrightWhite);
 		bulletBackgnd = _vm->KnownColor2ColorId(kKnownColorBlack);
-		bullet[0] = '>';				// different bullet in IHNM
 	}
 
-	rect.moveTo(_conversePanel.x + _conversePanel.buttons[0].xOffset,
-		_conversePanel.y + _conversePanel.buttons[0].yOffset);
-
 	if (_vm->getGameId() == GID_ITE)
-		_vm->_gfx->drawRect(rect, kITEColorDarkGrey);	//fill bullet place
-	else
-		_vm->_gfx->drawRect(rect, _vm->KnownColor2ColorId(kKnownColorBlack));	//fill bullet place
+		_vm->_gfx->drawRect(rect, kITEColorDarkGrey);	// fill bullet place
+	else if (_vm->getGameId() == GID_IHNM)
+		// TODO: Add these to IHNM_DisplayInfo?
+		_vm->_gfx->drawRect(Common::Rect(118, 345, 603, 463), _vm->KnownColor2ColorId(kKnownColorBlack));	// fill converse rect
 
 	for (int i = 0; i < _vm->getDisplayInfo().converseTextLines; i++) {
 		relPos = _converseStartPos + i;
@@ -2567,14 +2616,14 @@ void Interface::converseDisplayTextLines() {
 			textPoint.y = rect.top;
 
 			if (_vm->getGameId() == GID_ITE)
-				_vm->_font->textDraw(kKnownFontSmall, bullet, textPoint, bulletForegnd, bulletBackgnd, (FontEffectFlags)(kFontShadow | kFontDontmap));
+				_vm->_font->textDraw(kKnownFontSmall, bullet, textPoint, bulletForegnd, bulletBackgnd, _vm->getPlatform() == Common::kPlatformPC98 ?  kFontNormal : (FontEffectFlags)(kFontShadow | kFontDontmap));
 			else
 				_vm->_font->textDraw(kKnownFontVerb, bullet, textPoint, bulletForegnd, bulletBackgnd, (FontEffectFlags)(kFontShadow | kFontDontmap));
 		}
 		textPoint.x = rect.left + 1;
 		textPoint.y = rect.top;
 		if (_vm->getGameId() == GID_ITE)
-			_vm->_font->textDraw(kKnownFontSmall, str, textPoint, foregnd, kITEColorBlack, kFontShadow);
+			_vm->_font->textDraw(kKnownFontSmall, str, textPoint, foregnd, kITEColorBlack, _vm->getPlatform() == Common::kPlatformPC98 ?  kFontNormal : kFontShadow);
 		else
 			_vm->_font->textDraw(kKnownFontVerb, str, textPoint, foregnd, _vm->KnownColor2ColorId(kKnownColorBlack), kFontShadow);
 	}
@@ -2780,8 +2829,8 @@ void Interface::mapPanelDrawCrossHair() {
 
 	if (screen.contains(mapPosition)) {
 		_vm->_sprite->draw(_vm->_sprite->_mainSprites,
-						   _mapPanelCrossHairState? RID_ITE_SPR_CROSSHAIR : RID_ITE_SPR_CROSSHAIR + 1,
-						   mapPosition, 256);
+		                   _mapPanelCrossHairState ? RID_ITE_SPR_CROSSHAIR : RID_ITE_SPR_CROSSHAIR + 1,
+		                   mapPosition, 256);
 	}
 }
 

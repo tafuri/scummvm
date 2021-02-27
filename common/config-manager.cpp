@@ -41,14 +41,16 @@ DECLARE_SINGLETON(ConfigManager);
 char const *const ConfigManager::kApplicationDomain = "scummvm";
 char const *const ConfigManager::kTransientDomain = "__TRANSIENT";
 
-#ifdef ENABLE_KEYMAPPER
 char const *const ConfigManager::kKeymapperDomain = "keymapper";
+
+#ifdef USE_CLOUD
+char const *const ConfigManager::kCloudDomain = "cloud";
 #endif
 
 #pragma mark -
 
 
-ConfigManager::ConfigManager() : _activeDomain(0) {
+ConfigManager::ConfigManager() : _activeDomain(nullptr) {
 }
 
 void ConfigManager::defragment() {
@@ -64,8 +66,9 @@ void ConfigManager::copyFrom(ConfigManager &source) {
 	_miscDomains = source._miscDomains;
 	_appDomain = source._appDomain;
 	_defaultsDomain = source._defaultsDomain;
-#ifdef ENABLE_KEYMAPPER
 	_keymapperDomain = source._keymapperDomain;
+#ifdef USE_CLOUD
+	_cloudDomain = source._cloudDomain;
 #endif
 	_domainSaveOrder = source._domainSaveOrder;
 	_activeDomainName = source._activeDomainName;
@@ -78,7 +81,7 @@ void ConfigManager::loadDefaultConfigFile() {
 	// Open the default config file
 	assert(g_system);
 	SeekableReadStream *stream = g_system->createConfigReadStream();
-	_filename.clear();  // clear the filename to indicate that we are using the default config file
+	_filename.clear(); // clear the filename to indicate that we are using the default config file
 
 	// ... load it, if available ...
 	if (stream) {
@@ -117,9 +120,11 @@ void ConfigManager::addDomain(const String &domainName, const ConfigManager::Dom
 		return;
 	if (domainName == kApplicationDomain) {
 		_appDomain = domain;
-#ifdef ENABLE_KEYMAPPER
 	} else if (domainName == kKeymapperDomain) {
 		_keymapperDomain = domain;
+#ifdef USE_CLOUD
+	} else if (domainName == kCloudDomain) {
+		_cloudDomain = domain;
 #endif
 	} else if (domain.contains("gameid")) {
 		// If the domain contains "gameid" we assume it's a game domain
@@ -157,8 +162,9 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 	_transientDomain.clear();
 	_domainSaveOrder.clear();
 
-#ifdef ENABLE_KEYMAPPER
 	_keymapperDomain.clear();
+#ifdef USE_CLOUD
+	_cloudDomain.clear();
 #endif
 
 	// TODO: Detect if a domain occurs multiple times (or likewise, if
@@ -231,7 +237,7 @@ void ConfigManager::loadFromStream(SeekableReadStream &stream) {
 			value.trim();
 
 			// Finally, store the key/value pair in the active domain
-			domain[key] = value;
+			domain.setVal(key, value);
 
 			// Store comment
 			domain.setKVComment(key, comment);
@@ -268,9 +274,11 @@ void ConfigManager::flushToDisk() {
 	// Write the application domain
 	writeDomain(*stream, kApplicationDomain, _appDomain);
 
-#ifdef ENABLE_KEYMAPPER
 	// Write the keymapper domain
 	writeDomain(*stream, kKeymapperDomain, _keymapperDomain);
+#ifdef USE_CLOUD
+	// Write the cloud domain
+	writeDomain(*stream, kCloudDomain, _cloudDomain);
 #endif
 
 	DomainMap::const_iterator d;
@@ -303,7 +311,7 @@ void ConfigManager::flushToDisk() {
 
 void ConfigManager::writeDomain(WriteStream &stream, const String &name, const Domain &domain) {
 	if (domain.empty())
-		return;     // Don't bother writing empty domains.
+		return; // Don't bother writing empty domains.
 
 	// WORKAROUND: Fix for bug #1972625 "ALL: On-the-fly targets are
 	// written to the config file": Do not save domains that came from
@@ -355,16 +363,18 @@ const ConfigManager::Domain *ConfigManager::getDomain(const String &domName) con
 		return &_transientDomain;
 	if (domName == kApplicationDomain)
 		return &_appDomain;
-#ifdef ENABLE_KEYMAPPER
 	if (domName == kKeymapperDomain)
 		return &_keymapperDomain;
+#ifdef USE_CLOUD
+	if (domName == kCloudDomain)
+		return &_cloudDomain;
 #endif
 	if (_gameDomains.contains(domName))
 		return &_gameDomains[domName];
 	if (_miscDomains.contains(domName))
 		return &_miscDomains[domName];
 
-	return 0;
+	return nullptr;
 }
 
 ConfigManager::Domain *ConfigManager::getDomain(const String &domName) {
@@ -375,16 +385,18 @@ ConfigManager::Domain *ConfigManager::getDomain(const String &domName) {
 		return &_transientDomain;
 	if (domName == kApplicationDomain)
 		return &_appDomain;
-#ifdef ENABLE_KEYMAPPER
 	if (domName == kKeymapperDomain)
 		return &_keymapperDomain;
+#ifdef USE_CLOUD
+	if (domName == kCloudDomain)
+		return &_cloudDomain;
 #endif
 	if (_gameDomains.contains(domName))
 		return &_gameDomains[domName];
 	if (_miscDomains.contains(domName))
 		return &_miscDomains[domName];
 
-	return 0;
+	return nullptr;
 }
 
 
@@ -446,7 +458,7 @@ const String &ConfigManager::get(const String &key) const {
 	else if (_appDomain.contains(key))
 		return _appDomain[key];
 
-	return _defaultsDomain.getVal(key);
+	return _defaultsDomain.getValOrDefault(key);
 }
 
 const String &ConfigManager::get(const String &key, const String &domName) const {
@@ -465,7 +477,7 @@ const String &ConfigManager::get(const String &key, const String &domName) const
 	if (domain->contains(key))
 		return (*domain)[key];
 
-	return _defaultsDomain.getVal(key);
+	return _defaultsDomain.getValOrDefault(key);
 }
 
 int ConfigManager::getInt(const String &key, const String &domName) const {
@@ -510,9 +522,22 @@ void ConfigManager::set(const String &key, const String &value) {
 	// Write the new key/value pair into the active domain, resp. into
 	// the application domain if no game domain is active.
 	if (_activeDomain)
-		(*_activeDomain)[key] = value;
+		(*_activeDomain).setVal(key, value);
 	else
-		_appDomain[key] = value;
+		_appDomain.setVal(key, value);
+}
+
+void ConfigManager::setAndFlush(const String &key, const Common::String &value) {
+	if (value.empty() && !hasKey(key)) {
+		return;
+	}
+
+	if (hasKey(key) && get(key) == value) {
+		return;
+	}
+
+	set(key, value);
+	flushToDisk();
 }
 
 void ConfigManager::set(const String &key, const String &value, const String &domName) {
@@ -530,7 +555,7 @@ void ConfigManager::set(const String &key, const String &value, const String &do
 		error("ConfigManager::set(%s,%s,%s) called on non-existent domain",
 		      key.c_str(), value.c_str(), domName.c_str());
 
-	(*domain)[key] = value;
+	(*domain).setVal(key, value);
 
 	// TODO/FIXME: We used to erase the given key from the transient domain
 	// here. Do we still want to do that?
@@ -545,14 +570,14 @@ void ConfigManager::set(const String &key, const String &value, const String &do
 	// to replace it in a clean fashion...
 #if 0
 	if (domName == kTransientDomain)
-		_transientDomain[key] = value;
+		_transientDomain.setVal(key, value);
 	else {
 		if (domName == kApplicationDomain) {
-			_appDomain[key] = value;
+			_appDomain.setVal(key, value;
 			if (_activeDomainName.empty() || !_gameDomains[_activeDomainName].contains(key))
 				_transientDomain.erase(key);
 		} else {
-			_gameDomains[domName][key] = value;
+			_gameDomains[domName].setVal(key, value);
 			if (domName == _activeDomainName)
 				_transientDomain.erase(key);
 		}
@@ -573,7 +598,7 @@ void ConfigManager::setBool(const String &key, bool value, const String &domName
 
 
 void ConfigManager::registerDefault(const String &key, const String &value) {
-	_defaultsDomain[key] = value;
+	_defaultsDomain.setVal(key, value);
 }
 
 void ConfigManager::registerDefault(const String &key, const char *value) {
@@ -594,7 +619,7 @@ void ConfigManager::registerDefault(const String &key, bool value) {
 
 void ConfigManager::setActiveDomain(const String &domName) {
 	if (domName.empty()) {
-		_activeDomain = 0;
+		_activeDomain = nullptr;
 	} else {
 		assert(isValidDomainName(domName));
 		_activeDomain = &_gameDomains[domName];
@@ -628,7 +653,7 @@ void ConfigManager::removeGameDomain(const String &domName) {
 	assert(isValidDomainName(domName));
 	if (domName == _activeDomainName) {
 		_activeDomainName.clear();
-		_activeDomain = 0;
+		_activeDomain = nullptr;
 	}
 	_gameDomains.erase(domName);
 }
@@ -669,7 +694,7 @@ void ConfigManager::renameDomain(const String &oldName, const String &newName, D
 	Domain &newDom = map[newName];
 	Domain::const_iterator iter;
 	for (iter = oldDom.begin(); iter != oldDom.end(); ++iter)
-		newDom[iter->_key] = iter->_value;
+		newDom.setVal(iter->_key, iter->_value);
 
 	map.erase(oldName);
 }

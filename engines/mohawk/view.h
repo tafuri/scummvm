@@ -138,11 +138,10 @@ public:
 	uint32 _flags;
 	uint32 _nextTime;
 	uint32 _delayTime;
-	uint16 _dirty; // byte in old
-	byte _needsReset;
-	byte _justReset; // old
-	byte _notifyDone; // old
-	byte _done; // new
+	bool _dirty; // byte in old
+	bool _needsReset;
+	bool _justReset; // old
+	bool _done; // new
 
 	FeatureData _data;
 
@@ -156,23 +155,23 @@ protected:
 class OldFeature : public Feature {
 public:
 	OldFeature(View *view);
-	~OldFeature();
+	~OldFeature() override;
 
-	void resetFrame();
-	void resetFeatureScript(uint16 enabled, uint16 scrbId);
+	void resetFrame() override;
+	void resetFeatureScript(uint16 enabled, uint16 scrbId) override;
 
 protected:
-	void resetScript();
-	void finishResetFeatureScript();
+	void resetScript() override;
+	void finishResetFeatureScript() override;
 };
 
 class NewFeature : public Feature {
 public:
 	NewFeature(View *view);
-	~NewFeature();
+	~NewFeature() override;
 
-	void resetFrame();
-	void resetFeatureScript(uint16 enabled, uint16 scrbId);
+	void resetFrame() override;
+	void resetFeatureScript(uint16 enabled, uint16 scrbId) override;
 
 	uint32 _unknown168;
 
@@ -188,15 +187,8 @@ public:
 	Common::Point _currDragPos;
 
 protected:
-	void resetScript();
-	void finishResetFeatureScript();
-};
-
-#define NUM_SYNC_CHANNELS 17
-struct SyncChannel {
-	uint16 masterId;
-	byte state;
-	bool alternate;
+	void resetScript() override;
+	void finishResetFeatureScript() override;
 };
 
 class View {
@@ -234,7 +226,6 @@ public:
 	void sortView();
 
 	uint32 _lastIdleTime;
-	SyncChannel _syncChannels[NUM_SYNC_CHANNELS];
 
 	virtual uint32 getTime() = 0;
 

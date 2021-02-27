@@ -22,8 +22,6 @@
 
 #include "scumm/file.h"
 
-#include "scumm/scumm.h"
-
 #include "common/memstream.h"
 #include "common/substream.h"
 
@@ -33,7 +31,7 @@ namespace Scumm {
 #pragma mark --- ScummFile ---
 #pragma mark -
 
-ScummFile::ScummFile() : _subFileStart(0), _subFileLen(0) {
+ScummFile::ScummFile() : _subFileStart(0), _subFileLen(0), _myEos(false) {
 }
 
 void ScummFile::setSubfileRange(int32 start, int32 len) {
@@ -139,6 +137,7 @@ bool ScummFile::seek(int32 offs, int whence) {
 			offs = _subFileStart + _subFileLen + offs;
 			break;
 		case SEEK_SET:
+		default:
 			offs += _subFileStart;
 			break;
 		case SEEK_CUR:
@@ -262,7 +261,7 @@ ScummDiskImage::ScummDiskImage(const char *disk1, const char *disk2, GameSetting
 		_numGlobalObjects = 256;
 		_numRooms = 55;
 		_numCostumes = 25;
-		
+
 		if (_game.features & GF_DEMO) {
 			_numScripts = 55;
 			_numSounds = 40;

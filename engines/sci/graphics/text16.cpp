@@ -22,15 +22,17 @@
 
 #include "common/util.h"
 #include "common/stack.h"
+#include "common/unicode-bidi.h"
 #include "graphics/primitives.h"
 
 #include "sci/sci.h"
+#include "sci/engine/features.h"
 #include "sci/engine/state.h"
 #include "sci/graphics/cache.h"
 #include "sci/graphics/coordadjuster.h"
 #include "sci/graphics/ports.h"
 #include "sci/graphics/paint16.h"
-#include "sci/graphics/font.h"
+#include "sci/graphics/scifont.h"
 #include "sci/graphics/screen.h"
 #include "sci/graphics/text16.h"
 
@@ -50,6 +52,7 @@ void GfxText16::init() {
 	_codeFontsCount = 0;
 	_codeColors = NULL;
 	_codeColorsCount = 0;
+	_useEarlyGetLongestTextCalculations = g_sci->_features->useEarlyGetLongestTextCalculations();
 }
 
 GuiResourceId GfxText16::GetFontId() {
@@ -83,8 +86,7 @@ void GfxText16::ClearChar(int16 chr) {
 }
 
 // This internal function gets called as soon as a '|' is found in a text. It
-// will process the encountered code and set new font/set color. We only support
-// one-digit codes currently, don't know if multi-digit codes are possible.
+// will process the encountered code and set new font/set color.
 // Returns textcode character count.
 int16 GfxText16::CodeProcessing(const char *&text, GuiResourceId orgFontId, int16 orgPenColor, bool doingDrawing) {
 	const char *textCode = text;
@@ -99,10 +101,8 @@ int16 GfxText16::CodeProcessing(const char *&text, GuiResourceId orgFontId, int1
 	//  c -> sets textColor to current port pen color
 	//  cX -> sets textColor to _textColors[X-1]
 	curCode = textCode[0];
-	curCodeParm = textCode[1];
-	if (Common::isDigit(curCodeParm)) {
-		curCodeParm -= '0';
-	} else {
+	curCodeParm = strtol(textCode+1, NULL, 10);
+	if (!Common::isDigit(textCode[1])) {
 		curCodeParm = -1;
 	}
 	switch (curCode) {
@@ -139,21 +139,52 @@ int16 GfxText16::CodeProcessing(const char *&text, GuiResourceId orgFontId, int1
 			}
 		}
 		break;
+	default:
+		break;
 	}
 	return textCodeSize;
 }
 
 // Has actually punctuation and characters in it, that may not be the first in a line
+// SCI1 didn't check for exclamation nor question marks, us checking for those too shouldn't be bad
 static const uint16 text16_shiftJIS_punctuation[] = {
+	0x4181,	0x4281, 0x7681, 0x7881, 0x4981, 0x4881, 0
+};
+
+// Table from Quest for Glory 1 PC-98 (SCI01)
+// has pronunciation and small combining form characters on top (details right after this table)
+static const uint16 text16_shiftJIS_punctuation_SCI01[] = {
 	0x9F82, 0xA182, 0xA382, 0xA582, 0xA782, 0xC182, 0xE182, 0xE382, 0xE582, 0xEC82,	0x4083, 0x4283,
 	0x4483, 0x4683, 0x4883, 0x6283, 0x8383, 0x8583, 0x8783, 0x8E83, 0x9583, 0x9683,	0x5B81, 0x4181,
 	0x4281, 0x7681, 0x7881, 0x4981, 0x4881, 0
 };
 
+// Police Quest 2 (SCI0) only checked for: 0x4181, 0x4281, 0x7681, 0x7881, 0x4981, 0x4881
+// Castle of Dr. Brain/King's Quest 5/Space Quest 4 (SCI1) only checked for: 0x4181, 0x4281, 0x7681, 0x7881
+
+// SCI0/SCI01/SCI1:
+// 0x4181 -> comma,                 0x4281 -> period / full stop
+// 0x7681 -> ending quotation mark, 0x7881 -> secondary quotation mark
+
+// SCI0/SCI01:
+// 0x4981 -> exclamation mark,      0x4881 -> question mark
+
+// SCI01 (Quest for Glory only):
+// 0x9F82, 0xA182, 0xA382, 0xA582, 0xA782 -> specifies vowel part of prev. hiragana char or pronunciation/extension of vowel
+// 0xC182 -> pronunciation
+// 0xE182, 0xE382, 0xE582, 0xEC82 -> small combining form of hiragana
+// 0x4083, 0x4283, 0x4483, 0x4683, 0x4883 -> small combining form of katagana
+// 0x6283 -> glottal stop / sokuon
+// 0x8383, 0x8583 0x8783, 0x8E83 -> small combining form of katagana
+// 0x9583 -> combining form
+// 0x9683 -> abbreviation for the kanji (ka), the counter for months, places or provisions
+// 0x5b81 -> low line / underscore (full width)
+
+
 // return max # of chars to fit maxwidth with full words, does not include
 // breaking space
 //  Also adjusts text pointer to the new position for the caller
-// 
+//
 // Special cases in games:
 //  Laura Bow 2 - Credits in the game menu - all the text lines start with spaces (bug #5159)
 //                Act 6 Coroner questionaire - the text of all control buttons has trailing spaces
@@ -174,7 +205,7 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 	if (!_font)
 		return 0;
 
-	while (1) {
+	for (;;) {
 		curChar = (*(const byte *)textPtr);
 		if (_font->isDoubleByte(curChar)) {
 			curChar |= (*(const byte *)(textPtr + 1)) << 8;
@@ -199,14 +230,15 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 			if ((*(const byte *)(textPtr + 1)) == 0xA) {
 				curCharCount++; textPtr++;
 			}
-			// it's meant to pass through here
+			// fall through
 		case 0xA:
-		case 0x9781: // this one is used by SQ4/japanese as line break as well
+		case 0x9781: // this one is used by SQ4/japanese as line break as well (was added for SCI1/PC98)
 			curCharCount++; textPtr++;
 			if (curChar > 0xFF) {
+				// skip another byte in case char is double-byte (PC-98)
 				curCharCount++; textPtr++;
 			}
-			// and it's also meant to pass through here
+			// fall through
 		case 0:
 			SetFont(previousFontId);
 			_ports->penColor(previousPenColor);
@@ -216,12 +248,23 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 			lastSpaceCharCount = curCharCount; // return count up to (but not including) breaking space
 			lastSpacePtr = textPtr + 1; // remember position right after the current space
 			break;
+
+		default:
+			break;
 		}
 		tempWidth += _font->getCharWidth(curChar);
-		
+
 		// Width is too large? -> break out
 		if (tempWidth > maxWidth)
 			break;
+
+		// the previous greater than test was originally a greater than or equals when
+		//  no space character had been reached yet
+		if (_useEarlyGetLongestTextCalculations) {
+			if (lastSpaceCharCount == 0 && tempWidth == maxWidth) {
+				break;
+			}
+		}
 
 		// still fits, remember width
 		curWidth = tempWidth;
@@ -245,8 +288,9 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 
 	} else {
 		// Break without spaces found, we split the very first word - may also be Kanji/Japanese
+
 		if (curChar > 0xFF) {
-			// current charracter is Japanese
+			// current character is Japanese
 
 			// PC-9801 SCI actually added the last character, which shouldn't fit anymore, still onto the
 			//  screen in case maxWidth wasn't fully reached with the last character
@@ -261,17 +305,27 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 
 			// But it also checked, if the current character is not inside a punctuation table and it even
 			//  went backwards in case it found multiple ones inside that table.
+			// Note: PQ2 PC-98 only went back 1 character and not multiple ones
 			uint nonBreakingPos = 0;
 
-			while (1) {
+			const uint16 *punctuationTable;
+
+			if (getSciVersion() != SCI_VERSION_01) {
+				punctuationTable = text16_shiftJIS_punctuation;
+			} else {
+				// Quest for Glory 1 PC-98 only
+				punctuationTable = text16_shiftJIS_punctuation_SCI01;
+			}
+
+			for (;;) {
 				// Look up if character shouldn't be the first on a new line
 				nonBreakingPos = 0;
-				while (text16_shiftJIS_punctuation[nonBreakingPos]) {
-					if (text16_shiftJIS_punctuation[nonBreakingPos] == curChar)
+				while (punctuationTable[nonBreakingPos]) {
+					if (punctuationTable[nonBreakingPos] == curChar)
 						break;
 					nonBreakingPos++;
 				}
-				if (!text16_shiftJIS_punctuation[nonBreakingPos]) {
+				if (!punctuationTable[nonBreakingPos]) {
 					// character is fine
 					break;
 				}
@@ -284,6 +338,22 @@ int16 GfxText16::GetLongest(const char *&textPtr, int16 maxWidth, GuiResourceId 
 				if (!_font->isDoubleByte(curChar))
 					error("Non double byte while seeking back");
 				curChar |= (*(const byte *)(textPtr + 1)) << 8;
+			}
+
+			if (curChar == 0x4081) {
+				// Skip over alphabetic double-byte space
+				// This was introduced for SCI1
+				// Happens in Castle of Dr. Brain PC-98 in room 120, when looking inside the mirror
+				// (game mentions Mixed Up Fairy Tales and uses English letters for that)
+				textPtr += 2;
+			}
+		} else {
+			// Add a character to the count for games whose interpreter would count the
+			//  character that exceeded the width if a space hadn't been reached yet.
+			//  Fixes #10000 where the notebook in LB1 room 786 displays "INCOMPLETE" with
+			//  a width that's too short which would have otherwise wrapped the last "E".
+			if (_useEarlyGetLongestTextCalculations) {
+				curCharCount++; textPtr++;
 			}
 		}
 
@@ -322,6 +392,8 @@ void GfxText16::Width(const char *text, int16 from, int16 len, GuiResourceId org
 					len -= CodeProcessing(text, orgFontId, 0, false);
 					break;
 				}
+				// fall through
+				// FIXME: fall through intended?
 			default:
 				textHeight = MAX<int16> (textHeight, _ports->_curPort->fontHeight);
 				textWidth += _font->getCharWidth(curChar);
@@ -338,15 +410,15 @@ void GfxText16::Width(const char *text, int16 from, int16 len, GuiResourceId org
 	return;
 }
 
-void GfxText16::StringWidth(const char *str, GuiResourceId orgFontId, int16 &textWidth, int16 &textHeight) {
-	Width(str, 0, (int16)strlen(str), orgFontId, textWidth, textHeight, true);
+void GfxText16::StringWidth(const Common::String &str, GuiResourceId orgFontId, int16 &textWidth, int16 &textHeight) {
+	Width(str.c_str(), 0, str.size(), orgFontId, textWidth, textHeight, true);
 }
 
-void GfxText16::ShowString(const char *str, GuiResourceId orgFontId, int16 orgPenColor) {
-	Show(str, 0, (int16)strlen(str), orgFontId, orgPenColor);
+void GfxText16::ShowString(const Common::String &str, GuiResourceId orgFontId, int16 orgPenColor) {
+	Show(str.c_str(), 0, str.size(), orgFontId, orgPenColor);
 }
-void GfxText16::DrawString(const char *str, GuiResourceId orgFontId, int16 orgPenColor) {
-	Draw(str, 0, (int16)strlen(str), orgFontId, orgPenColor);
+void GfxText16::DrawString(const Common::String &str, GuiResourceId orgFontId, int16 orgPenColor) {
+	Draw(str.c_str(), 0, str.size(), orgFontId, orgPenColor);
 }
 
 int16 GfxText16::Size(Common::Rect &rect, const char *text, uint16 languageSplitter, GuiResourceId fontId, int16 maxWidth) {
@@ -364,6 +436,8 @@ int16 GfxText16::Size(Common::Rect &rect, const char *text, uint16 languageSplit
 	rect.top = rect.left = 0;
 
 	if (maxWidth < 0) { // force output as single line
+		if (g_sci->getLanguage() == Common::KO_KOR)
+			SwitchToFont1001OnKorean(text, languageSplitter);
 		if (g_sci->getLanguage() == Common::JA_JPN)
 			SwitchToFont900OnSjis(text, languageSplitter);
 
@@ -376,6 +450,11 @@ int16 GfxText16::Size(Common::Rect &rect, const char *text, uint16 languageSplit
 		rect.right = (maxWidth ? maxWidth : 192);
 		const char *curTextPos = text; // in work position for GetLongest()
 		const char *curTextLine = text; // starting point of current line
+
+		// Check for Korean text
+		if (g_sci->getLanguage() == Common::KO_KOR)
+			SwitchToFont1001OnKorean(curTextPos, languageSplitter);
+
 		while (*curTextPos) {
 			// We need to check for Shift-JIS every line
 			if (g_sci->getLanguage() == Common::JA_JPN)
@@ -426,6 +505,8 @@ void GfxText16::Draw(const char *text, int16 from, int16 len, GuiResourceId orgF
 				len -= CodeProcessing(text, orgFontId, orgPenColor, true);
 				break;
 			}
+			// fall through
+			// FIXME: fall through intended?
 		default:
 			charWidth = _font->getCharWidth(curChar);
 			// clear char
@@ -469,6 +550,14 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const 
 	else
 		fontId = previousFontId;
 
+	// Check for Korean text
+	if (g_sci->getLanguage() == Common::KO_KOR) {
+		if (SwitchToFont1001OnKorean(curTextPos, languageSplitter)) {
+			doubleByteMode = true;
+			fontId = 1001;
+		}
+	}
+
 	// Reset reference code rects
 	_codeRefRects.clear();
 	_codeRefTempRect.left = _codeRefTempRect.top = -1;
@@ -489,19 +578,44 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const 
 		maxTextWidth = MAX<int16>(maxTextWidth, textWidth);
 		switch (alignment) {
 		case SCI_TEXT16_ALIGNMENT_RIGHT:
-			offset = rect.width() - textWidth;
+			if (!g_sci->isLanguageRTL())
+				offset = rect.width() - textWidth;
+			else
+				offset = 0;
 			break;
 		case SCI_TEXT16_ALIGNMENT_CENTER:
 			offset = (rect.width() - textWidth) / 2;
 			break;
 		case SCI_TEXT16_ALIGNMENT_LEFT:
-			offset = 0;
+			if (!g_sci->isLanguageRTL())
+				offset = 0;
+			else
+				offset = rect.width() - textWidth;
 			break;
 
 		default:
 			warning("Invalid alignment %d used in TextBox()", alignment);
 		}
+
+
+		if (g_sci->isLanguageRTL())
+			// In the game fonts, characters have spacing on the left, and no spacing on the right,
+			// therefore, when we start drawing from the right, they "start from the border"
+			// e.g., in SQ3 Hebrew user's input prompt.
+			// We can't add spacing on the right of the Hebrew letters, because then characters in mixed
+			// English-Hebrew text might be stuck together.
+			// Therefore, we shift one pixel to the left, for proper spacing
+			offset--;
+
 		_ports->moveTo(rect.left + offset, rect.top + hline);
+
+		Common::String textString;
+		if (g_sci->isLanguageRTL()) {
+			const char *curTextLineOrig = curTextLine;
+			Common::String textLogical = Common::String(curTextLineOrig, (uint32)charCount);
+			textString = Common::convertBiDiString(textLogical, g_sci->getLanguage());
+			curTextLine = textString.c_str();
+		}
 
 		if (show) {
 			Show(curTextLine, 0, charCount, fontId, previousPenColor);
@@ -535,20 +649,34 @@ void GfxText16::Box(const char *text, uint16 languageSplitter, bool show, const 
 	}
 }
 
-void GfxText16::DrawString(const char *text) {
+void GfxText16::DrawString(const Common::String &textOrig) {
 	GuiResourceId previousFontId = GetFontId();
 	int16 previousPenColor = _ports->_curPort->penClr;
 
-	Draw(text, 0, strlen(text), previousFontId, previousPenColor);
+	Common::String text;
+	if (!g_sci->isLanguageRTL())
+		text = textOrig;
+	else
+		text = Common::convertBiDiString(textOrig, g_sci->getLanguage());
+
+	Draw(text.c_str(), 0, text.size(), previousFontId, previousPenColor);
 	SetFont(previousFontId);
 	_ports->penColor(previousPenColor);
 }
 
 // we need to have a separate status drawing code
 //  In KQ4 the IV char is actually 0xA, which would otherwise get considered as linebreak and not printed
-void GfxText16::DrawStatus(const char *text) {
+void GfxText16::DrawStatus(const Common::String &strOrig) {
 	uint16 curChar, charWidth;
-	uint16 textLen = strlen(text);
+
+	Common::String str;
+	if (!g_sci->isLanguageRTL())
+		str = strOrig;
+	else
+		str = Common::convertBiDiString(strOrig, g_sci->getLanguage());
+
+	const byte *text = (const byte *)str.c_str();
+	uint16 textLen = str.size();
 	Common::Rect rect;
 
 	GetFont();
@@ -558,7 +686,7 @@ void GfxText16::DrawStatus(const char *text) {
 	rect.top = _ports->_curPort->curTop;
 	rect.bottom = rect.top + _ports->_curPort->fontHeight;
 	while (textLen--) {
-		curChar = (*(const byte *)text++);
+		curChar = *text++;
 		switch (curChar) {
 		case 0:
 			break;
@@ -568,6 +696,28 @@ void GfxText16::DrawStatus(const char *text) {
 			_ports->_curPort->curLeft += charWidth;
 		}
 	}
+}
+
+// Check for Korean strings, and use font 1001 to render them
+bool GfxText16::SwitchToFont1001OnKorean(const char *text, uint16 languageSplitter) {
+	const byte* ptr = (const byte *)text;
+	if (languageSplitter != 0x6b23) { // #k prefix as language splitter
+		// Check if the text contains at least one Korean character
+		while (*ptr) {
+			byte ch = *ptr++;
+			if (ch >= 0xB0 && ch <= 0xC8) {
+				ch = *ptr++;
+				if (!ch)
+					return false;
+
+				if (ch >= 0xA1 && ch <= 0xFE) {
+					SetFont(1001);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 // Sierra did this in their PC98 interpreter only, they identify a text as being
@@ -588,7 +738,7 @@ reg_t GfxText16::allocAndFillReferenceRectArray() {
 	if (rectCount) {
 		reg_t rectArray;
 		byte *rectArrayPtr = g_sci->getEngineState()->_segMan->allocDynmem(4 * 2 * (rectCount + 1), "text code reference rects", &rectArray);
-		GfxCoordAdjuster *coordAdjuster = g_sci->_gfxCoordAdjuster;
+		GfxCoordAdjuster16 *coordAdjuster = g_sci->_gfxCoordAdjuster;
 		for (uint curRect = 0; curRect < rectCount; curRect++) {
 			coordAdjuster->kernelLocalToGlobal(_codeRefRects[curRect].left, _codeRefRects[curRect].top);
 			coordAdjuster->kernelLocalToGlobal(_codeRefRects[curRect].right, _codeRefRects[curRect].bottom);

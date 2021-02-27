@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,7 +40,7 @@ namespace Pegasus {
 class Movie : public Animation, public PixelImage {
 public:
 	Movie(const DisplayElementID);
-	virtual ~Movie();
+	~Movie() override;
 
 	virtual void initFromMovieFile(const Common::String &fileName, bool transparent = false);
 
@@ -48,30 +48,30 @@ public:
 
 	virtual void releaseMovie();
 
-	virtual void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 	virtual void redrawMovieWorld();
 
-	virtual void setTime(const TimeValue, const TimeScale = 0);
+	void setTime(const TimeValue, const TimeScale = 0) override;
 
-	virtual void setRate(const Common::Rational);
+	void setRate(const Common::Rational) override;
 
-	virtual void start();
-	virtual void stop();
-	virtual void resume();
-	virtual void pause();
+	void start() override;
+	void stop() override;
+	void resume() override;
+	void pause() override;
 
 	virtual void moveMovieBoxTo(const CoordType, const CoordType);
 
-	virtual void setStop(const TimeValue, const TimeScale = 0);
+	void setStop(const TimeValue, const TimeScale = 0) override;
 
-	virtual TimeValue getDuration(const TimeScale = 0) const;
+	TimeValue getDuration(const TimeScale = 0) const override;
 
 	// *** HACK ALERT
 	Video::VideoDecoder *getMovie() { return _video; }
 	void setVolume(uint16);
 
 protected:
-	void updateTime();
+	void updateTime() override;
 
 	Video::VideoDecoder *_video;
 	Common::Rect _movieBox;
@@ -80,11 +80,11 @@ protected:
 class GlowingMovie : public Movie {
 public:
 	GlowingMovie(DisplayElementID);
-	virtual ~GlowingMovie() {}
+	~GlowingMovie() override {}
 
-	virtual void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
-	void setBounds(const Common::Rect &);
+	void setBounds(const Common::Rect &) override;
 
 	void setGlowing(const bool glowing) { _glowing = glowing; }
 
@@ -95,9 +95,9 @@ protected:
 class ScalingMovie : public GlowingMovie {
 public:
 	ScalingMovie(DisplayElementID);
-	virtual ~ScalingMovie() {}
+	~ScalingMovie() override {}
 
-	virtual void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 };
 
 } // End of namespace Pegasus

@@ -30,6 +30,7 @@
 
 // TODO: Move gDebugLevel into namespace Common.
 int gDebugLevel = -1;
+bool gDebugChannelsOnly = false;
 
 namespace Common {
 
@@ -77,6 +78,11 @@ bool DebugManager::enableDebugChannel(const String &name) {
 	}
 }
 
+bool DebugManager::enableDebugChannel(uint32 channel) {
+	gDebugChannelsEnabled |= channel;
+	return true;
+}
+
 bool DebugManager::disableDebugChannel(const String &name) {
 	DebugChannelMap::iterator i = gDebugChannels.find(name);
 
@@ -88,6 +94,11 @@ bool DebugManager::disableDebugChannel(const String &name) {
 	} else {
 		return false;
 	}
+}
+
+bool DebugManager::disableDebugChannel(uint32 channel) {
+	gDebugChannelsEnabled &= ~channel;
+	return true;
 }
 
 DebugManager::DebugChannelList DebugManager::listDebugChannels() {
@@ -109,15 +120,27 @@ void DebugManager::disableAllDebugChannels() {
 		disableDebugChannel(i->_value.name);
 }
 
-bool DebugManager::isDebugChannelEnabled(uint32 channel) {
+bool DebugManager::isDebugChannelEnabled(uint32 channel, bool enforce) {
 	// Debug level 11 turns on all special debug level messages
-	if (gDebugLevel == 11)
+	if (gDebugLevel == 11 && enforce == false)
 		return true;
 	else
 		return (gDebugChannelsEnabled & channel) != 0;
 }
 
 } // End of namespace Common
+
+bool debugLevelSet(int level) {
+	return level <= gDebugLevel;
+}
+
+bool debugChannelSet(int level, uint32 debugChannels) {
+	if (gDebugLevel != 11 || level == -1)
+		if ((level != -1 && level > gDebugLevel) || !(DebugMan.isDebugChannelEnabled(debugChannels, level == -1)))
+			return false;
+
+	return true;
+}
 
 
 #ifndef DISABLE_TEXT_CONSOLE
@@ -137,6 +160,9 @@ static void debugHelper(const char *s, va_list va, bool caret = true) {
 void debug(const char *s, ...) {
 	va_list va;
 
+	if (gDebugChannelsOnly)
+		return;
+
 	va_start(va, s);
 	debugHelper(s, va);
 	va_end(va);
@@ -145,7 +171,7 @@ void debug(const char *s, ...) {
 void debug(int level, const char *s, ...) {
 	va_list va;
 
-	if (level > gDebugLevel)
+	if (level > gDebugLevel || gDebugChannelsOnly)
 		return;
 
 	va_start(va, s);
@@ -157,6 +183,9 @@ void debug(int level, const char *s, ...) {
 void debugN(const char *s, ...) {
 	va_list va;
 
+	if (gDebugChannelsOnly)
+		return;
+
 	va_start(va, s);
 	debugHelper(s, va, false);
 	va_end(va);
@@ -165,7 +194,7 @@ void debugN(const char *s, ...) {
 void debugN(int level, const char *s, ...) {
 	va_list va;
 
-	if (level > gDebugLevel)
+	if (level > gDebugLevel || gDebugChannelsOnly)
 		return;
 
 	va_start(va, s);

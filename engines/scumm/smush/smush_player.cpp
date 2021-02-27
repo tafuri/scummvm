@@ -20,24 +20,22 @@
  *
  */
 
-#include "engines/engine.h"
-
 #include "common/config-manager.h"
 #include "common/file.h"
 #include "common/system.h"
 #include "common/util.h"
+#include "common/rect.h"
+
+#include "audio/mixer.h"
 
 #include "graphics/cursorman.h"
 #include "graphics/palette.h"
 
-#include "scumm/bomp.h"
 #include "scumm/file.h"
 #include "scumm/imuse_digi/dimuse.h"
-#include "scumm/imuse/imuse.h"
 #include "scumm/scumm.h"
 #include "scumm/scumm_v7.h"
 #include "scumm/sound.h"
-#include "scumm/util.h"
 #include "scumm/smush/channel.h"
 #include "scumm/smush/codec37.h"
 #include "scumm/smush/codec47.h"
@@ -47,6 +45,7 @@
 
 #include "scumm/insane/insane.h"
 
+#include "audio/audiostream.h"
 #include "audio/mixer.h"
 #include "audio/decoders/mp3.h"
 #include "audio/decoders/raw.h"
@@ -75,7 +74,12 @@ public:
 
 	StringResource() :
 		_nbStrings(0),
-		_lastId(-1) {
+		_lastId(-1),
+		_lastString(NULL) {
+		for (int i = 0; i < MAX_STRINGS; i++) {
+			_strings[i].id = 0;
+			_strings[i].string = NULL;
+		}
 	}
 	~StringResource() {
 		for (int32 i = 0; i < _nbStrings; i++) {
@@ -246,9 +250,15 @@ SmushPlayer::SmushPlayer(ScummEngine_v7 *scumm) {
 	_paused = false;
 	_pauseStartTime = 0;
 	_pauseTime = 0;
+
+
+	_IACTchannel = new Audio::SoundHandle();
+	_compressedFileSoundHandle = new Audio::SoundHandle();
 }
 
 SmushPlayer::~SmushPlayer() {
+	delete _IACTchannel;
+	delete _compressedFileSoundHandle;
 }
 
 void SmushPlayer::init(int32 speed) {
@@ -275,8 +285,8 @@ void SmushPlayer::init(int32 speed) {
 	vs->pitch = vs->w;
 	_vm->_gdi->_numStrips = vs->w / 8;
 
-	_vm->_mixer->stopHandle(_compressedFileSoundHandle);
-	_vm->_mixer->stopHandle(_IACTchannel);
+	_vm->_mixer->stopHandle(*_compressedFileSoundHandle);
+	_vm->_mixer->stopHandle(*_IACTchannel);
 	_IACTpos = 0;
 	_vm->_smixer->stop();
 }
@@ -474,7 +484,7 @@ void SmushPlayer::handleIACT(int32 subSize, Common::SeekableReadStream &b) {
 
 					if (!_IACTstream) {
 						_IACTstream = Audio::makeQueuingAudioStream(22050, true);
-						_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, &_IACTchannel, _IACTstream);
+						_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, _IACTchannel, _IACTstream);
 					}
 					_IACTstream->queueBuffer(output_data, 0x1000, DisposeAfterUse::YES, Audio::FLAG_STEREO | Audio::FLAG_16BITS);
 
@@ -504,8 +514,8 @@ void SmushPlayer::handleTextResource(uint32 subType, int32 subSize, Common::Seek
 	int flags = b.readSint16LE();
 	int left = b.readSint16LE();
 	int top = b.readSint16LE();
-	int right = b.readSint16LE();
-	/*int32 height =*/ b.readSint16LE();
+	int width = b.readSint16LE();
+	int height = b.readSint16LE();
 	/*int32 unk2 =*/ b.readUint16LE();
 
 	const char *str;
@@ -552,18 +562,18 @@ void SmushPlayer::handleTextResource(uint32 subType, int32 subSize, Common::Seek
 	while (str[0] == '^') {
 		switch (str[1]) {
 		case 'f':
-			{
-				int id = str[3] - '0';
-				str += 4;
-				sf = getFont(id);
-			}
-			break;
+		{
+			int id = str[3] - '0';
+			str += 4;
+			sf = getFont(id);
+		}
+		break;
 		case 'c':
-			{
-				color = str[4] - '0' + 10 *(str[3] - '0');
-				str += 5;
-			}
-			break;
+		{
+			color = str[4] - '0' + 10 *(str[3] - '0');
+			str += 5;
+		}
+		break;
 		default:
 			error("invalid escape code in text string");
 		}
@@ -604,6 +614,8 @@ void SmushPlayer::handleTextResource(uint32 subType, int32 subSize, Common::Seek
 					error("invalid escape code in text string");
 				}
 			} else {
+				if (SmushFont::is2ByteCharacter(_vm->_language, *sptr))
+					*sptr2++ = *sptr++;
 				*sptr2++ = *sptr++;
 			}
 		}
@@ -619,36 +631,33 @@ void SmushPlayer::handleTextResource(uint32 subType, int32 subSize, Common::Seek
 	}
 
 	// flags:
-	// bit 0 - center       1
-	// bit 1 - not used     2
-	// bit 2 - ???          4
-	// bit 3 - wrap around  8
-	switch (flags & 9) {
-	case 0:
-		sf->drawString(str, _dst, _width, _height, pos_x, pos_y, false);
-		break;
-	case 1:
-		sf->drawString(str, _dst, _width, _height, pos_x, MAX(pos_y, top), true);
-		break;
-	case 8:
-		// FIXME: Is 'right' the maximum line width here, just
-		// as it is in the next case? It's used several times
-		// in The Dig's intro, where 'left' and 'right' are
-		// always 0 and 321 respectively, and apparently we
-		// handle that correctly.
-		sf->drawStringWrap(str, _dst, _width, _height, pos_x, MAX(pos_y, top), left, right, false);
-		break;
-	case 9:
-		// In this case, the 'right' parameter is actually the
-		// maximum line width. This explains why it's sometimes
-		// smaller than 'left'.
-		//
-		// Note that in The Dig's "Spacetime Six" movie it's
-		// 621. I have no idea what that means.
-		sf->drawStringWrap(str, _dst, _width, _height, pos_x, MAX(pos_y, top), left, MIN(left + right, _width), true);
-		break;
-	default:
-		error("SmushPlayer::handleTextResource. Not handled flags: %d", flags);
+	// bit 0 - center                  0x01
+	// bit 1 - not used (align right)  0x02
+	// bit 2 - word wrap               0x04
+	// bit 3 - switchable              0x08
+	// bit 4 - fill background         0x10
+	// bit 5 - outline/shadow          0x20        (apparently only set by the text renderer itself, not from the smush data)
+	// bit 6 - vertical fix (COMI)     0x40        (COMI handles this in the printing method, but I haven't seen a case where it is used)
+	// bit 7 - skip ^ codes (COMI)     0x80        (should be irrelevant for Smush, we strip these commands anyway)
+	// bit 8 - no vertical fix (COMI)  0x100       (COMI handles this in the printing method, but I haven't seen a case where it is used)
+
+	if (flags & 4) {
+		// COMI has to do it all a bit different, of course. SCUMM7 games immediately render the text from here and actually use the clipping data
+		// provided by the text resource. COMI does not render directly, but enqueues a blast string (which is then drawn through the usual main
+		// loop routines). During that process the rect data will get dumped and replaced with the following default values. It's hard to tell
+		// whether this is on purpose or not (the text looks not necessarily better or worse, just different), so we follow the original...
+		if (_vm->_game.id == GID_CMI) {
+			left = top = 10;
+			width = _width - 20;
+			height = _height - 20;
+		}
+		Common::Rect clipRect(MAX<int>(0, left), MAX<int>(0, top), MIN<int>(left + width, _width), MIN<int>(top + height, _height));
+		sf->drawStringWrap(str, _dst, clipRect, pos_x, pos_y, flags & 1);
+	} else {
+		// Similiar to the wrapped text, COMI will pass on rect coords here, which will later be lost. Unlike with the wrapped text, it will
+		// finally use the full screen dimenstions. SCUMM7 renders directly from here (see comment above), but also with the full screen.
+		Common::Rect clipRect(0, 0, _width, _height);
+		sf->drawString(str, _dst, clipRect, pos_x, pos_y, flags & 1);
 	}
 
 	free(string);
@@ -726,6 +735,7 @@ void SmushPlayer::handleNewPalette(int32 subSize, Common::SeekableReadStream &b)
 }
 
 void smush_decode_codec1(byte *dst, const byte *src, int left, int top, int width, int height, int pitch);
+void smush_decode_codec20(byte *dst, const byte *src, int left, int top, int width, int height, int pitch);
 
 void SmushPlayer::decodeFrameObject(int codec, const uint8 *src, int left, int top, int width, int height) {
 	if ((height == 242) && (width == 384)) {
@@ -764,6 +774,10 @@ void SmushPlayer::decodeFrameObject(int codec, const uint8 *src, int left, int t
 			_codec47 = new Codec47Decoder(width, height);
 		if (_codec47)
 			_codec47->decode(_dst, src);
+		break;
+	case 20:
+		// Used by Full Throttle Classic (from Remastered)
+		smush_decode_codec20(_dst, src, left, top, width, height, _vm->_screenWidth);
 		break;
 	default:
 		error("Invalid codec for frame object : %d", codec);
@@ -1095,7 +1109,7 @@ void SmushPlayer::seekSan(const char *file, int32 pos, int32 contFrame) {
 }
 
 void SmushPlayer::tryCmpFile(const char *filename) {
-	_vm->_mixer->stopHandle(_compressedFileSoundHandle);
+	_vm->_mixer->stopHandle(*_compressedFileSoundHandle);
 
 	_compressedFileMode = false;
 	const char *i = strrchr(filename, '.');
@@ -1114,7 +1128,7 @@ void SmushPlayer::tryCmpFile(const char *filename) {
 	strcpy(fname + (i - filename), ".ogg");
 	if (file->open(fname)) {
 		_compressedFileMode = true;
-		_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, &_compressedFileSoundHandle, Audio::makeVorbisStream(file, DisposeAfterUse::YES));
+		_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, _compressedFileSoundHandle, Audio::makeVorbisStream(file, DisposeAfterUse::YES));
 		return;
 	}
 #endif
@@ -1123,7 +1137,7 @@ void SmushPlayer::tryCmpFile(const char *filename) {
 	strcpy(fname + (i - filename), ".mp3");
 	if (file->open(fname)) {
 		_compressedFileMode = true;
-		_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, &_compressedFileSoundHandle, Audio::makeMP3Stream(file, DisposeAfterUse::YES));
+		_vm->_mixer->playStream(Audio::Mixer::kSFXSoundType, _compressedFileSoundHandle, Audio::makeMP3Stream(file, DisposeAfterUse::YES));
 		return;
 	}
 #endif
@@ -1189,12 +1203,12 @@ void SmushPlayer::play(const char *filename, int32 speed, int32 offset, int32 st
 			// the sound. Synt to time instead.
 			now = _vm->_system->getMillis() - _pauseTime;
 			elapsed = now - _startTime;
-		} else if (_vm->_mixer->isSoundHandleActive(_compressedFileSoundHandle)) {
+		} else if (_vm->_mixer->isSoundHandleActive(*_compressedFileSoundHandle)) {
 			// Compressed SMUSH files.
-			elapsed = _vm->_mixer->getSoundElapsedTime(_compressedFileSoundHandle);
-		} else if (_vm->_mixer->isSoundHandleActive(_IACTchannel)) {
+			elapsed = _vm->_mixer->getSoundElapsedTime(*_compressedFileSoundHandle);
+		} else if (_vm->_mixer->isSoundHandleActive(*_IACTchannel)) {
 			// Curse of Monkey Island SMUSH files.
-			elapsed = _vm->_mixer->getSoundElapsedTime(_IACTchannel);
+			elapsed = _vm->_mixer->getSoundElapsedTime(*_IACTchannel);
 		} else {
 			// For other SMUSH files, we don't necessarily have any
 			// one channel to sync against, so we have to use
@@ -1249,8 +1263,8 @@ void SmushPlayer::play(const char *filename, int32 speed, int32 offset, int32 st
 			break;
 		if (_vm->shouldQuit() || _vm->_saveLoadFlag || _vm->_smushVideoShouldFinish) {
 			_smixer->stop();
-			_vm->_mixer->stopHandle(_compressedFileSoundHandle);
-			_vm->_mixer->stopHandle(_IACTchannel);
+			_vm->_mixer->stopHandle(*_compressedFileSoundHandle);
+			_vm->_mixer->stopHandle(*_IACTchannel);
 			_IACTpos = 0;
 			break;
 		}

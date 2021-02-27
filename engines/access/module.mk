@@ -9,11 +9,11 @@ MODULE_OBJS := \
 	data.o \
 	debugger.o \
 	decompress.o \
-	detection.o \
 	events.o \
 	files.o \
 	font.o \
 	inventory.o \
+	metaengine.o \
 	player.o \
 	resources.o \
 	room.o \
@@ -21,6 +21,7 @@ MODULE_OBJS := \
 	scripts.o \
 	sound.o \
 	video.o \
+	video/movie_decoder.o \
 	amazon/amazon_game.o \
 	amazon/amazon_logic.o \
 	amazon/amazon_player.o \
@@ -28,6 +29,7 @@ MODULE_OBJS := \
 	amazon/amazon_room.o \
 	amazon/amazon_scripts.o \
 	martian/martian_game.o \
+	martian/martian_player.o \
 	martian/martian_resources.o \
 	martian/martian_room.o \
 	martian/martian_scripts.o
@@ -39,3 +41,6 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o

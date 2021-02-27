@@ -38,6 +38,17 @@
 #include "common/system.h"
 #include "common/rect.h"
 
+#ifdef ENABLE_WME3D
+namespace Math {
+
+class Angle;
+template<int rows, int cols> class Matrix;
+typedef Matrix<4, 4> Matrix4;
+typedef Matrix<3, 1> Vector3d;
+
+} // namespace Math
+#endif
+
 namespace Wintermute {
 
 class Vector2;
@@ -63,12 +74,13 @@ public:
 	uint32 getMaxUsedSlot();
 	bool getSaveExists(int slot);
 	bool initLoad(const Common::String &filename);
-	bool initSave(const char *desc);
+	bool initSave(const Common::String &desc);
 	bool getBytes(byte *buffer, uint32 size);
 	bool putBytes(byte *buffer, uint32 size);
 	uint32 _offset;
 
 	bool getIsSaving() { return _saving; }
+	TimeDate getSavedTimestamp() { return _savedTimestamp; }
 
 	uint32 _richBufferSize;
 	byte *_richBuffer;
@@ -86,7 +98,12 @@ public:
 	bool transferCharPtr(const char *name, char **val);
 	bool transferString(const char *name, Common::String *val);
 	bool transferVector2(const char *name, Vector2 *val);
-	BasePersistenceManager(const char *savePrefix = nullptr, bool deleteSingleton = false);
+#ifdef ENABLE_WME3D
+	bool transferVector3d(const char *name, Math::Vector3d *val);
+	bool transferMatrix4(const char *name, Math::Matrix4 *val);
+	bool transferAngle(const char *name, Math::Angle *val);
+#endif
+	BasePersistenceManager(const Common::String &savePrefix = "", bool deleteSingleton = false);
 	virtual ~BasePersistenceManager();
 	bool checkVersion(byte  verMajor, byte verMinor, byte verBuild);
 

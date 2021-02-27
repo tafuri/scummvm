@@ -65,23 +65,23 @@ void EventsManager::setNormalCursor(CursorType cursorId) {
 
 void EventsManager::setCursor(CursorType cursorId) {
 	if (cursorId == _cursorId)
-		return;	
+		return;
 	_cursorId = cursorId;
-	
+
 	if (cursorId == CURSOR_INVENTORY) {
 		// Set the cursor
 		CursorMan.replaceCursor(_invCursor.getPixels(), _invCursor.w, _invCursor.h,
 			_invCursor.w / 2, _invCursor.h / 2, 0);
 	} else {
 		// Get a pointer to the mouse data to use, and get the cursor hotspot
-		const byte *srcP = Amazon::CURSORS[cursorId];
+		const byte *srcP = &_vm->_res->CURSORS[cursorId][0];
 		int hotspotX = (int16)READ_LE_UINT16(srcP);
 		int hotspotY = (int16)READ_LE_UINT16(srcP + 2);
 		srcP += 4;
 
 		// Create a surface to build up the cursor on
 		Graphics::Surface cursorSurface;
-		cursorSurface.create(16, 16, Graphics::PixelFormat::createFormatCLUT8());
+		cursorSurface.create(CURSOR_WIDTH, CURSOR_HEIGHT, Graphics::PixelFormat::createFormatCLUT8());
 		byte *destP = (byte *)cursorSurface.getPixels();
 		Common::fill(destP, destP + CURSOR_WIDTH * CURSOR_HEIGHT, 0);
 
@@ -115,7 +115,7 @@ void EventsManager::setCursor(CursorType cursorId) {
 	}
 }
 
-void EventsManager::setCursorData(Graphics::Surface *src, const Common::Rect &r) {
+void EventsManager::setCursorData(Graphics::ManagedSurface *src, const Common::Rect &r) {
 	_invCursor.create(r.width(), r.height(), Graphics::PixelFormat::createFormatCLUT8());
 	_invCursor.copyRectToSurface(*src, 0, 0, r);
 }
@@ -148,18 +148,12 @@ void EventsManager::pollEvents(bool skipTimers) {
 	while (g_system->getEventManager()->pollEvent(event)) {
 		switch (event.type) {
 		case Common::EVENT_QUIT:
-		case Common::EVENT_RTL:
+		case Common::EVENT_RETURN_TO_LAUNCHER:
 			return;
 
 		case Common::EVENT_KEYDOWN:
 			// Check for debugger
-			if (event.kbd.keycode == Common::KEYCODE_d && (event.kbd.flags & Common::KBD_CTRL)) {
-				// Attach to the debugger
-				_vm->_debugger->attach();
-				_vm->_debugger->onFrame();
-			} else {
-				keyControl(event.kbd.keycode, true);
-			}
+			keyControl(event.kbd.keycode, true);
 			return;
 		case Common::EVENT_KEYUP:
 			keyControl(event.kbd.keycode, false);
@@ -209,9 +203,9 @@ void EventsManager::keyControl(Common::KeyCode keycode, bool isKeyDown) {
 		}
 		return;
 	}
-	
+
 	_keyCode = keycode;
-	
+
 	switch (keycode) {
 	case Common::KEYCODE_UP:
 	case Common::KEYCODE_KP8:
@@ -278,11 +272,7 @@ bool EventsManager::checkForNextTimerUpdate() {
 }
 
 void EventsManager::nextFrame() {
-	// Give time to the debugger
-	_vm->_debugger->onFrame();
-
-	// TODO: Refactor for dirty rects
-	_vm->_screen->updateScreen();
+	_vm->_screen->update();
 }
 
 void EventsManager::nextTimer() {

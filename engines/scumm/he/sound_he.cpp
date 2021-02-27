@@ -34,15 +34,14 @@
 #include "common/timer.h"
 #include "common/util.h"
 
+#include "audio/audiostream.h"
 #include "audio/decoders/adpcm.h"
-#include "audio/decoders/flac.h"
-#include "audio/mididrv.h"
 #include "audio/mixer.h"
-#include "audio/decoders/mp3.h"
 #include "audio/decoders/raw.h"
-#include "audio/decoders/voc.h"
-#include "audio/decoders/vorbis.h"
 #include "audio/decoders/wave.h"
+#include "audio/decoders/mp3.h"
+#include "audio/decoders/vorbis.h"
+#include "audio/decoders/flac.h"
 
 namespace Scumm {
 
@@ -55,37 +54,37 @@ SoundHE::SoundHE(ScummEngine *parent, Audio::Mixer *mixer)
 	_heMusicTracks(0) {
 
 	memset(_heChannel, 0, sizeof(_heChannel));
+	_heSoundChannels = new Audio::SoundHandle[8]();
 }
 
 SoundHE::~SoundHE() {
 	free(_heMusic);
+	delete[] _heSoundChannels;
 }
 
-void SoundHE::addSoundToQueue(int sound, int heOffset, int heChannel, int heFlags) {
+void SoundHE::addSoundToQueue(int sound, int heOffset, int heChannel, int heFlags, int heFreq, int hePan, int heVol) {
 	if (_vm->VAR_LAST_SOUND != 0xFF)
 		_vm->VAR(_vm->VAR_LAST_SOUND) = sound;
 
-	if ((_vm->_game.heversion <= 99 && (heFlags & 16)) || (_vm->_game.heversion >= 100 && (heFlags & 8))) {
-		playHESound(sound, heOffset, heChannel, heFlags);
-		return;
+	if (heFlags & 8) {
+		playHESound(sound, heOffset, heChannel, heFlags, heFreq, hePan, heVol);
 	} else {
-
-		Sound::addSoundToQueue(sound, heOffset, heChannel, heFlags);
+		Sound::addSoundToQueue(sound, heOffset, heChannel, heFlags, heFreq, hePan, heVol);
 	}
 }
 
-void SoundHE::addSoundToQueue2(int sound, int heOffset, int heChannel, int heFlags) {
+void SoundHE::addSoundToQueue2(int sound, int heOffset, int heChannel, int heFlags, int heFreq, int hePan, int heVol) {
 	int i = _soundQue2Pos;
 	while (i--) {
 		if (_soundQue2[i].sound == sound && !(heFlags & 2))
 			return;
 	}
 
-	Sound::addSoundToQueue2(sound, heOffset, heChannel, heFlags);
+	Sound::addSoundToQueue2(sound, heOffset, heChannel, heFlags, heFreq, hePan, heVol);
 }
 
 void SoundHE::processSoundQueues() {
-	int snd, heOffset, heChannel, heFlags;
+	int snd, heOffset, heChannel, heFlags, heFreq, hePan, heVol;
 
 	if (_vm->_game.heversion >= 72) {
 		for (int i = 0; i <_soundQue2Pos; i++) {
@@ -93,8 +92,11 @@ void SoundHE::processSoundQueues() {
 			heOffset = _soundQue2[i].offset;
 			heChannel = _soundQue2[i].channel;
 			heFlags = _soundQue2[i].flags;
+			heFreq = _soundQue2[_soundQue2Pos].freq;
+			hePan = _soundQue2[_soundQue2Pos].pan;
+			heVol = _soundQue2[_soundQue2Pos].vol;
 			if (snd)
-				playHESound(snd, heOffset, heChannel, heFlags);
+				playHESound(snd, heOffset, heChannel, heFlags, heFreq, hePan, heVol);
 		}
 		_soundQue2Pos = 0;
 	} else {
@@ -104,8 +106,11 @@ void SoundHE::processSoundQueues() {
 			heOffset = _soundQue2[_soundQue2Pos].offset;
 			heChannel = _soundQue2[_soundQue2Pos].channel;
 			heFlags = _soundQue2[_soundQue2Pos].flags;
+			heFreq = _soundQue2[_soundQue2Pos].freq;
+			hePan = _soundQue2[_soundQue2Pos].pan;
+			heVol = _soundQue2[_soundQue2Pos].vol;
 			if (snd)
-				playHESound(snd, heOffset, heChannel, heFlags);
+				playHESound(snd, heOffset, heChannel, heFlags, heFreq, hePan, heVol);
 		}
 	}
 
@@ -474,6 +479,10 @@ void SoundHE::processSoundOpcodes(int sound, byte *codePtr, int *soundVars) {
 			if (arg == 2) {
 				val = getSoundVar(sound, val);
 			}
+			if (!val) {
+				val = 1; // Safeguard for division by zero
+				warning("Incorrect value 0 for processSoundOpcodes() kludge DIV");
+			}
 			val = getSoundVar(sound, var) / val;
 			setSoundVar(sound, var, val);
 			break;
@@ -525,7 +534,7 @@ byte *findSoundTag(uint32 tag, byte *ptr) {
 	return NULL;
 }
 
-void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags) {
+void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags, int heFreq, int hePan, int heVol) {
 	Audio::RewindableAudioStream *stream = 0;
 	byte *ptr, *spoolPtr;
 	int size = -1;
@@ -636,7 +645,7 @@ void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags)
 		if (heFlags & 1) {
 			_heChannel[heChannel].timer = 0;
 		} else {
-			_heChannel[heChannel].timer = size * 1000 / rate;
+			_heChannel[heChannel].timer = size * 1000 / (rate * blockAlign);
 		}
 
 		_mixer->stopHandle(_heSoundChannels[heChannel]);
@@ -658,7 +667,7 @@ void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags)
 
 			_heChannel[heChannel].rate = rate;
 			if (_heChannel[heChannel].timer)
-				_heChannel[heChannel].timer = size * 1000 / rate;
+				_heChannel[heChannel].timer = size * 1000 / (rate * blockAlign);
 
 			// makeADPCMStream returns a stream in native endianness, but RawMemoryStream
 			// defaults to big endian. If we're on a little endian system, set the LE flag.
@@ -710,6 +719,8 @@ void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags)
 			_overrideFreq = 0;
 		}
 
+		tryLoadSoundOverride(soundID, &stream);
+
 		_vm->setHETimer(heChannel + 4);
 		_heChannel[heChannel].sound = soundID;
 		_heChannel[heChannel].priority = priority;
@@ -727,7 +738,9 @@ void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags)
 
 		_mixer->stopHandle(_heSoundChannels[heChannel]);
 
-		stream = Audio::makeRawStream(ptr + heOffset + 8, size, rate, flags, DisposeAfterUse::NO);
+		if (!stream) {
+			stream = Audio::makeRawStream(ptr + heOffset + 8, size, rate, flags, DisposeAfterUse::NO);
+		}
 		_mixer->playStream(type, &_heSoundChannels[heChannel],
 						Audio::makeLoopingAudioStream(stream, (heFlags & 1) ? 0 : 1), soundID);
 	}
@@ -759,8 +772,66 @@ void SoundHE::playHESound(int soundID, int heOffset, int heChannel, int heFlags)
 			_vm->_imuse->stopSound(_currentMusic);
 			_currentMusic = soundID;
 			_vm->_imuse->startSoundWithNoteOffset(soundID, heOffset);
+		} else if (_vm->_musicEngine) {
+			_vm->_musicEngine->stopSound(_currentMusic);
+			_currentMusic = soundID;
+			_vm->_musicEngine->startSoundWithTrackID(soundID, heOffset);
 		}
 	}
+}
+
+void SoundHE::tryLoadSoundOverride(int soundID, Audio::RewindableAudioStream **stream) {
+	const char *formats[] = {
+#ifdef USE_FLAC
+	    "flac",
+#endif
+	    "wav",
+#ifdef USE_VORBIS
+		"ogg",
+#endif
+#ifdef USE_MAD
+	    "mp3",
+#endif
+	};
+
+	Audio::SeekableAudioStream *(*formatDecoders[])(Common::SeekableReadStream *, DisposeAfterUse::Flag) = {
+#ifdef USE_FLAC
+	    Audio::makeFLACStream,
+#endif
+	    Audio::makeWAVStream,
+#ifdef USE_VORBIS
+	    Audio::makeVorbisStream,
+#endif
+#ifdef USE_MAD
+	    Audio::makeMP3Stream,
+#endif
+	};
+
+	STATIC_ASSERT(
+	    ARRAYSIZE(formats) == ARRAYSIZE(formatDecoders),
+	    formats_formatDecoders_must_have_same_size
+	);
+
+	for (int i = 0; i < ARRAYSIZE(formats); i++) {
+		debug(5, "tryLoadSoundOverride: %d %s", soundID, formats[i]);
+
+		Common::File soundFileOverride;
+		Common::String buf(Common::String::format("sound%d.%s", soundID, formats[i]));
+
+		// First check if the file exists before opening it to
+		// reduce the amount of "opening %s failed" in the console.
+		if (soundFileOverride.exists(buf) && soundFileOverride.open(buf)) {
+			soundFileOverride.seek(0, SEEK_SET);
+			Common::SeekableReadStream *oStr = soundFileOverride.readStream(soundFileOverride.size());
+			soundFileOverride.close();
+
+			*stream = formatDecoders[i](oStr, DisposeAfterUse::YES);
+			debug(5, "tryLoadSoundOverride: %s loaded", formats[i]);
+			return;
+		}
+	}
+
+	debug(5, "tryLoadSoundOverride: file not found");
 }
 
 void SoundHE::startHETalkSound(uint32 offset) {

@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -24,13 +24,14 @@
 #define PRINCE_FLAGS_H
 
 #include "common/scummsys.h"
+#include "common/hashmap.h"
 
 namespace Prince {
 
 class Flags {
 public:
-	static int compareFlagDebug(const void *a, const void *b);
-	static const char *getFlagName(uint16 flagId);
+	Flags();
+	const char *getFlagName(uint16 flagId);
 
 	enum Id {
 		FLAGA1			=	0x8000,
@@ -407,13 +408,8 @@ public:
 		ESCAPED2	=	0x8470
 	};
 
-	struct FlagDebug {
-		Id id;
-		char flagName[30];
-	};
-
-	static const int kFlagDebugAmount = 368;
-	static const FlagDebug _flagNames[kFlagDebugAmount];
+private:
+	Common::HashMap<uint, const char *> _flagMap;
 };
 
 } // End of namespace Prince

@@ -27,16 +27,18 @@
 #include "common/fs.h"
 #include "common/hash-str.h"
 #include "common/hashmap.h"
+#include "common/language.h"
 #include "common/list.h"
 #include "common/str.h"
 #include "common/rect.h"
 
 #include "graphics/surface.h"
+#include "graphics/transparent_surface.h"
 #include "graphics/font.h"
 #include "graphics/pixelformat.h"
 
 
-#define SCUMMVM_THEME_VERSION_STR "SCUMMVM_STX0.8.20"
+#define SCUMMVM_THEME_VERSION_STR "SCUMMVM_STX0.8.42"
 
 class OSystem;
 
@@ -53,7 +55,6 @@ struct TextColorData;
 class Dialog;
 class GuiObject;
 class ThemeEval;
-class ThemeItem;
 class ThemeParser;
 
 /**
@@ -80,6 +81,20 @@ enum DrawData {
 	kDDButtonDisabled,
 	kDDButtonPressed,
 
+	kDDDropDownButtonIdle,
+	kDDDropDownButtonHoverLeft,
+	kDDDropDownButtonHoverRight,
+	kDDDropDownButtonDisabled,
+	kDDDropDownButtonPressedLeft,
+	kDDDropDownButtonPressedRight,
+
+	kDDDropDownButtonIdleRTL,
+	kDDDropDownButtonHoverLeftRTL,
+	kDDDropDownButtonHoverRightRTL,
+	kDDDropDownButtonDisabledRTL,
+	kDDDropDownButtonPressedLeftRTL,
+	kDDDropDownButtonPressedRightRTL,
+
 	kDDSliderFull,
 	kDDSliderHover,
 	kDDSliderDisabled,
@@ -87,6 +102,7 @@ enum DrawData {
 	kDDCheckboxDefault,
 	kDDCheckboxDisabled,
 	kDDCheckboxSelected,
+	kDDCheckboxDisabledSelected,
 
 	kDDRadiobuttonDefault,
 	kDDRadiobuttonDisabled,
@@ -106,10 +122,26 @@ enum DrawData {
 	kDDPopUpHover,
 	kDDPopUpDisabled,
 
+	kDDPopUpIdleRTL,
+	kDDPopUpHoverRTL,
+	kDDPopUpDisabledRTL,
+
 	kDDCaret,
 	kDDSeparator,
 	kDrawDataMAX,
 	kDDNone = -1
+};
+
+/**
+ * Dialog layers.
+ * The currently active dialog has two layers, background and foreground.
+ * The background layer is drawn to the backbuffer. The foreground layer
+ * is drawn to the screen. This allows draw calls to restore the background
+ * layer before redrawing a widget.
+ */
+enum DrawLayer {
+	kDrawLayerBackground,
+	kDrawLayerForeground
 };
 
 // FIXME: TextData is really a bad name, not conveying what this enum is about.
@@ -119,6 +151,8 @@ enum TextData {
 	kTextDataButton,
 	kTextDataNormalFont,
 	kTextDataTooltip,
+	kTextDataConsole,
+	kTextDataExtraLang,
 	kTextDataMAX
 };
 
@@ -137,9 +171,38 @@ enum TextColor {
 	kTextColorMAX
 };
 
+class LangExtraFont {
+public:
+	LangExtraFont(TextData textId, Common::Array<Common::Language> &lngs, const Common::String &file, const Common::String &scalableFile, int ps) : _langs(lngs) {
+		storeFileNames(textId, file, scalableFile, ps);
+	}
+
+	void storeFileNames(TextData textId, const Common::String &file, const Common::String &scalableFile, int ps) {
+		assert(textId < kTextDataMAX);
+		_fontFilesStd[textId] = file;
+		_fontFilesScalable[textId] = scalableFile;
+		_fontSize[textId] = ps;
+	}
+
+	bool operator==(Common::Language l) const {
+		return (Common::find(_langs.begin(), _langs.end(), l) != _langs.end());
+	}
+
+	Common::String file(TextData textId) const { return _fontFilesStd[textId]; }
+	Common::String sclFile(TextData textId) const { return _fontFilesScalable[textId]; }
+	int fntSize(TextData textId) const { return _fontSize[textId]; }
+
+private:
+	Common::Array<Common::Language> _langs;
+	Common::String _fontFilesStd[kTextDataMAX];
+	Common::String _fontFilesScalable[kTextDataMAX];
+	int _fontSize[kTextDataMAX];
+};
+
 class ThemeEngine {
 protected:
 	typedef Common::HashMap<Common::String, Graphics::Surface *> ImagesMap;
+	typedef Common::HashMap<Common::String, Graphics::TransparentSurface *> AImagesMap;
 
 	friend class GUI::Dialog;
 	friend class GUI::GuiObject;
@@ -169,7 +232,8 @@ public:
 		kDialogBackgroundSpecial,
 		kDialogBackgroundPlain,
 		kDialogBackgroundTooltip,
-		kDialogBackgroundDefault
+		kDialogBackgroundDefault,
+		kDialogBackgroundNone
 	};
 
 	/// State of the widget to be drawn
@@ -206,6 +270,8 @@ public:
 		kFontStyleFixedBold = 4,    ///< Fixed size bold font.
 		kFontStyleFixedItalic = 5,  ///< Fixed size italic font.
 		kFontStyleTooltip = 6,      ///< Tiny console font
+		kFontStyleConsole = 7,      ///< Debug console font
+		kFontStyleLangExtra = 8,	///< Language specific font for ingame dialogs (e. g. the SCUMM pause/restart dialogs)
 		kFontStyleMax
 	};
 
@@ -223,22 +289,30 @@ public:
 		kShadingLuminance   ///< Converting colors to luminance for unused areas
 	};
 
+	/// AlphaBitmap scale mode selector
+	enum AutoScaleMode {
+		kAutoScaleNone = 0,		///< Use image dimensions
+		kAutoScaleStretch = 1,	///< Stretch image to full widget size
+		kAutoScaleFit = 2,		///< Scale image to widget size but keep aspect ratio
+		kAutoScaleNinePatch = 3 ///< 9-patch image
+	};
+
 	// Special image ids for images used in the GUI
 	static const char *const kImageLogo;      ///< ScummVM logo used in the launcher
 	static const char *const kImageLogoSmall; ///< ScummVM logo used in the GMM
 	static const char *const kImageSearch;    ///< Search tool image used in the launcher
 	static const char *const kImageEraser;     ///< Clear input image used in the launcher
-	static const char *const kImageDelbtn; ///< Delete characters in the predictive dialog
+	static const char *const kImageDelButton; ///< Delete characters in the predictive dialog
 	static const char *const kImageList;      ///< List image used in save/load chooser selection
 	static const char *const kImageGrid;      ///< Grid image used in save/load chooser selection
-	static const char *const kImageStopbtn; ///< Stop recording button in recorder onscreen dialog
-	static const char *const kImageEditbtn; ///< Edit recording metadata in recorder onscreen dialog
-	static const char *const kImageSwitchModebtn; ///< Switch mode button in recorder onscreen dialog
-	static const char *const kImageFastReplaybtn; ///< Fast playback mode button in recorder onscreen dialog
-	static const char *const kImageStopSmallbtn; ///< Stop recording button in recorder onscreen dialog (for 320xY)
-	static const char *const kImageEditSmallbtn; ///< Edit recording metadata in recorder onscreen dialog (for 320xY)
-	static const char *const kImageSwitchModeSmallbtn; ///< Switch mode button in recorder onscreen dialog (for 320xY)
-	static const char *const kImageFastReplaySmallbtn; ///< Fast playback mode button in recorder onscreen dialog (for 320xY)
+	static const char *const kImageStopButton; ///< Stop recording button in recorder onscreen dialog
+	static const char *const kImageEditButton; ///< Edit recording metadata in recorder onscreen dialog
+	static const char *const kImageSwitchModeButton; ///< Switch mode button in recorder onscreen dialog
+	static const char *const kImageFastReplayButton; ///< Fast playback mode button in recorder onscreen dialog
+	static const char *const kImageStopSmallButton; ///< Stop recording button in recorder onscreen dialog (for 320xY)
+	static const char *const kImageEditSmallButton; ///< Edit recording metadata in recorder onscreen dialog (for 320xY)
+	static const char *const kImageSwitchModeSmallButton; ///< Switch mode button in recorder onscreen dialog (for 320xY)
+	static const char *const kImageFastReplaySmallButton; ///< Fast playback mode button in recorder onscreen dialog (for 320xY)
 
 	/**
 	 * Graphics mode enumeration.
@@ -293,22 +367,38 @@ public:
 	const Graphics::PixelFormat getPixelFormat() const { return _overlayFormat; }
 
 	/**
-	 * Implementation of the GUI::Theme API. Called when a
-	 * new dialog is opened. Note that the boolean parameter
-	 * meaning has been changed.
+	 * Draw full screen shading with the supplied style
 	 *
-	 * @param enableBuffering If set to true, buffering is enabled for
-	 *                        drawing this dialog, and will continue enabled
-	 *                        until disabled.
+	 * This is used to dim the inactive dialogs so the active one stands out.
 	 */
-	void openDialog(bool enableBuffering, ShadingStyle shading = kShadingNone);
+	void applyScreenShading(ShadingStyle shading);
+
+	/**
+	 * Sets the active drawing surface to the back buffer.
+	 *
+	 * All drawing from this point on will be done on that surface.
+	 * The back buffer surface needs to be copied to the screen surface
+	 * in order to become visible.
+	 */
+	void drawToBackbuffer();
+
+	/**
+	 * Sets the active drawing surface to the screen.
+	 *
+	 * All drawing from this point on will be done on that surface.
+	 */
+	void drawToScreen();
 
 	/**
 	 * The updateScreen() method is called every frame.
-	 * It processes all the drawing queues and then copies dirty rects
-	 * in the current Screen surface to the overlay.
+	 * It copies dirty rectangles in the Screen surface to the overlay.
 	 */
-	void updateScreen(bool render = true);
+	void updateScreen();
+
+	/**
+	 * Copy the entire backbuffer surface to the screen surface
+	 */
+	void copyBackBufferToScreen();
 
 
 	/** @name FONT MANAGEMENT METHODS */
@@ -319,6 +409,10 @@ public:
 			return kTextDataNormalFont;
 		if (font == kFontStyleTooltip)
 			return kTextDataTooltip;
+		if (font == kFontStyleConsole)
+			return kTextDataConsole;
+		if (font == kFontStyleLangExtra)
+			return kTextDataExtraLang;
 		return kTextDataDefault;
 	}
 
@@ -326,7 +420,7 @@ public:
 
 	int getFontHeight(FontStyle font = kFontStyleBold) const;
 
-	int getStringWidth(const Common::String &str, FontStyle font = kFontStyleBold) const;
+	int getStringWidth(const Common::U32String &str, FontStyle font = kFontStyleBold) const;
 
 	int getCharWidth(byte c, FontStyle font = kFontStyleBold) const;
 
@@ -334,48 +428,64 @@ public:
 
 	//@}
 
+	/**
+	 * Set the clipping rect to be used by the widget drawing methods defined below.
+	 *
+	 * Widgets are not drawn outside of the clipping rect. Widgets that overlap the
+	 * clipping rect are drawn partially.
+	 *
+	 * @param newRect The new clipping rect
+	 * @return The previous clipping rect
+	 */
+	Common::Rect swapClipRect(const Common::Rect &newRect);
+
+	/**
+	 * Set the clipping rect to allow rendering on the whole surface.
+	 */
+	void disableClipRect();
 
 	/** @name WIDGET DRAWING METHODS */
 	//@{
 
-	void drawWidgetBackground(const Common::Rect &r, uint16 hints,
-	                          WidgetBackground background = kWidgetBackgroundPlain, WidgetStateInfo state = kStateEnabled);
+	void drawWidgetBackground(const Common::Rect &r, WidgetBackground background);
 
-	void drawButton(const Common::Rect &r, const Common::String &str,
-	                WidgetStateInfo state = kStateEnabled, uint16 hints = 0);
+	void drawButton(const Common::Rect &r, const Common::U32String &str, WidgetStateInfo state = kStateEnabled,
+	                uint16 hints = 0);
 
-	void drawSurface(const Common::Rect &r, const Graphics::Surface &surface,
-	                 WidgetStateInfo state = kStateEnabled, int alpha = 256, bool themeTrans = false);
+	void drawDropDownButton(const Common::Rect &r, uint32 dropdownWidth, const Common::U32String &str,
+	                        WidgetStateInfo buttonState, bool inButton, bool inDropdown, bool rtl = false);
 
-	void drawSlider(const Common::Rect &r, int width,
-	                WidgetStateInfo state = kStateEnabled);
+	void drawSurface(const Common::Point &p, const Graphics::Surface &surface, bool themeTrans = false);
 
-	void drawCheckbox(const Common::Rect &r, const Common::String &str,
-	                  bool checked, WidgetStateInfo state = kStateEnabled);
+	void drawSlider(const Common::Rect &r, int width, WidgetStateInfo state = kStateEnabled, bool rtl = false);
 
-	void drawRadiobutton(const Common::Rect &r, const Common::String &str,
-	                     bool checked, WidgetStateInfo state = kStateEnabled);
+	void drawCheckbox(const Common::Rect &r, const Common::U32String &str, bool checked,
+	                  WidgetStateInfo state = kStateEnabled, bool rtl = false);
 
-	void drawTab(const Common::Rect &r, int tabHeight, int tabWidth,
-	             const Common::Array<Common::String> &tabs, int active, uint16 hints,
-	             int titleVPad, WidgetStateInfo state = kStateEnabled);
+	void drawRadiobutton(const Common::Rect &r, const Common::U32String &str, bool checked,
+	                     WidgetStateInfo state = kStateEnabled, bool rtl = false);
 
-	void drawScrollbar(const Common::Rect &r, int sliderY, int sliderHeight,
-	                   ScrollbarState, WidgetStateInfo state = kStateEnabled);
+	void drawTab(const Common::Rect &r, int tabHeight, const Common::Array<int> &tabWidths,
+	             const Common::Array<Common::U32String> &tabs, int active, bool rtl = false);
 
-	void drawPopUpWidget(const Common::Rect &r, const Common::String &sel,
-	                     int deltax, WidgetStateInfo state = kStateEnabled, Graphics::TextAlign align = Graphics::kTextAlignLeft);
+	void drawScrollbar(const Common::Rect &r, int sliderY, int sliderHeight, ScrollbarState scrollState);
 
-	void drawCaret(const Common::Rect &r, bool erase,
-	               WidgetStateInfo state = kStateEnabled);
+	void drawPopUpWidget(const Common::Rect &r, const Common::U32String &sel, int deltax,
+	                     WidgetStateInfo state = kStateEnabled, bool rtl = false);
 
-	void drawLineSeparator(const Common::Rect &r, WidgetStateInfo state = kStateEnabled);
+	void drawCaret(const Common::Rect &r, bool erase);
 
-	void drawDialogBackground(const Common::Rect &r, DialogBackground type, WidgetStateInfo state = kStateEnabled);
+	void drawLineSeparator(const Common::Rect &r);
 
-	void drawText(const Common::Rect &r, const Common::String &str, WidgetStateInfo state = kStateEnabled, Graphics::TextAlign align = Graphics::kTextAlignCenter, TextInversionState inverted = kTextInversionNone, int deltax = 0, bool useEllipsis = true, FontStyle font = kFontStyleBold, FontColor color = kFontColorNormal, bool restore = true, const Common::Rect &drawableTextArea = Common::Rect(0, 0, 0, 0));
+	void drawDialogBackground(const Common::Rect &r, DialogBackground type);
 
-	void drawChar(const Common::Rect &r, byte ch, const Graphics::Font *font, WidgetStateInfo state = kStateEnabled, FontColor color = kFontColorNormal);
+	void drawText(const Common::Rect &r, const Common::U32String &str, WidgetStateInfo state = kStateEnabled,
+	              Graphics::TextAlign align = Graphics::kTextAlignCenter,
+	              TextInversionState inverted = kTextInversionNone, int deltax = 0, bool useEllipsis = true,
+	              FontStyle font = kFontStyleBold, FontColor color = kFontColorNormal, bool restore = true,
+	              const Common::Rect &drawableTextArea = Common::Rect(0, 0, 0, 0));
+
+	void drawChar(const Common::Rect &r, byte ch, const Graphics::Font *font, FontColor color = kFontColorNormal);
 
 	//@}
 
@@ -383,8 +493,8 @@ public:
 
 	/**
 	 * Actual implementation of a dirty rect handling.
-	 * Dirty rectangles are queued on a list and are later used for the
-	 * actual drawing.
+	 * Dirty rectangles are queued on a list, merged and optimized
+	 * when possible and are later used for the actual drawing.
 	 *
 	 * @param r Area of the dirty rect.
 	 */
@@ -434,11 +544,28 @@ public:
 	 * filename.
 	 *
 	 * @param textId            Identifier name for the font.
+	 * @param language          Wildcard for the language(s) to use.
 	 * @param file              Filename of the non-scalable font version.
 	 * @param scalableFile      Filename of the scalable version. (Optional)
 	 * @param pointsize         Point size for the scalable font. (Optional)
 	 */
-	bool addFont(TextData textId, const Common::String &file, const Common::String &scalableFile, const int pointsize);
+	bool addFont(TextData textId, const Common::String &language, const Common::String &file, const Common::String &scalableFile, const int pointsize);
+
+	/**
+	 * Store language specific font names for ingame GUI dialogs which might require
+	 * a different language than the current GUI setting
+	 *
+	 * @param textId, language, file, scalableFile, pointsize			All exactly the same as with addFont()
+	*/
+	void storeFontNames(TextData textId, const Common::String &language, const Common::String &file, const Common::String &scalableFile, const int pointsize);
+
+	/**
+	 * Load language specific font for ingame use
+	 * @param style				font style associated with the font file
+	 * @param lang				language associated with the font file
+	 * @return
+	*/
+	bool loadExtraFont(FontStyle style, Common::Language lang);
 
 	/**
 	 * Interface for the ThemeParser class: adds a text color value.
@@ -456,6 +583,14 @@ public:
 	 * @param filename Name of the bitmap file.
 	 */
 	bool addBitmap(const Common::String &filename);
+
+	/**
+	 * Interface for the ThemeParser class: Loads a bitmap with transparency file to use on the GUI.
+	 * The filename is also used as its identifier.
+	 *
+	 * @param filename Name of the bitmap file.
+	 */
+	bool addAlphaBitmap(const Common::String &filename);
 
 	/**
 	 * Adds a new TextStep from the ThemeParser. This will be deprecated/removed once the
@@ -484,13 +619,6 @@ protected:
 	void setGraphicsMode(GraphicsMode mode);
 
 public:
-	/**
-	 * Finishes buffering: widgets from then on will be drawn straight on the screen
-	 * without drawing queues.
-	 */
-	inline void finishBuffering() { _buffering = false; }
-	inline void startBuffering() { _buffering = true; }
-
 	inline ThemeEval *getEvaluator() { return _themeEval; }
 	inline Graphics::VectorRenderer *renderer() { return _vectorRenderer; }
 
@@ -501,8 +629,16 @@ public:
 		return _bitmaps.contains(name) ? _bitmaps[name] : 0;
 	}
 
+	Graphics::TransparentSurface *getAlphaBitmap(const Common::String &name) {
+		return _abitmaps.contains(name) ? _abitmaps[name] : 0;
+	}
+
 	const Graphics::Surface *getImageSurface(const Common::String &name) const {
 		return _bitmaps.contains(name) ? _bitmaps[name] : 0;
+	}
+
+	const Graphics::TransparentSurface *getAImageSurface(const Common::String &name) const {
+		return _abitmaps.contains(name) ? _abitmaps[name] : 0;
 	}
 
 	/**
@@ -528,15 +664,6 @@ public:
 	int getGraphicsMode() const { return _graphicsMode; }
 
 protected:
-	/**
-	 * Initializes the drawing screen surfaces, _screen and _backBuffer.
-	 * If the surfaces already exist, they are cleared and re-initialized.
-	 *
-	 * @param backBuffer Sets whether the _backBuffer surface should be initialized.
-	 * @template PixelType C type which specifies the size of each pixel.
-	 *                     Defaults to uint16 (2 BPP for the surfaces)
-	 */
-	template<typename PixelType> void screenInit(bool backBuffer = true);
 
 	/**
 	 * Loads the given theme into the ThemeEngine.
@@ -559,34 +686,35 @@ protected:
 	 */
 	void unloadTheme();
 
+	/**
+	 * Unload the language specific font loaded via loadExtraFont()
+	*/
+	void unloadExtraFont();
+
 	const Graphics::Font *loadScalableFont(const Common::String &filename, const Common::String &charset, const int pointsize, Common::String &name);
 	const Graphics::Font *loadFont(const Common::String &filename, Common::String &name);
 	Common::String genCacheFilename(const Common::String &filename) const;
 	const Graphics::Font *loadFont(const Common::String &filename, const Common::String &scalableFilename, const Common::String &charset, const int pointsize, const bool makeLocalizedFont);
 
 	/**
-	 * Actual Dirty Screen handling function.
-	 * Handles all the dirty squares in the list, merges and optimizes
-	 * them when possible and draws them to the screen.
-	 * Called from updateScreen()
+	 * Dirty Screen handling function.
+	 * Draws all the dirty rectangles in the list to the overlay.
 	 */
-	void renderDirtyScreen();
+	void updateDirtyScreen();
 
 	/**
-	 * Generates a DrawQueue item and enqueues it so it's drawn to the screen
-	 * when the drawing queue is processed.
+	 * Draws a GUI element according to a DrawData descriptor.
 	 *
-	 * If Buffering is enabled, the DrawQueue item will be automatically placed
-	 * on its corresponding queue.
-	 * If Buffering is disabled, the DrawQueue item will be processed immediately
-	 * and drawn to the screen.
+	 * Only calls with a DrawData layer attribute matching the active layer
+	 * are actually drawn to the active surface.
 	 *
-	 * This function is called from all the Widget Drawing methods.
+	 * These functions are called from all the Widget drawing methods.
 	 */
-	void queueDD(DrawData type,  const Common::Rect &r, uint32 dynamic = 0, bool restore = false);
-	void queueDDText(TextData type, TextColor color, const Common::Rect &r, const Common::String &text, bool restoreBg,
-	                 bool elipsis, Graphics::TextAlign alignH = Graphics::kTextAlignLeft, TextAlignVertical alignV = kTextAlignVTop, int deltax = 0, const Common::Rect &drawableTextArea = Common::Rect(0, 0, 0, 0));
-	void queueBitmap(const Graphics::Surface *bitmap, const Common::Rect &r, bool alpha);
+	void drawDD(DrawData type, const Common::Rect &r, uint32 dynamic = 0, bool forceRestore = false);
+	void drawDDText(TextData type, TextColor color, const Common::Rect &r, const Common::U32String &text, bool restoreBg,
+	                bool elipsis, Graphics::TextAlign alignH = Graphics::kTextAlignLeft,
+	                TextAlignVertical alignV = kTextAlignVTop, int deltax = 0,
+	                const Common::Rect &drawableTextArea = Common::Rect(0, 0, 0, 0));
 
 	/**
 	 * DEBUG: Draws a white square and writes some text next to it.
@@ -627,14 +755,18 @@ protected:
 	GUI::ThemeEval *_themeEval;
 
 	/** Main screen surface. This is blitted straight into the overlay. */
-	Graphics::Surface _screen;
+	Graphics::TransparentSurface _screen;
 
 	/** Backbuffer surface. Stores previous states of the screen to blit back */
-	Graphics::Surface _backBuffer;
+	Graphics::TransparentSurface _backBuffer;
 
-	/** Sets whether the current drawing is being buffered (stored for later
-	    processing) or drawn directly to the screen. */
-	bool _buffering;
+	/**
+	 * Filter the submitted DrawData descriptors according to their layer attribute
+	 *
+	 * This is used to selectively draw the background or foreground layer
+	 * of the dialogs.
+	 */
+	DrawLayer _layerToDraw;
 
 	/** Bytes per pixel of the Active Drawing Surface (i.e. the screen) */
 	int _bytesPerPixel;
@@ -643,7 +775,6 @@ protected:
 	GraphicsMode _graphicsMode;
 
 	/** Font info. */
-	Common::String _fontName;
 	const Graphics::Font *_font;
 
 	/**
@@ -658,20 +789,18 @@ protected:
 	/** Array of all font colors available. */
 	TextColorData *_textColors[kTextColorMAX];
 
+	/** Extra font file names for languages like Japanese, Korean or Chinese
+	 *  for use in ingame dialogs (like the SCUMM pause/restart dialogs)
+	 */
+	Common::Array<LangExtraFont> _langExtraFonts;
+
 	ImagesMap _bitmaps;
+	AImagesMap _abitmaps;
 	Graphics::PixelFormat _overlayFormat;
-#ifdef USE_RGB_COLOR
 	Graphics::PixelFormat _cursorFormat;
-#endif
 
 	/** List of all the dirty screens that must be blitted to the overlay. */
 	Common::List<Common::Rect> _dirtyScreen;
-
-	/** Queue with all the drawing that must be done to the Back Buffer */
-	Common::List<ThemeItem *> _bufferQueue;
-
-	/** Queue with all the drawing that must be done to the screen */
-	Common::List<ThemeItem *> _screenQueue;
 
 	bool _initOk;  ///< Class and renderer properly initialized
 	bool _themeOk; ///< Theme data successfully loaded.
@@ -685,14 +814,18 @@ protected:
 
 	bool _useCursor;
 	int _cursorHotspotX, _cursorHotspotY;
+	uint32 _cursorTransparent;
+	byte *_cursor;
+	uint _cursorWidth, _cursorHeight;
+#ifndef USE_RGB_COLOR
 	enum {
 		MAX_CURS_COLORS = 255
 	};
-	byte *_cursor;
-	bool _needPaletteUpdates;
-	uint _cursorWidth, _cursorHeight;
 	byte _cursorPal[3 * MAX_CURS_COLORS];
 	byte _cursorPalSize;
+#endif
+
+	Common::Rect _clip;
 };
 
 } // End of namespace GUI.

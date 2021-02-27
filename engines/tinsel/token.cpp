@@ -34,7 +34,8 @@ struct Token {
 	Common::PROCESS		*proc;
 };
 
-static Token g_tokens[NUMTOKENS];	// FIXME: Avoid non-const global vars
+// These vars are reset upon engine destruction
+static Token g_tokens[NUMTOKENS];
 
 
 /**
@@ -45,7 +46,7 @@ static void TerminateProcess(Common::PROCESS *tProc) {
 	// Release tokens held by the process
 	for (int i = 0; i < NUMTOKENS; i++) {
 		if (g_tokens[i].proc == tProc) {
-			g_tokens[i].proc = NULL;
+			g_tokens[i].proc = nullptr;
 		}
 	}
 
@@ -69,7 +70,7 @@ void GetControlToken() {
  */
 void FreeControlToken() {
 	// Allow anyone to free TOKEN_CONTROL
-	g_tokens[TOKEN_CONTROL].proc = NULL;
+	g_tokens[TOKEN_CONTROL].proc = nullptr;
 }
 
 
@@ -101,7 +102,7 @@ void FreeToken(int which) {
 
 	assert(g_tokens[which].proc == CoroScheduler.getCurrentProcess());	// we'd have been killed if some other proc had taken this token
 
-	g_tokens[which].proc = NULL;
+	g_tokens[which].proc = nullptr;
 }
 
 /**
@@ -119,7 +120,7 @@ bool TestToken(int which) {
  */
 void FreeAllTokens() {
 	for (int i = 0; i < NUMTOKENS; i++) {
-		g_tokens[i].proc = NULL;
+		g_tokens[i].proc = nullptr;
 	}
 }
 

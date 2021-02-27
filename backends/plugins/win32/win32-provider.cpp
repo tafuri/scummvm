@@ -33,10 +33,10 @@
 #include <windows.h>
 
 
-class Win32Plugin : public DynamicPlugin {
+class Win32Plugin final : public DynamicPlugin {
 private:
 	static const TCHAR* toUnicode(const char *x) {
-	#ifndef _WIN32_WCE
+	#ifndef UNICODE
 		return (const TCHAR *)x;
 	#else
 		static TCHAR unicodeString[MAX_PATH];
@@ -49,12 +49,8 @@ private:
 protected:
 	void *_dlHandle;
 
-	virtual VoidFunc findSymbol(const char *symbol) {
-		#ifndef _WIN32_WCE
-		FARPROC func = GetProcAddress((HMODULE)_dlHandle, symbol);
-		#else
+	virtual VoidFunc findSymbol(const char *symbol) override {
 		FARPROC func = GetProcAddress((HMODULE)_dlHandle, toUnicode(symbol));
-		#endif
 		if (!func)
 			debug("Failed loading symbol '%s' from plugin '%s'", symbol, _filename.c_str());
 
@@ -65,25 +61,21 @@ public:
 	Win32Plugin(const Common::String &filename)
 		: DynamicPlugin(filename), _dlHandle(0) {}
 
-	bool loadPlugin() {
+	virtual bool loadPlugin() override {
 		assert(!_dlHandle);
-#ifndef _WIN32_WCE
-		_dlHandle = LoadLibrary(_filename.c_str());
-#else
 		_dlHandle = LoadLibrary(toUnicode(_filename.c_str()));
-#endif
 
 		if (!_dlHandle) {
 			debug("Failed loading plugin '%s' (error code %d)", _filename.c_str(), (int32) GetLastError());
 			return false;
 		} else {
-			debug(1, "Success loading plugin '%s', handle %08X", _filename.c_str(), (uint32) _dlHandle);
+			debug(1, "Success loading plugin '%s', handle %p", _filename.c_str(), _dlHandle);
 		}
 
 		return DynamicPlugin::loadPlugin();
 	}
 
-	void unloadPlugin() {
+	virtual void unloadPlugin() override {
 		DynamicPlugin::unloadPlugin();
 		if (_dlHandle) {
 			if (!FreeLibrary((HMODULE)_dlHandle))
@@ -103,11 +95,7 @@ Plugin* Win32PluginProvider::createPlugin(const Common::FSNode &node) const {
 bool Win32PluginProvider::isPluginFilename(const Common::FSNode &node) const {
 	// Check the plugin suffix
 	Common::String filename = node.getName();
-#ifndef _WIN32_WCE
 	if (!filename.hasSuffix(".dll"))
-#else
-	if (!filename.hasSuffix(".plugin"))
-#endif
 		return false;
 
 	return true;

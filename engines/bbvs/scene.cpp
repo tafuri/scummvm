@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -25,11 +25,18 @@
 #include "bbvs/graphics.h"
 #include "bbvs/sound.h"
 
+#include "engines/advancedDetector.h"
+
 namespace Bbvs {
 
 static const int kAfterVideoSceneNum[] = {
 	 0, 43, 23, 12,  4, 44,  2,
 	16,  4,  4,  4, 44, 12, 44
+};
+
+static const int kAfterVideoSceneNumDemo[] = {
+	 0, 32, 33, 23,  0,  0,  0,
+	 0,  0,  0,  0,  0,  0,  0
 };
 
 void BbvsEngine::loadScene(int sceneNum) {
@@ -118,8 +125,8 @@ void BbvsEngine::initScene(bool sounds) {
 			sceneObject->animIndex = soInit->animIndex;
 			sceneObject->frameIndex = sceneObject->anim->frameCount - 1;
 			sceneObject->frameTicks = 1;
-			sceneObject->x = soInit->x << 16;
-			sceneObject->y = soInit->y << 16;
+			sceneObject->x = soInit->x * 65536;
+			sceneObject->y = soInit->y * 65536;
 		}
 	}
 
@@ -142,7 +149,7 @@ void BbvsEngine::initScene(bool sounds) {
 		int minDistance = 0xFFFFFF;
 		for (int cameraNum = 0; cameraNum < 4; ++cameraNum) {
 			CameraInit *cameraInit = _gameModule->getCameraInit(cameraNum);
-			int curDistance = ABS(cameraInit->cameraPos.x - (int)(_buttheadObject->x >> 16) + 160);
+			int curDistance = ABS(cameraInit->cameraPos.x - (int)(_buttheadObject->x / 65536) + 160);
 			if (curDistance < minDistance) {
 				minDistance = curDistance;
 				_currCameraNum = cameraNum;
@@ -208,7 +215,10 @@ bool BbvsEngine::changeScene() {
 		_sceneVisited[_currSceneNum] = 1;
 		_playVideoNumber = _newSceneNum - 30;
 		_currSceneNum = _newSceneNum;
-		_newSceneNum = kAfterVideoSceneNum[_playVideoNumber];
+		if (_gameDescription->flags & ADGF_DEMO)
+			_newSceneNum = kAfterVideoSceneNumDemo[_playVideoNumber];
+		else
+			_newSceneNum = kAfterVideoSceneNum[_playVideoNumber];
 	} else if (_newSceneNum >= 100 && _currSceneNum == kCredits) {
 		// Play secret video
 		stopSounds();

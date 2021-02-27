@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -100,6 +100,14 @@ Mars::Mars(InputHandler *nextHandler, PegasusEngine *owner) : Neighborhood(nextH
 		_planetMovie(kNoDisplayElement), _junk(kNoDisplayElement), _energyChoiceSpot(kShuttleEnergySpotID),
 		_gravitonChoiceSpot(kShuttleGravitonSpotID), _tractorChoiceSpot(kShuttleTractorSpotID),
 		_shuttleViewSpot(kShuttleViewSpotID), _shuttleTransportSpot(kShuttleTransportSpotID) {
+
+	_reactorStage  = 0;
+	_nextGuess  = 0;
+	_attackingItem  = nullptr;
+	_marsEvent.mars  = nullptr;
+	_marsEvent.event  = kMarsLaunchTubeReached;
+	_weaponSelection  = kNoWeapon;
+
 	_noAirFuse.setFunctor(new Common::Functor0Mem<void, Mars>(this, &Mars::airStageExpired));
 	setIsItemTaken(kMarsCard);
 	setIsItemTaken(kAirMask);
@@ -148,7 +156,7 @@ class AirMaskCondition : public AICondition {
 public:
 	AirMaskCondition(const uint32);
 
-	virtual bool fireCondition();
+	bool fireCondition() override;
 
 protected:
 	uint32 _airThreshold;
@@ -315,6 +323,8 @@ TimeValue Mars::getViewTime(const RoomID room, const DirectionConstant direction
 				extraID -= 4;
 		}
 		break;
+	default:
+		break;
 	}
 
 	if (extraID == 0xffffffff)
@@ -337,6 +347,8 @@ void Mars::getZoomEntry(const HotSpotID spotID, ZoomTable::Entry &entry) {
 	case kMars31SouthOutSpotID:
 		if (GameState.getCurrentDirection() == kSouth && GameState.isTakenItemID(kMarsCard))
 			extraID = kMars31SouthZoomOutNoCard;
+		break;
+	default:
 		break;
 	}
 
@@ -365,6 +377,8 @@ void Mars::findSpotEntry(const RoomID room, const DirectionConstant direction, S
 			else
 				GameState.setMarsSeenThermalScan(true);
 			break;
+		default:
+			break;
 		}
 	}
 }
@@ -380,6 +394,8 @@ CanMoveForwardReason Mars::canMoveForward(ExitTable::Entry &entry) {
 	case MakeRoomView(kMars48, kSouth):
 		if (GameState.getMarsSeenRobotAtReactor() && !GameState.getMarsAvoidedReactorRobot())
 			_utilityFuse.stopFuse();
+		break;
+	default:
 		break;
 	}
 
@@ -445,6 +461,8 @@ CanOpenDoorReason Mars::canOpenDoor(DoorTable::Entry &entry) {
 		if (!GameState.getMarsMazeDoorPair3())
 			return kCantOpenLocked;
 		break;
+	default:
+		break;
 	}
 
 	return Neighborhood::canOpenDoor(entry);
@@ -487,6 +505,8 @@ void Mars::openDoor() {
 			die(kDeathDidntGetOutOfWay);
 			return;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -669,6 +689,8 @@ void Mars::closeDoorOffScreen(const RoomID room, const DirectionConstant directi
 	case kMarsMaze180:
 		playSpotSoundSync(kMarsMazeDoorCloseIn, kMarsMazeDoorCloseOut);
 		break;
+	default:
+		break;
 	}
 }
 
@@ -757,6 +779,8 @@ int16 Mars::getStaticCompassAngle(const RoomID room, const DirectionConstant dir
 	case MakeRoomView(kMars58, kEast):
 	case MakeRoomView(kMars58, kWest):
 		angle -= 90;
+		break;
+	default:
 		break;
 	}
 
@@ -877,6 +901,7 @@ void Mars::getExtraCompassMove(const ExtraTable::Entry &entry, FaderMoveSpec &co
 		break;
 	default:
 		Neighborhood::getExtraCompassMove(entry, compassMove);
+		break;
 	}
 }
 
@@ -1081,6 +1106,8 @@ void Mars::checkContinuePoint(const RoomID room, const DirectionConstant directi
 		if (GameState.getMarsAvoidedReactorRobot())
 			makeContinuePoint();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1129,6 +1156,8 @@ void Mars::timerExpired(const uint32 eventType) {
 	case kMaze136RobotLoopingEvent:
 	case kMaze184RobotLoopingEvent:
 		_interruptionFilter = kFilterNoInput;
+		break;
+	default:
 		break;
 	}
 }
@@ -1199,6 +1228,8 @@ void Mars::arriveAt(const RoomID room, const DirectionConstant direction) {
 			setCurrentAlternate(kAltMarsTookMask);
 		else
 			setCurrentAlternate(kAltMarsNormal);
+		break;
+	default:
 		break;
 	}
 
@@ -1444,7 +1475,11 @@ void Mars::arriveAt(const RoomID room, const DirectionConstant direction) {
 		case kMars46:
 			die(kDeathRunOverByPod);
 			break;
+		default:
+			break;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -1476,6 +1511,8 @@ void Mars::turnTo(const DirectionConstant direction) {
 	case MakeRoomView(kMars60, kSouth):
 		if (getCurrentActivation() == kActivateAirlockPressurized)
 			playSpotSoundSync(kMarsAirlockPressurizeIn, kMarsAirlockPressurizeOut);
+		break;
+	default:
 		break;
 	}
 
@@ -1591,6 +1628,8 @@ void Mars::turnTo(const DirectionConstant direction) {
 	case MakeRoomView(kMarsMaze184, kWest):
 		launchMaze184Robot();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -1635,6 +1674,8 @@ void Mars::activateHotspots() {
 			// Fall through...
 		case kActivateReactorReadyForCrowBar:
 			_vm->getAllHotspots().activateOneHotspot(kMars57CantOpenPanelSpotID);
+			break;
+		default:
 			break;
 		}
 		break;
@@ -1818,6 +1859,8 @@ InputBits Mars::getInputFilter() {
 		if (_canyonChaseMovie.isMovieValid() && _canyonChaseMovie.isRunning())
 			result &= ~kFilterAllDirections;
 		break;
+	default:
+		break;
 	}
 
 	return result;
@@ -1885,6 +1928,8 @@ void Mars::takeItemFromRoom(Item *item) {
 	case kOpticalBiochip:
 		_privateFlags.setFlag(kMarsPrivateGotOpticalChipFlag, true);
 		break;
+	default:
+		break;
 	}
 
 	Neighborhood::takeItemFromRoom(item);
@@ -1946,11 +1991,13 @@ void Mars::pickedUpItem(Item *item) {
 			startExtraSequence(kMarsRobotHeadClose, kExtraCompletedFlag, kFilterNoInput);
 		}
 		break;
+	default:
+		break;
 	}
 }
 
 void Mars::dropItemIntoRoom(Item *item, Hotspot *dropSpot) {
-	if (dropSpot->getObjectID() == kAttackRobotHotSpotID) {
+	if (dropSpot && dropSpot->getObjectID() == kAttackRobotHotSpotID) {
 		_attackingItem = (InventoryItem *)item;
 		startExtraSequence(kMars48RobotDefends, kExtraCompletedFlag, kFilterNoInput);
 		loadLoopSound2("");
@@ -2353,6 +2400,8 @@ void Mars::receiveNotification(Notification *notification, const NotificationFla
 		case kMarsMaze184WestLoop:
 			die(kDeathGroundByMazebot);
 			break;
+		default:
+			break;
 		}
 	} else if ((flag & kTimeForCanyonChaseFlag) != 0) {
 		doCanyonChase();
@@ -2414,9 +2463,7 @@ void Mars::doCanyonChase() {
 				_vm->drawScaledFrame(frame, 0, 0);
 		}
 
-		Common::Event event;
-		while (g_system->getEventManager()->pollEvent(event))
-			;
+		InputDevice.pumpEvents();
 
 		g_system->delayMillis(10);
 	}
@@ -3047,9 +3094,7 @@ void Mars::transportToRobotShip() {
 				_vm->drawScaledFrame(frame, 0, 0);
 		}
 
-		Common::Event event;
-		while (g_system->getEventManager()->pollEvent(event))
-			;
+		InputDevice.pumpEvents();
 
 		g_system->delayMillis(10);
 	}
@@ -3218,6 +3263,8 @@ void Mars::spaceChaseClick(const Input &input, const HotSpotID id) {
 					_lowerRightShuttleMovie.redrawMovieWorld();
 					GameState.setMarsReadyForShuttleTransport(true);
 					break;
+				default:
+					break;
 				}
 			} else {
 				playSpotSoundSync(kShuttleTractorLimitedIn, kShuttleTractorLimitedOut);
@@ -3231,6 +3278,8 @@ void Mars::spaceChaseClick(const Input &input, const HotSpotID id) {
 		_lowerRightShuttleMovie.setTime(kShuttleLowerRightTransportHiliteTime);
 		_lowerRightShuttleMovie.redrawMovieWorld();
 		_neighborhoodNotification.setNotificationFlags(kTimeToTransportFlag, kTimeToTransportFlag);
+		break;
+	default:
 		break;
 	}
 }
@@ -3485,6 +3534,8 @@ void Mars::doReactorGuess(int32 guess) {
 	case 4:
 		playSpotSoundSync(kColorMatchPurpleIn, kColorMatchPurpleOut);
 		break;
+	default:
+		break;
 	}
 
 	_nextGuess++;
@@ -3506,6 +3557,8 @@ void Mars::doReactorGuess(int32 guess) {
 			break;
 		case 3:
 			playSpotSoundSync(kColorMatchThreeNodesIn, kColorMatchThreeNodesOut);
+			break;
+		default:
 			break;
 		}
 
@@ -3537,6 +3590,8 @@ void Mars::doReactorGuess(int32 guess) {
 				_choiceHighlight.disposeReactorChoiceHighlight();
 				GameState.setScoringDisarmedCardBomb();
 				startExtraSequence(kMars57GameSolved, kExtraCompletedFlag, kFilterNoInput);
+				break;
+			default:
 				break;
 			}
 		} else if (_guessHistory.getNumGuesses() >= 5) {
@@ -3653,6 +3708,8 @@ uint Mars::getNumHints() {
 				}
 			}
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -3725,6 +3782,8 @@ Common::String Mars::getHintMovie(uint hintNum) {
 			}
 
 			return "Images/AI/Globals/XGLOB3F";
+		default:
+			break;
 		}
 	}
 

@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,7 +39,7 @@ namespace Pegasus {
 class GameMenu : public IDObject, public InputHandler {
 public:
 	GameMenu(const uint32);
-	virtual ~GameMenu() {}
+	~GameMenu() override {}
 
 	virtual void becomeCurrentHandler();
 	virtual void restorePreviousHandler();
@@ -64,9 +64,9 @@ class Hotspot;
 class MainMenu : public GameMenu {
 public:
 	MainMenu();
-	virtual ~MainMenu();
+	~MainMenu() override;
 
-	virtual void handleInput(const Input &input, const Hotspot *);
+	void handleInput(const Input &input, const Hotspot *) override;
 	void startMainMenuLoop();
 	void stopMainMenuLoop();
 
@@ -97,9 +97,9 @@ protected:
 class CreditsMenu : public GameMenu {
 public:
 	CreditsMenu();
-	virtual ~CreditsMenu() {}
+	~CreditsMenu() override {}
 
-	virtual void handleInput(const Input &input, const Hotspot *);
+	void handleInput(const Input &input, const Hotspot *) override;
 
 protected:
 	void newMenuSelection(const int);
@@ -116,9 +116,9 @@ protected:
 class DeathMenu : public GameMenu {
 public:
 	DeathMenu(const DeathReason);
-	virtual ~DeathMenu() {}
+	~DeathMenu() override {}
 
-	virtual void handleInput(const Input &input, const Hotspot *);
+	void handleInput(const Input &input, const Hotspot *) override;
 
 	bool playerWon() { return _playerWon; }
 
@@ -146,9 +146,9 @@ protected:
 class PauseMenu : public GameMenu {
 public:
 	PauseMenu();
-	virtual ~PauseMenu() {}
+	~PauseMenu() override {}
 
-	virtual void handleInput(const Input &input, const Hotspot *);
+	void handleInput(const Input &input, const Hotspot *) override;
 
 protected:
 	void updateDisplay();

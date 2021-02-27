@@ -45,7 +45,7 @@ public:
 	DECLARE_PERSISTENT(BaseScriptable, BaseNamedObject)
 
 	BaseScriptable(BaseGame *inGame, bool noValue = false, bool persistable = true);
-	virtual ~BaseScriptable();
+	~BaseScriptable() override;
 
 	// high level scripting interface
 	virtual bool canHandleMethod(const char *eventMethod) const;
@@ -63,6 +63,7 @@ public:
 	virtual void scSetBool(bool val);
 	virtual int scCompare(BaseScriptable *val);
 	virtual void scDebuggerDesc(char *buf, int bufSize);
+	virtual Common::String debuggerToString() const;
 	int32 _refCount;
 	ScValue *_scValue;
 	ScValue *_scProp;
@@ -72,6 +73,7 @@ public:
 BaseScriptable *makeSXArray(BaseGame *inGame, ScStack *stack);
 BaseScriptable *makeSXDate(BaseGame *inGame, ScStack *stack);
 BaseScriptable *makeSXFile(BaseGame *inGame, ScStack *stack);
+BaseScriptable *makeSXDirectory(BaseGame *inGame);
 BaseScriptable *makeSXMath(BaseGame *inGame);
 BaseScriptable *makeSXMemBuffer(BaseGame *inGame, ScStack *stack);
 BaseScriptable *makeSXObject(BaseGame *inGame, ScStack *stack);

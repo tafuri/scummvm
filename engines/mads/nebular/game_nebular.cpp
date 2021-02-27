@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -45,8 +45,9 @@ GameNebular::GameNebular(MADSEngine *vm)
 }
 
 ProtectionResult GameNebular::checkCopyProtection() {
-	//if (!ConfMan.getBool("copy_protection"))
-	//	return PROTECTION_SUCCEED;
+	// Only show copy protection dialog if explicitly wanted
+	if (!ConfMan.getBool("copy_protection"))
+		return PROTECTION_SUCCEED;
 
 	CopyProtectionDialog *dlg;
 	bool correctAnswer;
@@ -91,6 +92,8 @@ void GameNebular::startGame() {
 		// Decompression ending
 		TextView::execute(_vm, "ending4");
 		break;
+	default:
+		break;
 	}
 
 	do {
@@ -117,6 +120,10 @@ void GameNebular::startGame() {
 	_scene._nextSceneId = 101;
 
 	initializeGlobals();
+
+	if (_loadGameSlot >= 0)
+		// User selected to resume a savegame
+		return;
 
 	// Check copy protection
 	ProtectionResult protectionResult = checkCopyProtection();
@@ -284,6 +291,7 @@ void GameNebular::initializeGlobals() {
 	// Final setup based on selected difficulty level
 	switch (_difficulty) {
 	case DIFFICULTY_HARD:
+	default:
 		_objects.setRoom(OBJ_BLOWGUN, NOWHERE);
 		_objects.setRoom(OBJ_NOTE, NOWHERE);
 
@@ -350,7 +358,7 @@ void GameNebular::setSectionHandler() {
 
 void GameNebular::checkShowDialog() {
 	// Loop for showing dialogs, if any need to be shown
-	if (_vm->_dialogs->_pendingDialog && (_player._stepEnabled || _winStatus) 
+	if (_vm->_dialogs->_pendingDialog && (_player._stepEnabled || _winStatus)
 			&& !_globals[kCopyProtectFailed]) {
 		_player.releasePlayerSprites();
 
@@ -689,8 +697,6 @@ void GameNebular::doObjectAction() {
 			_globals[kHandsetCellStatus] = _difficulty != DIFFICULTY_HARD || _globals[kHandsetCellStatus] ? 1 : 2;
 			dialogs.show(425);
 		}
-	} else if (action.isAction(VERB_SET, NOUN_TIMEBOMB)) {
-		dialogs.show(427);
 	} else if (action.isAction(VERB_PUT, NOUN_BOMB, NOUN_CHICKEN) || action.isAction(VERB_PUT, NOUN_BOMBS, NOUN_CHICKEN)) {
 		_objects.setRoom(OBJ_CHICKEN, NOWHERE);
 		if (_objects.isInInventory(OBJ_BOMBS)) {
@@ -824,8 +830,8 @@ void GameNebular::unhandledAction() {
 void GameNebular::step() {
 	if (_player._visible && _player._stepEnabled && !_player._moving &&
 		(_player._facing == _player._turnToFacing)) {
-		if (_scene._frameStartTime >= *((uint32 *)&_globals[kWalkerTiming])) {
-			if (!_player._stopWalkerIndex) {
+		if (_scene._frameStartTime >= (uint32)_globals[kWalkerTiming]) {
+			if (_player._stopWalkers.empty()) {
 				int randomVal = _vm->getRandomNumber(29999);
 				if (_globals[kSexOfRex] == REX_MALE) {
 					switch (_player._facing) {
@@ -873,19 +879,19 @@ void GameNebular::step() {
 				}
 			}
 
-			*((uint32 *)&_globals[kWalkerTiming]) += 6;
+			_globals[kWalkerTiming] += 6;
 		}
 	}
 
 	// Below is countdown to set the timebomb off in room 604
 	if (_globals[kTimebombStatus] == TIMEBOMB_ACTIVATED) {
-		int diff = _scene._frameStartTime - *((uint32 *)&_globals[kTimebombClock]);
-		if ((diff >= 0) && (diff <= 60)) {
-			*((uint32 *)&_globals[kTimebombTimer]) += diff;
-		} else {
-			++*((uint32 *)&_globals[kTimebombTimer]);
-		}
-		*((uint32 *)&_globals[kTimebombClock]) = _scene._frameStartTime;
+		int diff = _scene._frameStartTime - _globals[kTimebombClock];
+		if ((diff >= 0) && (diff <= 60))
+			_globals[kTimebombTimer] += diff;
+		else
+			++_globals[kTimebombTimer];
+
+		_globals[kTimebombClock] = (int)_scene._frameStartTime;
 	}
 }
 

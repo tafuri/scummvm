@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -343,6 +343,8 @@ void PressureDoor::receiveNotification(Notification *notification, const Notific
 				((NoradDelta *)owner)->playerBeatRobotWithDoor();
 				owner->requestDeleteCurrentInteraction();
 				break;
+			default:
+				break;
 			}
 		}
 
@@ -367,6 +369,8 @@ void PressureDoor::receiveNotification(Notification *notification, const Notific
 				_typeMovie.hide();
 				if (!_playingAgainstRobot)
 					((Norad *)_owner)->doneWithPressureDoor();
+				break;
+			default:
 				break;
 			}
 		}
@@ -397,6 +401,8 @@ void PressureDoor::receiveNotification(Notification *notification, const Notific
 			_downButton.hide();
 			owner->startExtraSequence(kN59PlayerWins2, kExtraCompletedFlag, kFilterNoInput);
 			break;
+		default:
+			break;
 		}
 	} else if (notification == &_utilityNotification) {
 		switch (flags) {
@@ -422,6 +428,8 @@ void PressureDoor::receiveNotification(Notification *notification, const Notific
 			_typeMovie.hide();
 			_upButton.hide();
 			_downButton.hide();
+			break;
+		default:
 			break;
 		}
 	}

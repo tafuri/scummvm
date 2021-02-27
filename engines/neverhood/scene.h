@@ -31,19 +31,19 @@
 #include "neverhood/klaymen.h"
 #include "neverhood/module.h"
 #include "neverhood/palette.h"
-#include "neverhood/smackerplayer.h"
 #include "neverhood/sprite.h"
 #include "neverhood/staticdata.h"
 
 namespace Neverhood {
 
 class Console;
+class SmackerPlayer;
 
 class Scene : public Entity {
 public:
 	Scene(NeverhoodEngine *vm, Module *parentModule);
-	virtual ~Scene();
-	virtual void draw();
+	~Scene() override;
+	void draw() override;
 	void addEntity(Entity *entity);
 	bool removeEntity(Entity *entity);
 	void addSurface(BaseSurface *surface);

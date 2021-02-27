@@ -38,19 +38,20 @@ enum MusicFlags {
 
 class MusicPlayer : public Audio::MidiPlayer {
 public:
-	MusicPlayer();
+	MusicPlayer(bool milesAudio);
 
 	void playXMIDI(GenericResource *midiResource, MusicFlags flags = MUSIC_NORMAL);
 	void playSMF(GenericResource *midiResource, MusicFlags flags = MUSIC_NORMAL);
 //	void stop();
-	void pause();
-	void resume();
+	void pause() override;
+	void resume() override;
 
 	// MidiDriver_BASE interface implementation
-	virtual void send(uint32 b);
+	void send(uint32 b) override;
 
 protected:
 	bool _isGM;
+	bool _milesAudioMode;
 };
 
 } // End of namespace Made

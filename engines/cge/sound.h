@@ -22,21 +22,20 @@
 
 /*
  * This code is based on original Soltys source code
- * Copyright (c) 1994-1995 Janus B. Wisniewski and L.K. Avalon
+ * Copyright (c) 1994-1995 Janusz B. Wisniewski and L.K. Avalon
  */
 
 #ifndef CGE_SOUND_H
 #define CGE_SOUND_H
 
 #include "cge/fileio.h"
-#include "audio/audiostream.h"
-#include "audio/decoders/wave.h"
-#include "audio/fmopl.h"
-#include "audio/mididrv.h"
-#include "audio/midiparser.h"
 #include "audio/midiplayer.h"
 #include "audio/mixer.h"
 #include "common/memstream.h"
+
+namespace Audio {
+class RewindableAudioStream;
+}
 
 namespace CGE {
 
@@ -121,13 +120,13 @@ private:
 	void sndMidiStop();
 public:
 	MusicPlayer(CGEEngine *vm);
-	~MusicPlayer();
+	~MusicPlayer() override;
 
 	void loadMidi(int ref);
 	void killMidi();
 
-	virtual void send(uint32 b);
-	virtual void sendToChannel(byte channel, uint32 b);
+	void send(uint32 b) override;
+	void sendToChannel(byte channel, uint32 b) override;
 };
 
 } // End of namespace CGE

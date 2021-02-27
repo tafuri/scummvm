@@ -31,14 +31,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			"Linux Demo",
-			{
-				{"RES_VAN.RES", 0, "29414c05be8f9fe794c61572a65def12", 16060544},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VAN.RES", "29414c05be8f9fe794c61572a65def12", 16060544),
 			Common::EN_ANY,
 			Common::kPlatformLinux,
 			ADGF_DEMO,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -46,15 +43,12 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"ENG_VOI.RES", 0, "fa5789d1d8c19d160bce44a33e742fdf", 66860711},
-				{"CREAN.TXT", 0, "e13aa69d9e043f066776e1d0ef98fdf5", 1871},
-				AD_LISTEND
-			},
+			AD_ENTRY2s("ENG_VOI.RES",	"fa5789d1d8c19d160bce44a33e742fdf", 66860711,
+					   "CREAN.TXT",		"e13aa69d9e043f066776e1d0ef98fdf5", 1871),
 			Common::EN_ANY,
 			Common::kPlatformOS2,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -62,14 +56,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"ENG_VOI.RES", 0, "fa5789d1d8c19d160bce44a33e742fdf", 66860711},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("ENG_VOI.RES", "fa5789d1d8c19d160bce44a33e742fdf", 66860711),
 			Common::EN_ANY,
 			Common::kPlatformBeOS,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -77,14 +68,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VES.RES", 0, "77ee08896466ae88cc1af3bf1a0bf78c", 32882302},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VES.RES", "77ee08896466ae88cc1af3bf1a0bf78c", 32882302),
 			Common::ES_ESP,
 			Common::kPlatformWindows,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -92,14 +80,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VAN.RES", 0, "f1693ac0b0859c8ecd8cb30ff43cf55f", 38296346},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VAN.RES", "f1693ac0b0859c8ecd8cb30ff43cf55f", 38296346),
 			Common::EN_ANY,
 			Common::kPlatformWindows,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_OFF)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_OFF, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -107,14 +92,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"res_van.res", 0, "bf17c710e184a25a6c8e9d1d9503c38e", 32197685},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("res_van.res", "bf17c710e184a25a6c8e9d1d9503c38e", 32197685),
 			Common::RU_RUS,
 			Common::kPlatformWindows,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -122,14 +104,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VFR.RES", 0, "0490d4d1aa71075ebf71cc79e5dc7894", 39817945},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VFR.RES", "0490d4d1aa71075ebf71cc79e5dc7894", 39817945),
 			Common::FR_FRA,
 			Common::kPlatformLinux,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -137,14 +116,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VAN.RES", 0, "29414c05be8f9fe794c61572a65def12", 38832455},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VAN.RES", "29414c05be8f9fe794c61572a65def12", 38832455),
 			Common::EN_ANY,
 			Common::kPlatformLinux,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -152,14 +128,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VFR.RES", 0, "b8a3849063c9eeefe80e82cfce1ad3cd", 39269361},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VFR.RES", "b8a3849063c9eeefe80e82cfce1ad3cd", 39269361),
 			Common::FR_FRA,
 			Common::kPlatformWindows,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 
 	},
@@ -168,14 +141,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			0,
-			{
-				{"RES_VAN.RES", 0, "f2fec5172e4a7a9d35cb2a5f948ef6a9", 39400865},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VAN.RES", "f2fec5172e4a7a9d35cb2a5f948ef6a9", 39400865),
 			Common::PL_POL,
 			Common::kPlatformWindows,
 			ADGF_NO_FLAGS,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_OFF)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_OFF, GUIO_NOMIDI)
 		},
 	},
 
@@ -185,14 +155,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			"Win95 Demo",
-			{
-				{"Hopkins.exe", 0, "0c9ebfe371f4dcf84a49f333f04839a0", 376897},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("Hopkins.exe", "0c9ebfe371f4dcf84a49f333f04839a0", 376897),
 			Common::EN_ANY,
 			Common::kPlatformWindows,
 			ADGF_DEMO,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_ON)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_ON, GUIO_NOMIDI)
 		},
 	},
 	{
@@ -200,14 +167,11 @@ static const HopkinsGameDescription gameDescriptions[] = {
 		{
 			"hopkins",
 			"Win95 Demo",
-			{
-				{"RES_VAN.RES", 0, "8262cfba261c200af4451902689dffe0", 12233202},
-				AD_LISTEND
-			},
+			AD_ENTRY1s("RES_VAN.RES", "8262cfba261c200af4451902689dffe0", 12233202),
 			Common::PL_POL,
 			Common::kPlatformWindows,
 			ADGF_DEMO,
-			GUIO1(GAMEOPTION_GORE_DEFAULT_OFF)
+			GUIO2(GAMEOPTION_GORE_DEFAULT_OFF, GUIO_NOMIDI)
 		},
 	},
 	{ AD_TABLE_END_MARKER }

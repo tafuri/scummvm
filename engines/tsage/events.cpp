@@ -50,7 +50,7 @@ bool EventsClass::pollEvent() {
 		++_frameNumber;
 
 		// Update screen
-		GLOBALS._screenSurface.updateScreen();
+		GLOBALS._screen.update();
 	}
 
 	if (!g_system->getEventManager()->pollEvent(_event)) return false;
@@ -58,7 +58,7 @@ bool EventsClass::pollEvent() {
 	// Handle keypress
 	switch (_event.type) {
 	case Common::EVENT_QUIT:
-	case Common::EVENT_RTL:
+	case Common::EVENT_RETURN_TO_LAUNCHER:
 		break;
 
 	case Common::EVENT_MOUSEMOVE:
@@ -400,7 +400,7 @@ void EventsClass::delay(int numFrames) {
 		_priorFrameTime = g_system->getMillis();
 	}
 
-	GLOBALS._screenSurface.updateScreen();
+	GLOBALS._screen.update();
 	_prevDelayFrame = _frameNumber;
 	_priorFrameTime = g_system->getMillis();
 }

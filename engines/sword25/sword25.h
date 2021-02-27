@@ -20,13 +20,14 @@
  *
  */
 
-#ifndef SWORD25_H
-#define SWORD25_H
+#ifndef SWORD25_SWORD25_H
+#define SWORD25_SWORD25_H
 
 #include "common/scummsys.h"
 #include "engines/engine.h"
 
 #include "sword25/console.h"
+#include "sword25/detection.h"
 
 namespace Common {
 class Error;
@@ -58,10 +59,6 @@ enum {
 	kDebugResource = 1 << 2
 };
 
-enum GameFlags {
-	GF_EXTRACTED = 1 << 0
-};
-
 #define MESSAGE_BASIC 1
 #define MESSAGE_INTERMEDIATE 2
 #define MESSAGE_DETAILED 3
@@ -74,25 +71,21 @@ private:
 
 	bool loadPackages();
 
-	Sword25Console *_console;
-
 protected:
-	virtual Common::Error run();
-	bool hasFeature(EngineFeature f) const;
+	Common::Error run() override;
+	bool hasFeature(EngineFeature f) const override;
 // 	void pauseEngineIntern(bool pause);	// TODO: Implement this!!!
 // 	void syncSoundSettings();	// TODO: Implement this!!!
 // 	Common::Error loadGameState(int slot);	// TODO: Implement this?
-// 	Common::Error saveGameState(int slot, const Common::String &desc);	// TODO: Implement this?
+// 	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false);	// TODO: Implement this?
 // 	bool canLoadGameStateCurrently();	// TODO: Implement this?
 // 	bool canSaveGameStateCurrently();	// TODO: Implement this?
-
-	GUI::Debugger *getDebugger() { return _console; }
 
 	void shutdown();
 
 public:
 	Sword25Engine(OSystem *syst, const ADGameDescription *gameDesc);
-	virtual ~Sword25Engine();
+	~Sword25Engine() override;
 
 	uint32 getGameFlags() const;
 

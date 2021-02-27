@@ -34,10 +34,12 @@
 
 #include "audio/mixer.h"
 
-#include "kyra/script.h"
-#include "kyra/item.h"
+#include "kyra/script/script.h"
+#include "kyra/engine/item.h"
+#include "kyra/detection.h"
 
 namespace Common {
+class OutSaveFile;
 class SeekableReadStream;
 class WriteStream;
 } // End of namespace Common
@@ -53,91 +55,41 @@ class KyraMetaEngine;
  *
  * Status of this engine:
  *
- * The KYRA engine supports all three Kyrandia games by Westwood. It also
- * supports Westwood's Lands of Lore. There are various platform ports of
- * the different games, almost all of them are fully supported. Only the
- * Macintosh port of Kyrandia 1 makes a difference here, which lacks support
- * for sound effects and music.
- *
- * The different translations of the games are mostly supported, since every
- * translation requires some work for kyra.dat for example, it is almost
- * impossible to support translations, without owning them. There a currently
- * a few reported unsupported translations:
- *
- * - Official translations
- * None known.
- * - Probably official translations (currently no sources are known to verify this)
- * Kyrandia 2 Spanish (feature request #2499966 "KYRA2: Add support for Spanish floppy version")
- * - Doubtful official translations (no sources here either, but less likely to be official)
- * Kyrandia 1 Korean (feature request #1758252 "KYRA1: Add support for Korean/DOS version")
- * Kyrandia 2 Polish (feature request #2146192 "KYRA2: Add support for Polish floppy version")
- * - Fan translations:
- * Kyrandia 3 Russian (feature request #2812792 "Kyrandia3 Russian")
- *
- * The primary maintainer for the engine is LordHoto, although some parts are
- * maintained by _athrxx. If you have questions about parts of the code, the
- * following rough description might help in determining who you should ask:
- * _athrxx is the maintainer for the Lands of Lore subengine, he also
- * maintains most of the FM-TOWNS and PC98 specific code (especially the sound
- * code, also some ingame code) and the Kyrandia 2 sequence player code.
- * LordHoto is responsible for the rest of the codebase, he also worked on the
- * graphics output for 16 color PC98 games.
- *
- * Other people who worked on this engine include cyx, who initially started
- * to work on Kyrandia 1 support. Vinterstum, who did various things for
- * Kyrandia 1 and started to work on the Kyrandia 2 sequence player code and
- * also on the TIM script code. Eriktorbjorn, who helped out naming our AdLib
- * player code and also contributed a work around for a music bug in the
- * "Pool of Sorrow" scene of Kyrandia 1, which is also present in the original.
- * He also contributed the VQA player for Kyrandia 3.
- *
- * The engine is mostly finished code wise. A possible remaining task is
- * proper refactoring, which might help in reducing binary size and along with
- * it runtime memory use, but of course might lead to regressions (since the
- * current code makes no problems on our low end ports, it is pretty minor
- * priority though, since the benefit would be mostly nicer code). The biggest
- * task left is the kyra.dat handling.
- *
- * Games using this engine:
- * - The Legend of Kyrandia (fully supported, except for Macintosh port, which lacks sound)
- * - (The) Hand of Fate (fully supported)
- * - Malcolm's Revenge (fully supported)
+ * The KYRA engine supports the following games by Westwood:
+ * - Eye of the Beholder (fully supported)
+ * - Eye of the Beholder II - The Legend of Darkmoon (fully supported)
+ * - The Legend of Kyrandia (fully supported)
+ * - The Legend of Kyrandia 2: Hand of Fate (fully supported)
  * - Lands of Lore: The Throne of Chaos (fully supported)
+ * - The Legend of Kyrandia 3: Malcolm's Revenge (fully supported)
+ *
+ * There are various platform ports of the different games, almost all of
+ * them are fully supported. We also offer legacy graphics modes like CGA
+ * and EGA for games that originally supported this and also try to offer
+ * all sound drivers that the originals had.
+ * Some execeptions:
+ * - The PC-98 version of Eye of the Beholder II is not yet supported.
+ * - We don't support NES or Gameboy versions of Eye of the Beholder.
+ * - The Macintosh version of Kyrandia 1 lacks sound effects and music.
+ *
+ * The official translations of the games of which we are aware are mostly
+ * supported. Some of the more rare versions (of which we don't even know
+ * whether they are official or fan-translated) are missing. Unfortunately,
+ * adding new languages is more complicated than just adding a detection
+ * entry. It usually requires extra resources in kyra.dat and sometimes
+ * even adjustments to the code. So it is almost impossible to support
+ * translations without owning them.
+ *
+ * Apart from the official translations we also support an increasing number
+ * of fan translations. If there is a request for a new fan translation we
+ * might demand that the requesting person supplies the necessary kyra.dat
+ * resource files.
+ *
  */
 namespace Kyra {
 
-struct GameFlags {
-	Common::Language lang;
-
-	// language overwrites of fan translations (only needed for multilingual games)
-	Common::Language fanLang;
-	Common::Language replacedLang;
-
-	Common::Platform platform;
-
-	bool isDemo               : 1;
-	bool useAltShapeHeader    : 1;    // alternative shape header (uses 2 bytes more, those are unused though)
-	bool isTalkie             : 1;
-	bool isOldFloppy          : 1;
-	bool useHiRes             : 1;
-	bool use16ColorMode       : 1;
-	bool useDigSound          : 1;
-	bool useInstallerPackage  : 1;
-
-	byte gameID;
-};
-
 struct KeyCodeHash : public Common::UnaryFunction<Common::KeyCode, uint> {
 	uint operator()(Common::KeyCode val) const { return (uint)val; }
-};
-
-enum {
-	GI_KYRA1 = 0,
-	GI_KYRA2 = 1,
-	GI_KYRA3 = 2,
-	GI_LOL = 4,
-	GI_EOB1 = 5,
-	GI_EOB2 = 6
 };
 
 // TODO: this is just the start of makeing the debug output of the kyra engine a bit more useable
@@ -179,12 +131,13 @@ friend class ::KyraMetaEngine;
 friend class GUI;
 friend class GUI_v1;
 friend class GUI_EoB;
-friend class SoundMidiPC;    // For _eventMan
-friend class SeqPlayer_HOF; // For skipFlag()
-friend class TransferPartyWiz; // For save state API
+friend class GUI_EoB_SegaCD;
+friend class SoundMidiPC;		// For _eventMan
+friend class SeqPlayer_HOF;		// For skipFlag()
+friend class TransferPartyWiz;	// For save state API
 public:
 	KyraEngine_v1(OSystem *system, const GameFlags &flags);
-	virtual ~KyraEngine_v1();
+	~KyraEngine_v1() override;
 
 	uint8 game() const { return _flags.gameID; }
 	const GameFlags &gameFlags() const { return _flags; }
@@ -220,7 +173,7 @@ public:
 	void setVolume(kVolumeEntry vol, uint8 value);
 	uint8 getVolume(kVolumeEntry vol);
 
-	virtual void syncSoundSettings();
+	void syncSoundSettings() override;
 
 	// game flag handling
 	int setGameFlag(int flag);
@@ -245,7 +198,7 @@ protected:
 	virtual Common::Error init();
 	virtual Common::Error go() = 0;
 
-	virtual Common::Error run() {
+	Common::Error run() override {
 		Common::Error err;
 		registerDefaultSettings();
 		err = init();
@@ -254,9 +207,8 @@ protected:
 		return go();
 	}
 
-	virtual ::GUI::Debugger *getDebugger();
-	virtual bool hasFeature(EngineFeature f) const;
-	virtual void pauseEngineIntern(bool pause);
+	bool hasFeature(EngineFeature f) const override;
+	void pauseEngineIntern(bool pause) override;
 
 	// intern
 	Resource *_res;
@@ -265,7 +217,6 @@ protected:
 	StaticResource *_staticres;
 	TimerManager *_timer;
 	EMCInterpreter *_emc;
-	Debugger *_debugger;
 
 	// input
 	void setupKeyMap();
@@ -274,6 +225,11 @@ protected:
 	void removeInputTop();
 
 	int _mouseX, _mouseY;
+
+	// This is a somewhat hacky but probably least invasive way to move
+	// the whole ingame screen output down a couple of lines for EOB SegaCD.
+	void transposeScreenOutputY(int yAdd);
+	int _transOffsY;
 
 	struct Event {
 		Common::Event event;
@@ -288,6 +244,8 @@ protected:
 	Common::List<Event> _eventList;
 	typedef Common::HashMap<Common::KeyCode, int16, KeyCodeHash> KeyMap;
 	KeyMap _keyMap;
+	bool _asciiCodeEvents;
+	bool _kbEventSkip;
 
 	// config specific
 	virtual void registerDefaultSettings();
@@ -299,6 +257,7 @@ protected:
 	int _configMusic;
 	bool _configSounds;
 	uint8 _configVoice;
+	bool _configNullSound;
 
 	Common::RenderMode _configRenderMode;
 
@@ -360,6 +319,8 @@ protected:
 	const int8 *_trackMap;
 	int _trackMapSize;
 
+	bool _preventScriptSfx;
+
 	virtual int convertVolumeToMixer(int value);
 	virtual int convertVolumeFromMixer(int value);
 
@@ -383,13 +344,11 @@ protected:
 	// save/load
 	int _gameToLoad;
 
-	uint32 _lastAutosave;
-	void checkAutosave();
-
 	bool _isSaveAllowed;
 
-	bool canLoadGameStateCurrently() { return _isSaveAllowed; }
-	bool canSaveGameStateCurrently() { return _isSaveAllowed; }
+	bool canLoadGameStateCurrently() override { return _isSaveAllowed; }
+	bool canSaveGameStateCurrently() override { return _isSaveAllowed; }
+	virtual int getAutosaveSlot() const override { return 999; }
 
 	const char *getSavegameFilename(int num);
 	Common::String _savegameFilename;
@@ -415,15 +374,17 @@ protected:
 		kRSHEIoError = 3
 	};
 
-	static ReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *file, bool loadThumbnail, SaveHeader &header);
+	WARN_UNUSED_RESULT static ReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *file, SaveHeader &header, bool skipThumbnail = true);
 
 	void loadGameStateCheck(int slot);
-	virtual Common::Error loadGameState(int slot) = 0;
-	Common::Error saveGameState(int slot, const Common::String &desc) { return saveGameStateIntern(slot, desc.c_str(), 0); }
+	Common::Error loadGameState(int slot) override = 0;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override {
+		return saveGameStateIntern(slot, desc.c_str(), 0);
+	}
 	virtual Common::Error saveGameStateIntern(int slot, const char *saveName, const Graphics::Surface *thumbnail) = 0;
 
 	Common::SeekableReadStream *openSaveForReading(const char *filename, SaveHeader &header, bool checkID = true);
-	Common::WriteStream *openSaveForWriting(const char *filename, const char *saveName, const Graphics::Surface *thumbnail) const;
+	Common::OutSaveFile *openSaveForWriting(const char *filename, const char *saveName, const Graphics::Surface *thumbnail) const;
 
 	// TODO: Consider moving this to Screen
 	virtual Graphics::Surface *generateSaveThumbnail() const { return 0; }

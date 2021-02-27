@@ -36,8 +36,8 @@ class AmazonScripts : public Scripts {
 private:
 	AmazonEngine *_game;
 protected:
-	virtual void executeSpecial(int commandIndex, int param1, int param2);
-	virtual void executeCommand(int commandIndex);
+	void executeSpecial(int commandIndex, int param1, int param2) override;
+	void executeCommand(int commandIndex) override;
 
 	void cLoop();
 	void mWhile1();
@@ -49,7 +49,7 @@ protected:
 	void setInactive();
 	void boatWalls(int param1, int param2);
 
-	void cmdHelp();
+	void cmdHelp_v2();
 	void cmdCycleBack();
 	void cmdChapter();
 	void cmdSetHelp();

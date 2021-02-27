@@ -38,7 +38,7 @@ namespace ZVision {
 class InputControl : public Control {
 public:
 	InputControl(ZVision *engine, uint32 key, Common::SeekableReadStream &stream);
-	~InputControl();
+	~InputControl() override;
 
 private:
 	Graphics::Surface *_background;
@@ -51,29 +51,20 @@ private:
 
 	Common::String _currentInputText;
 	bool _textChanged;
-	uint _cursorOffset;
 	bool _enterPressed;
 	bool _readOnly;
 
 	int16 _txtWidth;
 	int16 _maxTxtWidth;
 	Video::VideoDecoder *_animation;
-	int32 _frameDelay;
-	int16 _frame;
 
 public:
-	void focus() {
-		_focused = true;
-		_textChanged = true;
-	}
-	void unfocus() {
-		_focused = false;
-		_textChanged = true;
-	}
-	bool onMouseUp(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos);
-	bool onMouseMove(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos);
-	bool onKeyDown(Common::KeyState keyState);
-	bool process(uint32 deltaTimeInMillis);
+	void focus() override;
+	void unfocus() override;
+	bool onMouseUp(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos) override;
+	bool onMouseMove(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos) override;
+	bool onKeyDown(Common::KeyState keyState) override;
+	bool process(uint32 deltaTimeInMillis) override;
 	void setText(const Common::String &_str);
 	const Common::String getText();
 	bool enterPress();

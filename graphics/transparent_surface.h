@@ -36,36 +36,50 @@
  */
 
 #ifdef SCUMM_LITTLE_ENDIAN
-#define TS_RGB(R,G,B)       ((0xff << 24) | ((R) << 16) | ((G) << 8) | (B))
-#define TS_ARGB(A,R,G,B)    (((R) << 24) | ((G) << 16) | ((B) << 8) | (A))
+#define TS_RGB(R,G,B)       (uint32)((0xff << 24) | ((R) << 16) | ((G) << 8) | (B))
+#define TS_ARGB(A,R,G,B)    (uint32)(((R) << 24) | ((G) << 16) | ((B) << 8) | (A))
 #else
-#define TS_RGB(R,G,B)       (((R) << 24) | ((G) << 16) | (B << 8) | 0xff)
-#define TS_ARGB(A,R,G,B)    (((R) << 24) | ((G) << 16) | ((B) << 8) | (A))
+#define TS_RGB(R,G,B)       (uint32)(((R) << 24) | ((G) << 16) | (B << 8) | 0xff)
+#define TS_ARGB(A,R,G,B)    (uint32)(((R) << 24) | ((G) << 16) | ((B) << 8) | (A))
 #endif
 
 namespace Graphics {
+
+/**
+ * @defgroup graphics_transparent_surface Transparent surface
+ * @ingroup graphics
+ *
+ * @brief TransparentSurface class.
+ *
+ * @{
+ */
 
 // Enums
 /**
  @brief The possible flipping parameters for the blit method.
  */
 enum FLIP_FLAGS {
-    /// The image will not be flipped.
-    FLIP_NONE = 0,
-    /// The image will be flipped at the horizontal axis.
-    FLIP_H = 1,
-    /// The image will be flipped at the vertical axis.
-    FLIP_V = 2,
-    /// The image will be flipped at the horizontal and vertical axis.
-    FLIP_HV = FLIP_H | FLIP_V,
-    /// The image will be flipped at the horizontal and vertical axis.
-    FLIP_VH = FLIP_H | FLIP_V
+	/// The image will not be flipped.
+	FLIP_NONE = 0,
+	/// The image will be flipped at the horizontal axis.
+	FLIP_H = 1,
+	/// The image will be flipped at the vertical axis.
+	FLIP_V = 2,
+	/// The image will be flipped at the horizontal and vertical axis.
+	FLIP_HV = FLIP_H | FLIP_V,
+	/// The image will be flipped at the horizontal and vertical axis.
+	FLIP_VH = FLIP_H | FLIP_V
 };
 
 enum AlphaType {
-    ALPHA_OPAQUE = 0,
-    ALPHA_BINARY = 1,
-    ALPHA_FULL = 2
+	ALPHA_OPAQUE = 0,
+	ALPHA_BINARY = 1,
+	ALPHA_FULL = 2
+};
+
+enum TFilteringMode {
+	FILTER_NEAREST = 0,
+	FILTER_BILINEAR = 1
 };
 
 /**
@@ -75,8 +89,17 @@ struct TransparentSurface : public Graphics::Surface {
 	TransparentSurface();
 	TransparentSurface(const Graphics::Surface &surf, bool copyData = false);
 
-	void setColorKey(char r, char g, char b);
-	void disableColorKey();
+	/**
+	 * Returns the pixel format all operations of TransparentSurface support.
+	 *
+	 * Unlike Surface TransparentSurface only works with a fixed pixel format.
+	 * This format can be queried using this static function.
+	 *
+	 * @return Supported pixel format.
+	 */
+	static PixelFormat getSupportedPixelFormat() {
+		return PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+	}
 
 	/**
 	 @brief renders the surface to another surface
@@ -111,7 +134,16 @@ struct TransparentSurface : public Graphics::Surface {
 	                  uint color = TS_ARGB(255, 255, 255, 255),
 	                  int width = -1, int height = -1,
 	                  TSpriteBlendMode blend = BLEND_NORMAL);
+	Common::Rect blitClip(Graphics::Surface &target, Common::Rect clippingArea,
+						int posX = 0, int posY = 0,
+						int flipping = FLIP_NONE,
+						Common::Rect *pPartRect = nullptr,
+						uint color = TS_ARGB(255, 255, 255, 255),
+						int width = -1, int height = -1,
+						TSpriteBlendMode blend = BLEND_NORMAL);
+
 	void applyColorKey(uint8 r, uint8 g, uint8 b, bool overwriteAlpha = false);
+	void setAlpha(uint8 alpha, bool skipTransparent = false);
 
 	/**
 	 * @brief Scale function; this returns a transformed version of this surface after rotation and
@@ -119,9 +151,10 @@ struct TransparentSurface : public Graphics::Surface {
 	 *
 	 * @param newWidth the resulting width.
 	 * @param newHeight the resulting height.
+	 * @param filtering Whether or not to use bilinear filtering.
 	 * @see TransformStruct
 	 */
-	TransparentSurface *scale(uint16 newWidth, uint16 newHeight) const;
+	TransparentSurface *scale(uint16 newWidth, uint16 newHeight, bool filtering = false) const;
 
 	/**
 	 * @brief Rotoscale function; this returns a transformed version of this surface after rotation and
@@ -130,12 +163,24 @@ struct TransparentSurface : public Graphics::Surface {
 	 * @param transform a TransformStruct wrapping the required info. @see TransformStruct
 	 *
 	 */
+	template <TFilteringMode filteringMode>
+	TransparentSurface *rotoscaleT(const TransformStruct &transform) const;
+
 	TransparentSurface *rotoscale(const TransformStruct &transform) const;
+
+	TransparentSurface *convertTo(const PixelFormat &dstFormat, const byte *palette = 0) const;
+
+	float getRatio() {
+		if (!w)
+			return 0;
+
+		return h / (float)w;
+	}
+
 	AlphaType getAlphaMode() const;
 	void setAlphaMode(AlphaType);
 private:
 	AlphaType _alphaMode;
-
 };
 
 /**
@@ -149,7 +194,7 @@ private:
         delete ptr;
     }
 };*/
-
+/** @} */
 } // End of namespace Graphics
 
 

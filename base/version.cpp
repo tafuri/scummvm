@@ -51,23 +51,17 @@
  * header file, analog to internal_version.h, maybe called svn_rev.h or so.)
  *
  * Drawback: This only works on systems which can run suitable scripts as part
- * of the build proces (so I guess Visual C++ would be out of the game here?
+ * of the build process (so I guess Visual C++ would be out of the game here?
  * I don't know VC enough to be sure). And of course it must be robust enough
  * to properly work in exports (i.e. release tar balls etc.).
  */
-const char *gScummVMVersion = SCUMMVM_VERSION;
-#ifdef __amigaos4__
-static const char *version_cookie __attribute__((used)) = "$VER: ScummVM " SCUMMVM_VERSION " (" __DATE__ ", " __TIME__ ")";
+const char *gScummVMVersion = SCUMMVM_VERSION SCUMMVM_REVISION;
+#if defined(__amigaos4__) || defined(__MORPHOS__)
+static const char *version_cookie __attribute__((used)) = "$VER: ScummVM " SCUMMVM_VERSION SCUMMVM_REVISION " (" AMIGA_DATE ")";
 #endif
-#ifdef __PLAYSTATION2__
-const char *gScummVMBuildDate = "Git Master"; /* ScummVM Git Master */
-const char *gScummVMVersionDate = SCUMMVM_VERSION " - PlayStation2";
-const char *gScummVMFullVersion = "ScummVM " SCUMMVM_VERSION " - PlayStation2";
-#else
 const char *gScummVMBuildDate = __DATE__ " " __TIME__;
-const char *gScummVMVersionDate = SCUMMVM_VERSION " (" __DATE__ " " __TIME__ ")";
-const char *gScummVMFullVersion = "ScummVM " SCUMMVM_VERSION " (" __DATE__ " " __TIME__ ")";
-#endif
+const char *gScummVMVersionDate = SCUMMVM_VERSION SCUMMVM_REVISION " (" __DATE__ " " __TIME__ ")";
+const char *gScummVMFullVersion = "ScummVM " SCUMMVM_VERSION SCUMMVM_REVISION " (" __DATE__ " " __TIME__ ")";
 const char *gScummVMFeatures = ""
 #ifdef TAINTED_BUILD
 	// TAINTED means the build contains engines/subengines not enabled by default
@@ -135,8 +129,16 @@ const char *gScummVMFeatures = ""
 	"AAC "
 #endif
 
+#ifdef USE_A52
+	"A/52 "
+#endif
+
 #ifdef USE_FREETYPE2
 	"FreeType2 "
+#endif
+
+#ifdef USE_FRIBIDI
+	"FriBiDi "
 #endif
 
 #ifdef USE_JPEG
@@ -147,11 +149,43 @@ const char *gScummVMFeatures = ""
 	"PNG "
 #endif
 
-#ifdef ENABLE_KEYMAPPER
-	"keymapper "
-#endif
-
 #ifdef ENABLE_VKEYBD
 	"virtual keyboard "
+#endif
+
+#ifdef USE_CLOUD
+	"cloud ("
+#ifdef USE_LIBCURL
+	"servers"
+#ifdef USE_SDL_NET
+	", "
+#endif
+#endif
+#ifdef USE_SDL_NET
+	"local"
+#endif
+	") "
+#else
+#ifdef USE_LIBCURL
+	"libcurl "
+#endif
+#ifdef USE_SDL_NET
+	"SDL_net "
+#endif
+#endif
+#ifdef USE_TINYGL
+	"TinyGL "
+#endif
+#ifdef USE_OPENGL
+	"OpenGL "
+#ifdef USE_OPENGL_SHADERS
+	"(with shaders) "
+#endif
+#endif
+#ifdef USE_GLES2
+	"OpenGL ES 2 "
+#endif
+#ifdef USE_GLEW
+	"GLEW "
 #endif
 	;

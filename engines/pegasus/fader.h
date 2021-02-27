@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -74,7 +74,7 @@ protected:
 class Fader : public IdlerTimeBase {
 public:
 	Fader();
-	virtual ~Fader() {}
+	~Fader() override {}
 
 	virtual void setFaderValue(const int32);
 	int32 getFaderValue() const { return _currentValue; }
@@ -91,7 +91,7 @@ public:
 
 protected:
 	bool initFaderMove(const FaderMoveSpec &);
-	virtual void timeChanged(const TimeValue);
+	void timeChanged(const TimeValue) override;
 
 	int32 _currentValue;
 	FaderMoveSpec _currentFaderMove;
@@ -100,9 +100,9 @@ protected:
 class FaderAnimation : public DisplayElement, public Fader {
 public:
 	FaderAnimation(const DisplayElementID id) : DisplayElement(id) {}
-	virtual ~FaderAnimation() {}
+	~FaderAnimation() override {}
 
-	void setFaderValue(const int32);
+	void setFaderValue(const int32) override;
 };
 
 class Sound;
@@ -111,9 +111,9 @@ class SoundFader : public Fader {
 friend class Sound;
 public:
 	SoundFader();
-	virtual ~SoundFader() {}
+	~SoundFader() override {}
 
-	void setFaderValue(const int32);
+	void setFaderValue(const int32) override;
 
 	void setMasterVolume(const uint16);
 	uint16 getMasterVolume() const { return _masterVolume; }

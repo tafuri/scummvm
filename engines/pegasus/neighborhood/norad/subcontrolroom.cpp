@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -605,6 +605,8 @@ void SubControlRoom::receiveNotification(Notification *notification, const Notif
 		case kDeltaPrepFinished:
 			setControlMonitorToTime(kMainMenuTime * _subControlScale, kDeltaMainMenu, true);
 			break;
+		default:
+			break;
 		}
 	} else if (notification == &_greenBallNotification) {
 		if (_robotState == kRobotWon) {
@@ -667,6 +669,8 @@ void SubControlRoom::receiveNotification(Notification *notification, const Notif
 				g_system->delayMillis(2 * 1000); // 120 ticks
 				((PegasusEngine *)g_engine)->die(kDeathRobotSubControlRoom);
 				break;
+			default:
+				break;
 			}
 		} else {
 			if (_gameState == kPuttingClawAway && _nextAction == kNoActionIndex) {
@@ -689,6 +693,8 @@ void SubControlRoom::receiveNotification(Notification *notification, const Notif
 						break;
 					case kClawAtD:
 						dispatchClawAction(kMoveRightActionIndex);
+						break;
+					default:
 						break;
 					}
 				}
@@ -825,6 +831,8 @@ void SubControlRoom::clickInHotspot(const Input &input, const Hotspot *spot) {
 				case kClawAtD:
 					dispatchClawAction(kMoveRightActionIndex);
 					break;
+				default:
+					break;
 				}
 			}
 		}
@@ -884,6 +892,8 @@ void SubControlRoom::performActionImmediately(const int action, const uint32 ext
 		// Start move.
 		_greenBallTimer.start();
 		break;
+	default:
+		break;
 	}
 
 	if (_playingAgainstRobot) {
@@ -896,6 +906,8 @@ void SubControlRoom::performActionImmediately(const int action, const uint32 ext
 			break;
 		case kCarriedToDoor:
 			owner->startExtraSequence(kN60ArmCarriesRobotToPositionA, kExtraCompletedFlag, kFilterAllInput);
+			break;
+		default:
 			break;
 		}
 	} else {
@@ -966,6 +978,8 @@ void SubControlRoom::updateClawMonitor() {
 		break;
 	case kClawAtD:
 		setClawMonitorToTime(kClawAtDTime);
+		break;
+	default:
 		break;
 	}
 }
@@ -1144,6 +1158,8 @@ void SubControlRoom::moveGreenBallToC() {
 		break;
 	case kClawAtD:
 		_greenBall.setCurrentFrameIndex(kGreenBallAtCArmAtD);
+		break;
+	default:
 		break;
 	}
 

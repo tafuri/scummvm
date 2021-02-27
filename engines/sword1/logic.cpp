@@ -148,6 +148,8 @@ void Logic::engine() {
 						case LOGIC_AR_animate:
 							_eventMan->checkForEvent(compact);
 							break;
+						default:
+							break;
 						}
 					}
 					debug(7, "Logic::engine: handling compact %d (%X)", currentId, currentId);
@@ -497,12 +499,12 @@ int Logic::interpretScript(Object *compact, int id, Header *scriptModule, int sc
 			mCodeNumber = scriptCode[pc++];
 			mCodeArguments = scriptCode[pc++];
 			switch (mCodeArguments) {
-			case 6: f = stack[--stackIdx];
-			case 5: e = stack[--stackIdx];
-			case 4: d = stack[--stackIdx];
-			case 3: c = stack[--stackIdx];
-			case 2: b = stack[--stackIdx];
-			case 1: a = stack[--stackIdx];
+			case 6: f = stack[--stackIdx]; // fall through
+			case 5: e = stack[--stackIdx]; // fall through
+			case 4: d = stack[--stackIdx]; // fall through
+			case 3: c = stack[--stackIdx]; // fall through
+			case 2: b = stack[--stackIdx]; // fall through
+			case 1: a = stack[--stackIdx]; // fall through
 			case 0:
 				Debug::callMCode(mCodeNumber, mCodeArguments, a, b, c, d, e, f);
 				mCodeReturn = (this->*_mcodeTable[mCodeNumber])(compact, id, a, b, c, d, e, f);
@@ -520,7 +522,7 @@ int Logic::interpretScript(Object *compact, int id, Header *scriptModule, int sc
 		case IT_PUSHVARIABLE:
 			debug(9, "IT_PUSHVARIABLE: ScriptVar[%d] => %d", scriptCode[pc], _scriptVars[scriptCode[pc]]);
 			varNum = scriptCode[pc++];
-			if (SwordEngine::_systemVars.isDemo && SwordEngine::isWindows()) {
+			if (SwordEngine::_systemVars.isDemo && SwordEngine::isWindows() && !SwordEngine::_systemVars.isSpanishDemo) {
 				if (varNum >= 397) // BS1 Demo has different number of script variables
 					varNum++;
 				if (varNum >= 699)
@@ -611,7 +613,7 @@ int Logic::interpretScript(Object *compact, int id, Header *scriptModule, int sc
 		case IT_POPVAR:         // pop a variable
 			debug(9, "IT_POPVAR: ScriptVars[%d] = %d", scriptCode[pc], stack[stackIdx - 1]);
 			varNum = scriptCode[pc++];
-			if (SwordEngine::_systemVars.isDemo && SwordEngine::isWindows()) {
+			if (SwordEngine::_systemVars.isDemo && SwordEngine::isWindows() && !SwordEngine::_systemVars.isSpanishDemo) {
 				if (varNum >= 397) // BS1 Demo has different number of script variables
 					varNum++;
 				if (varNum >= 699)
@@ -1630,7 +1632,7 @@ int Logic::fnRestartGame(Object *cpt, int32 id, int32 a, int32 b, int32 c, int32
 
 int Logic::fnQuitGame(Object *cpt, int32 id, int32 a, int32 b, int32 c, int32 d, int32 z, int32 x) {
 	if (SwordEngine::_systemVars.isDemo) {
-		GUI::MessageDialog dialog(_("This is the end of the Broken Sword 1 Demo"), _("OK"), NULL);
+		GUI::MessageDialog dialog(_("This is the end of the Broken Sword 1 Demo"), _("OK"));
 		dialog.runModal();
 		Engine::quitGame();
 	} else

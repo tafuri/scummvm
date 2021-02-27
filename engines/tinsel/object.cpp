@@ -35,13 +35,13 @@
 
 namespace Tinsel {
 
-// FIXME: Avoid non-const global vars
+// These vars are reset upon engine destruction
 
 // list of all objects
-static OBJECT *objectList = 0;
+static OBJECT *objectList = nullptr;
 
 // pointer to free object list
-static OBJECT *pFreeObjects = 0;
+static OBJECT *pFreeObjects = nullptr;
 
 #ifdef DEBUG
 // diagnostic object counters
@@ -51,7 +51,7 @@ static int maxObj = 0;
 
 void FreeObjectList() {
 	free(objectList);
-	objectList = NULL;
+	objectList= nullptr;
 }
 
 /**
@@ -85,7 +85,7 @@ void KillAllObjects() {
 	}
 
 	// null the last object
-	objectList[NUM_OBJECTS - 1].pNext = NULL;
+	objectList[NUM_OBJECTS - 1].pNext= nullptr;
 }
 
 
@@ -114,7 +114,7 @@ OBJECT *AllocObject() {
 	pFreeObjects = pObj->pNext;
 
 	// clear out object
-	memset(pObj, 0, sizeof(OBJECT));
+	pObj->reset();
 
 	// set default drawing mode and set changed bit
 	pObj->flags = DMA_WNZ | DMA_CHANGED;
@@ -152,7 +152,7 @@ void CopyObject(OBJECT *pDest, OBJECT *pSrc) {
 	pDest->flags |= DMA_CHANGED;
 
 	// null the links
-	pDest->pNext = pDest->pSlave = NULL;
+	pDest->pNext = pDest->pSlave= nullptr;
 }
 
 /**
@@ -299,7 +299,7 @@ void SortObjectList(OBJECT **pObjList) {
  */
 void GetAniOffset(SCNHANDLE hImg, int flags, int *pAniX, int *pAniY) {
 	if (hImg) {
-		const IMAGE *pImg = (const IMAGE *)LockMem(hImg);
+		const IMAGE *pImg = (const IMAGE *)_vm->_handle->LockMem(hImg);
 
 		// set ani X
 		*pAniX = (int16) FROM_16(pImg->anioffX);
@@ -370,19 +370,32 @@ OBJECT *InitObject(const OBJ_INIT *pInitTbl) {
 	// get pointer to image
 	if (pInitTbl->hObjImg) {
 		int aniX, aniY;		// objects animation offsets
-		PALQ *pPalQ = NULL;	// palette queue pointer
-		const IMAGE *pImg = (const IMAGE *)LockMem(pInitTbl->hObjImg);	// handle to image
+		PALQ *pPalQ= nullptr;	// palette queue pointer
+		const IMAGE *pImg = (const IMAGE *)_vm->_handle->LockMem(pInitTbl->hObjImg); // handle to image
 
-		if (pImg->hImgPal) {
-			// allocate a palette for this object
-			pPalQ = AllocPalette(FROM_32(pImg->hImgPal));
+		if (!TinselV3) {
+			if (pImg->hImgPal) {
+				// allocate a palette for this object
+				pPalQ = AllocPalette(FROM_32(pImg->hImgPal));
 
-			// make sure palette allocated
-			assert(pPalQ != NULL);
+				// make sure palette allocated
+				assert(pPalQ != NULL);
+			}
+
+			// assign palette to object
+			pObj->pPal = pPalQ;
+		} else {
+			const IMAGE_T3 *pImgT3 = (const IMAGE_T3 *)pImg;
+
+			if ((pImgT3->colorFlags & 0b110U) == 0) {
+				pObj->flags = pObj->flags & ~DMA_GHOST;
+			} else {
+				assert((pObj->flags & DMA_WNZ) != 0);
+				pObj->flags |= DMA_GHOST;
+			}
+			pObj->isRLE = pImgT3->isRLE;
+			pObj->colorFlags = pImgT3->colorFlags;
 		}
-
-		// assign palette to object
-		pObj->pPal = pPalQ;
 
 		// set objects size
 		pObj->width  = FROM_16(pImg->imgWidth);
@@ -439,7 +452,7 @@ void AnimateObjectFlags(OBJECT *pAniObj, int newflags, SCNHANDLE hNewImg) {
 
 		if (hNewImg) {
 			// get pointer to image
-			const IMAGE *pNewImg = (IMAGE *)LockMem(hNewImg);
+			const IMAGE *pNewImg = (IMAGE *)_vm->_handle->LockMem(hNewImg);
 
 			// setup new shape
 			pAniObj->width  = FROM_16(pNewImg->imgWidth);

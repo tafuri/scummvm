@@ -1,6 +1,11 @@
 MODULE := engines/agos
 
 MODULE_OBJS := \
+	drivers/accolade/adlib.o \
+	drivers/accolade/driverfile.o \
+	drivers/accolade/pc98.o \
+	drivers/accolade/mt32.o \
+	drivers/simon1/adlib.o \
 	agos.o \
 	charset.o \
 	charset-fontdata.o \
@@ -8,7 +13,6 @@ MODULE_OBJS := \
 	cursor.o \
 	debug.o \
 	debugger.o \
-	detection.o \
 	draw.o \
 	event.o \
 	gfx.o \
@@ -17,6 +21,7 @@ MODULE_OBJS := \
 	input_pn.o \
 	items.o \
 	menus.o \
+	metaengine.o \
 	midi.o \
 	midiparser_s1d.o \
 	pn.o \
@@ -65,3 +70,6 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o

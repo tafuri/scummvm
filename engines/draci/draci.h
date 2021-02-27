@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef DRACI_H
-#define DRACI_H
+#ifndef DRACI_DRACI_H
+#define DRACI_DRACI_H
 
 #include "engines/engine.h"
 #include "common/random.h"
@@ -56,24 +56,23 @@ class SoundArchive;
 class DraciEngine : public Engine {
 public:
 	DraciEngine(OSystem *syst, const ADGameDescription *gameDesc);
-	virtual ~DraciEngine();
+	~DraciEngine() override;
 
 	int init();
-	virtual Common::Error run();
+	Common::Error run() override;
 
-	virtual bool hasFeature(Engine::EngineFeature f) const;
-	virtual void pauseEngineIntern(bool pause);
-	virtual void syncSoundSettings();
+	bool hasFeature(Engine::EngineFeature f) const override;
+	void pauseEngineIntern(bool pause) override;
+	void syncSoundSettings() override;
 
 	void handleEvents();
 
 	static Common::String getSavegameFile(int saveGameIdx);
-	virtual Common::Error loadGameState(int slot);
-	virtual bool canLoadGameStateCurrently();
-	virtual Common::Error saveGameState(int slot, const Common::String &desc);
-	virtual bool canSaveGameStateCurrently();
-
-	GUI::Debugger *getDebugger() { return _console; }
+	Common::String getSaveStateName(int slot) const override { return getSavegameFile(slot); }
+	Common::Error loadGameState(int slot) override;
+	bool canLoadGameStateCurrently() override;
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
+	bool canSaveGameStateCurrently() override;
 
 	Screen *_screen;
 	Mouse *_mouse;
@@ -107,8 +106,6 @@ public:
 	Common::RandomSource _rnd;
 
 	int32 _pauseStartTime;
-private:
-	DraciConsole *_console;
 };
 
 enum {
@@ -126,4 +123,4 @@ static inline long scummvm_lround(double val) { return (long)floor(val + 0.5); }
 
 } // End of namespace Draci
 
-#endif // DRACI_H
+#endif // DRACI_DRACI_H

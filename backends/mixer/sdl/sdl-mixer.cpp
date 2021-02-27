@@ -30,25 +30,20 @@
 #include "common/config-manager.h"
 #include "common/textconsole.h"
 
-#ifdef GP2X
+#if defined(GP2X)
 #define SAMPLES_PER_SEC 11025
+#elif defined(PLAYSTATION3) || defined(PSP2) || defined(NINTENDO_SWITCH)
+#define SAMPLES_PER_SEC 48000
 #else
 #define SAMPLES_PER_SEC 44100
 #endif
-
-SdlMixerManager::SdlMixerManager()
-	:
-	_mixer(0),
-	_audioSuspended(false) {
-
-}
 
 SdlMixerManager::~SdlMixerManager() {
 	_mixer->setReady(false);
 
 	SDL_CloseAudio();
 
-	delete _mixer;
+	SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 void SdlMixerManager::init() {
@@ -78,59 +73,106 @@ void SdlMixerManager::init() {
 	if (SDL_OpenAudio(&fmt, &_obtained) != 0) {
 		warning("Could not open audio device: %s", SDL_GetError());
 
-		_mixer = new Audio::MixerImpl(g_system, desired.freq);
-		assert(_mixer);
-		_mixer->setReady(false);
-	} else {
-		debug(1, "Output sample rate: %d Hz", _obtained.freq);
-		if (_obtained.freq != desired.freq)
-			warning("SDL mixer output sample rate: %d differs from desired: %d", _obtained.freq, desired.freq);
+		// The mixer is not marked as ready
+		_mixer = new Audio::MixerImpl(desired.freq);
+		return;
+	}
 
-		debug(1, "Output buffer size: %d samples", _obtained.samples);
-		if (_obtained.samples != desired.samples)
-			warning("SDL mixer output buffer size: %d differs from desired: %d", _obtained.samples, desired.samples);
+	// The obtained sample format is not supported by the mixer, call
+	// SDL_OpenAudio again with NULL as the second argument to force
+	// SDL to do resampling to the desired audio spec.
+	if (_obtained.format != desired.format) {
+		debug(1, "SDL mixer sound format: %d differs from desired: %d", _obtained.format, desired.format);
+		SDL_CloseAudio();
 
-		if (_obtained.format != desired.format)
-			warning("SDL mixer sound format: %d differs from desired: %d", _obtained.format, desired.format);
+		if (SDL_OpenAudio(&fmt, NULL) != 0) {
+			warning("Could not open audio device: %s", SDL_GetError());
+
+			// The mixer is not marked as ready
+			_mixer = new Audio::MixerImpl(desired.freq);
+			return;
+		}
+
+		_obtained = desired;
+	}
+
+	debug(1, "Output sample rate: %d Hz", _obtained.freq);
+	if (_obtained.freq != desired.freq)
+		warning("SDL mixer output sample rate: %d differs from desired: %d", _obtained.freq, desired.freq);
+
+	debug(1, "Output buffer size: %d samples", _obtained.samples);
+	if (_obtained.samples != desired.samples)
+		warning("SDL mixer output buffer size: %d differs from desired: %d", _obtained.samples, desired.samples);
 
 #ifndef __SYMBIAN32__
-		// The SymbianSdlMixerManager does stereo->mono downmixing,
-		// but otherwise we require stereo output.
-		if (_obtained.channels != 2)
-			error("SDL mixer output requires stereo output device");
+	// The SymbianSdlMixerManager does stereo->mono downmixing,
+	// but otherwise we require stereo output.
+	if (_obtained.channels != 2)
+		error("SDL mixer output requires stereo output device");
 #endif
 
-		_mixer = new Audio::MixerImpl(g_system, _obtained.freq);
-		assert(_mixer);
-		_mixer->setReady(true);
+	_mixer = new Audio::MixerImpl(_obtained.freq);
+	assert(_mixer);
+	_mixer->setReady(true);
 
-		startAudio();
-	}
+	startAudio();
+}
+
+static uint32 roundDownPowerOfTwo(uint32 samples) {
+	// Public domain code from Sean Eron Anderson
+	// http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+	uint32 rounded = samples;
+	--rounded;
+	rounded |= rounded >> 1;
+	rounded |= rounded >> 2;
+	rounded |= rounded >> 4;
+	rounded |= rounded >> 8;
+	rounded |= rounded >> 16;
+	++rounded;
+
+	if (rounded != samples)
+		rounded >>= 1;
+
+	return rounded;
 }
 
 SDL_AudioSpec SdlMixerManager::getAudioSpec(uint32 outputRate) {
 	SDL_AudioSpec desired;
 
-	// Determine the desired output sampling frequency.
-	uint32 samplesPerSec = 0;
+	// There was once a GUI option for this, which was removed. Configurability
+	// is retained for advanced users only who wish to use the commandline
+	// option (--output-rate) or modify their ScummVM config file directly.
+	uint32 freq = 0;
 	if (ConfMan.hasKey("output_rate"))
-		samplesPerSec = ConfMan.getInt("output_rate");
-	if (samplesPerSec <= 0)
-		samplesPerSec = outputRate;
+		freq = ConfMan.getInt("output_rate");
+	if (freq <= 0)
+		freq = outputRate;
 
-	// Determine the sample buffer size. We want it to store enough data for
-	// at least 1/16th of a second (though at most 8192 samples). Note
-	// that it must be a power of two. So e.g. at 22050 Hz, we request a
-	// sample buffer size of 2048.
-	uint32 samples = 8192;
-	while (samples * 16 > samplesPerSec * 2)
-		samples >>= 1;
+	// One SDL "sample" is a complete audio frame (i.e. all channels = 1 sample)
+	uint32 samples = 0;
+
+	// Different games and host systems have different performance
+	// characteristics which are not easily measured, so allow advanced users to
+	// tweak their audio buffer size if they are experience excess latency or
+	// drop-outs by setting this value in their ScummVM config file directly
+	if (ConfMan.hasKey("audio_buffer_size", Common::ConfigManager::kApplicationDomain))
+		samples = ConfMan.getInt("audio_buffer_size", Common::ConfigManager::kApplicationDomain);
+
+	// 256 is an arbitrary minimum; 32768 is the largest power-of-two value
+	// representable with uint16
+	if (samples < 256 || samples > 32768)
+		// By default, hold no more than 45ms worth of samples to avoid
+		// perceptable audio lag (ATSC IS-191). For reference, DOSBox (as of Sep
+		// 2017) uses a buffer size of 1024 samples by default for a 16-bit
+		// stereo 44kHz mixer, which happens to be the next lowest power of two
+		// below 45ms.
+		samples = freq / (1000.0 / 45);
 
 	memset(&desired, 0, sizeof(desired));
-	desired.freq = samplesPerSec;
+	desired.freq = freq;
 	desired.format = AUDIO_S16SYS;
 	desired.channels = 2;
-	desired.samples = (uint16)samples;
+	desired.samples = roundDownPowerOfTwo(samples);
 	desired.callback = sdlCallback;
 	desired.userdata = this;
 

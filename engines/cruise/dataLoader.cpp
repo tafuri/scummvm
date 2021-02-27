@@ -128,6 +128,8 @@ void decodeGfxUnified(dataFileEntry *pCurrentFileEntry, int16 format) {
 
 		break;
 	}
+	default:
+		break;
 	}
 
 	MemFree(pCurrentFileEntry->subData.ptr);
@@ -249,12 +251,19 @@ int loadFile(const char* name, int idx, int destIdx) {
 		int numMaxEntriesInSet = getNumMaxEntiresInSet(ptr);
 
 		if (destIdx > numMaxEntriesInSet) {
+			MemFree(ptr);
 			return 0;	// exit if limit is reached
 		}
-		return loadSetEntry(name, ptr, destIdx, idx);
+		int res = loadSetEntry(name, ptr, destIdx, idx);
+		MemFree(ptr);
+
+		return res;
 	}
 	case type_FNT: {
-		return loadFNTSub(ptr, idx);
+		int res = loadFNTSub(ptr, idx);
+		MemFree(ptr);
+
+		return res;
 	}
 	case type_SPL: {
 		// Sound file

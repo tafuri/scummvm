@@ -25,6 +25,7 @@
 #include "common/fs.h"
 #include "common/debug.h"
 #include "common/textconsole.h"
+#include "common/ini-file.h"
 
 #include "agi/wagparser.h"
 
@@ -54,7 +55,6 @@ void WagProperty::deepCopy(const WagProperty &other) {
 	_propNum  = other._propNum;
 	_propSize = other._propSize;
 
-	deleteData(); // Delete old data (If any) and set _propData to NULL
 	if (other._propData != NULL) {
 		_propData = new char[other._propSize + 1UL]; // Allocate space for property's data plus trailing zero
 		memcpy(_propData, other._propData, other._propSize + 1UL); // Copy the whole thing
@@ -63,8 +63,8 @@ void WagProperty::deepCopy(const WagProperty &other) {
 
 bool WagProperty::read(Common::SeekableReadStream &stream) {
 	// First read the property's header
-	_propCode = (enum WagPropertyCode) stream.readByte();
-	_propType = (enum WagPropertyType) stream.readByte();
+	_propCode = (enum WagPropertyCode)stream.readByte();
+	_propType = (enum WagPropertyType)stream.readByte();
 	_propNum  = stream.readByte();
 	_propSize = stream.readUint16LE();
 
@@ -74,12 +74,11 @@ bool WagProperty::read(Common::SeekableReadStream &stream) {
 	}
 
 	// Then read the property's data
-	deleteData(); // Delete old data (If any)
 	_propData = new char[_propSize + 1UL]; // Allocate space for property's data plus trailing zero
 	uint32 readBytes = stream.read(_propData, _propSize); // Read the data in
 	_propData[_propSize] = 0; // Set the trailing zero for easy C-style string access
 
-	_readOk = (_propData != NULL && readBytes == _propSize); // Check that we got the whole data
+	_readOk = (readBytes == _propSize); // Check that we got the whole data
 	return _readOk;
 }
 
@@ -98,7 +97,8 @@ void WagProperty::setDefaults() {
 }
 
 void WagProperty::deleteData() {
-	delete[] _propData;
+	if (_propData)
+		delete[] _propData;
 	_propData = NULL;
 }
 
@@ -111,9 +111,9 @@ WagFileParser::~WagFileParser() {
 
 bool WagFileParser::checkAgiVersionProperty(const WagProperty &version) const {
 	if (version.getCode() == WagProperty::PC_INTVERSION && // Must be AGI interpreter version property
-		version.getSize() >= 3 && // Need at least three characters for a version number like "X.Y"
-		Common::isDigit(version.getData()[0]) && // And the first character must be a digit
-		(version.getData()[1] == ',' || version.getData()[1] == '.')) { // And the second a comma or a period
+	        version.getSize() >= 3 && // Need at least three characters for a version number like "X.Y"
+	        Common::isDigit(version.getData()[0]) && // And the first character must be a digit
+	        (version.getData()[1] == ',' || version.getData()[1] == '.')) { // And the second a comma or a period
 
 		for (int i = 2; i < version.getSize(); i++) // And the rest must all be digits
 			if (!Common::isDigit(version.getData()[i]))
@@ -129,7 +129,7 @@ uint16 WagFileParser::convertToAgiVersionNumber(const WagProperty &version) {
 	if (checkAgiVersionProperty(version)) { // Check that the string is a valid AGI interpreter version string
 		// Convert first ascii digit to an integer and put it in the fourth nibble (Bits 12...15) of the version number
 		// and at the same time set all other nibbles to zero.
-		uint16 agiVerNum = ((uint16) (version.getData()[0] - '0')) << (3 * 4);
+		uint16 agiVerNum = ((uint16)(version.getData()[0] - '0')) << (3 * 4);
 
 		// Convert at most three least significant digits of the version number's minor part
 		// (i.e. the part after the decimal point) and put them in order to the third, second
@@ -137,7 +137,7 @@ uint16 WagFileParser::convertToAgiVersionNumber(const WagProperty &version) {
 		// is the number of digits after the decimal point.
 		int32 digitCount = MIN<int32>(3, ((int32) version.getSize()) - 2); // How many digits left to convert
 		for (int i = 0; i < digitCount; i++)
-			agiVerNum |= ((uint16) (version.getData()[version.getSize() - digitCount + i] - '0')) << ((2 - i) * 4);
+			agiVerNum |= ((uint16)(version.getData()[version.getSize() - digitCount + i] - '0')) << ((2 - i) * 4);
 
 		debug(3, "WagFileParser: Converted AGI version from string %s to number 0x%x", version.getData(), agiVerNum);
 		return agiVerNum;
@@ -148,7 +148,7 @@ uint16 WagFileParser::convertToAgiVersionNumber(const WagProperty &version) {
 bool WagFileParser::checkWagVersion(Common::SeekableReadStream &stream) {
 	if (stream.size() >= WINAGI_VERSION_LENGTH) { // Stream has space to contain the WinAGI version string
 		// Read the last WINAGI_VERSION_LENGTH bytes of the stream and make a string out of it
-		char str[WINAGI_VERSION_LENGTH+1]; // Allocate space for the trailing zero also
+		char str[WINAGI_VERSION_LENGTH + 1]; // Allocate space for the trailing zero also
 		uint32 oldStreamPos = stream.pos(); // Save the old stream position
 		stream.seek(stream.size() - WINAGI_VERSION_LENGTH);
 		uint32 readBytes = stream.read(str, WINAGI_VERSION_LENGTH);
@@ -164,10 +164,20 @@ bool WagFileParser::checkWagVersion(Common::SeekableReadStream &stream) {
 		// WinAGI 1.1.21 recognizes as acceptable in the end of a *.wag file.
 		// Note that they are all of length 16 and are padded with spaces to be that long.
 		return scumm_stricmp(str, "WINAGI v1.0     ") == 0 ||
-			scumm_stricmp(str, "1.0 BETA        ") == 0;
+		       scumm_stricmp(str, "1.0 BETA        ") == 0;
 	} else { // Stream is too small to contain the WinAGI version string
 		debug(3, "WagFileParser::checkWagVersion: Stream is too small to contain a valid WAG file");
 		return false;
+	}
+}
+
+void WagFileParser::addPropFromIni(Common::INIFile *iniWagFile, Common::String section, Common::String key, Agi::WagProperty::WagPropertyCode code) {
+	WagProperty property;
+	property.setPropCode(code);
+	Common::String value;
+	if (iniWagFile->getKey(key, section, value)) {
+		property.setPropDataSize(value);
+		_propList.push_back(property);
 	}
 }
 
@@ -188,7 +198,7 @@ bool WagFileParser::parse(const Common::FSNode &node) {
 				if (property.read(*stream)) { // Read the property and check it was read ok
 					_propList.push_back(property); // Add read property to properties list
 					debug(4, "WagFileParser::parse: Read property with code %d, type %d, number %d, size %d, data \"%s\"",
-						property.getCode(), property.getType(), property.getNumber(), property.getSize(), property.getData());
+					      property.getCode(), property.getType(), property.getNumber(), property.getSize(), property.getData());
 				} else // Reading failed, let's bail out
 					break;
 			} while (!endOfProperties(*stream)); // Loop until the end of properties
@@ -199,8 +209,21 @@ bool WagFileParser::parse(const Common::FSNode &node) {
 
 			if (!_parsedOk) // Error parsing stream
 				warning("Error parsing WAG file (%s). WAG file ignored", node.getPath().c_str());
-		} else // Invalid WinAGI version string or it couldn't be read
-			warning("Invalid WAG file (%s) version or error reading it. WAG file ignored", node.getPath().c_str());
+		} else {
+			// Invalid WinAGI version string or it couldn't be read
+			// Let's try to read WAG file as newer INI format
+			Common::INIFile *iniWagFile = new Common::INIFile();
+			_parsedOk = iniWagFile->loadFromStream(*stream);
+			if (_parsedOk) {
+				addPropFromIni(iniWagFile, "General", "Interpreter", WagProperty::PC_INTVERSION);
+				addPropFromIni(iniWagFile, "General", "GameID", WagProperty::PC_GAMEID);
+				addPropFromIni(iniWagFile, "General", "Description", WagProperty::PC_GAMEDESC);
+				addPropFromIni(iniWagFile, "General", "GameVersion", WagProperty::PC_GAMEVERSION);
+				addPropFromIni(iniWagFile, "General", "LastEdit", WagProperty::PC_GAMELAST);
+			} else
+				warning("Invalid WAG file (%s) version or error reading it. WAG file ignored", node.getPath().c_str());
+		}
+
 	} else // Couldn't open file
 		warning("Couldn't open WAG file (%s). WAG file ignored", node.getPath().c_str());
 
@@ -216,6 +239,16 @@ const WagProperty *WagFileParser::getProperty(const WagProperty::WagPropertyCode
 
 bool WagFileParser::endOfProperties(const Common::SeekableReadStream &stream) const {
 	return stream.pos() >= (stream.size() - WINAGI_VERSION_LENGTH);
+}
+
+
+void WagProperty::setPropCode(WagPropertyCode propCode) {
+    _propCode = propCode;
+}
+
+void WagProperty::setPropDataSize(Common::String str) {
+	_propData = scumm_strdup(str.c_str());
+	_propSize = str.size();
 }
 
 } // End of namespace Agi

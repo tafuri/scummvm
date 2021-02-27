@@ -65,17 +65,20 @@ protected:
 
 	int16		_x, _y;
 	uint16		_w, _h;
+	bool		_useRTL;
 	const Common::String _name;
 
 	Widget		*_firstWidget;
 
 public:
-	GuiObject(int x, int y, int w, int h) : _x(x), _y(y), _w(w), _h(h), _firstWidget(0), _textDrawableArea(Common::Rect(0, 0, 0, 0)) { }
+	GuiObject(int x, int y, int w, int h) : _x(x), _y(y), _w(w), _h(h), _useRTL(true), _firstWidget(nullptr) { }
 	GuiObject(const Common::String &name);
-	~GuiObject();
+	~GuiObject() override;
 
 	virtual void setTextDrawableArea(const Common::Rect &r) { _textDrawableArea = r; }
 
+	virtual int16	getRelX() const		{ return _x; }
+	virtual int16	getRelY() const		{ return _y; }
 	virtual int16	getAbsX() const		{ return _x; }
 	virtual int16	getAbsY() const		{ return _y; }
 	virtual int16	getChildX() const	{ return getAbsX(); }
@@ -85,11 +88,18 @@ public:
 
 	virtual bool	isVisible() const = 0;
 
-	virtual void	draw() = 0;
-
 	virtual void	reflowLayout();
 
 	virtual void	removeWidget(Widget *widget);
+
+	virtual bool	isPointIn(int x, int y) {
+		return (x >= _x && x < (_x + _w) && (y >= _y) && (y < _y + _h));
+	}
+
+	/**
+	 * Returns the clipping rect to be used when drawing the children widgets of this object
+	 */
+	virtual Common::Rect getClipRect() const;
 
 protected:
 	virtual void	releaseFocus() = 0;

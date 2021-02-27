@@ -27,11 +27,18 @@
 #include "common/mutex.h"
 
 #include "audio/mixer.h"
-#include "audio/audiostream.h"
 
 #include "sci/sci.h"
-#include "sci/resource.h"
+#include "sci/resource/resource.h"
 #include "sci/sound/drivers/mididriver.h"
+#ifdef ENABLE_SCI32
+#include "sci/sound/audio32.h"
+#endif
+
+namespace Audio {
+class LoopingAudioStream;
+class RewindableAudioStream;
+}
 
 namespace Sci {
 
@@ -119,16 +126,17 @@ public:
 	Audio::RewindableAudioStream *pStreamAud;
 	Audio::LoopingAudioStream *pLoopStream;
 	Audio::SoundHandle hCurrentAud;
+	bool isSample;
 
 public:
 	MusicEntry();
-	~MusicEntry();
+	~MusicEntry() override;
 
 	void doFade();
 	void onTimer();
 	void setSignal(int signal);
 
-	virtual void saveLoadWithSerializer(Common::Serializer &ser);
+	void saveLoadWithSerializer(Common::Serializer &ser) override;
 };
 
 struct DeviceChannelUsage {
@@ -159,7 +167,7 @@ class SciMusic : public Common::Serializable {
 
 public:
 	SciMusic(SciVersion soundVersion, bool useDigitalSFX);
-	~SciMusic();
+	~SciMusic() override;
 
 	void init();
 
@@ -174,10 +182,11 @@ public:
 	void clearPlayList();
 	void pauseAll(bool pause);
 	void stopAll();
+	void stopAllSamples();
 
 	// sound and midi functions
 	void soundInitSnd(MusicEntry *pSnd);
-	void soundPlay(MusicEntry *pSnd);
+	void soundPlay(MusicEntry *pSnd, bool restoring = false);
 	void soundStop(MusicEntry *pSnd);
 	void soundKill(MusicEntry *pSnd);
 	void soundPause(MusicEntry *pSnd);
@@ -230,7 +239,7 @@ public:
 
 	void needsRemap() { _needsRemap = true; }
 
-	virtual void saveLoadWithSerializer(Common::Serializer &ser);
+	void saveLoadWithSerializer(Common::Serializer &ser) override;
 
 	// Mutex for music code. Used to guard access to the song playlist, to the
 	// MIDI parser and to the MIDI driver/player. Note that guarded code must NOT

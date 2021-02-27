@@ -20,7 +20,7 @@
  *
  */
 
-#if defined(POSIX) || defined(PLAYSTATION3)
+#if defined(POSIX) || defined(PLAYSTATION3) || defined(PSP2) || defined(__DS__)
 
 // Re-enable some forbidden symbols to avoid clashes with stat.h and unistd.h.
 // Also with clock() in sys/time.h in some Mac OS X SDKs.
@@ -29,21 +29,47 @@
 #define FORBIDDEN_SYMBOL_EXCEPTION_mkdir
 #define FORBIDDEN_SYMBOL_EXCEPTION_getenv
 #define FORBIDDEN_SYMBOL_EXCEPTION_exit		//Needed for IRIX's unistd.h
+#define FORBIDDEN_SYMBOL_EXCEPTION_random
+#define FORBIDDEN_SYMBOL_EXCEPTION_srandom
 
 #include "backends/fs/posix/posix-fs.h"
-#include "backends/fs/stdiostream.h"
+#include "backends/fs/posix/posix-iostream.h"
 #include "common/algorithm.h"
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#ifdef MACOSX
+#include <sys/types.h>
+#endif
+#ifdef PSP2
+#define mkdir sceIoMkdir
+#endif
 #include <dirent.h>
 #include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #ifdef __OS2__
 #define INCL_DOS
 #include <os2.h>
 #endif
 
+#if defined(ANDROID_PLAIN_PORT)
+#include "backends/platform/android/jni-android.h"
+#endif
+
+bool POSIXFilesystemNode::exists() const {
+	return access(_path.c_str(), F_OK) == 0;
+}
+
+bool POSIXFilesystemNode::isReadable() const {
+	return access(_path.c_str(), R_OK) == 0;
+}
+
+bool POSIXFilesystemNode::isWritable() const {
+	return access(_path.c_str(), W_OK) == 0;
+}
 
 void POSIXFilesystemNode::setFlags() {
 	struct stat st;
@@ -56,13 +82,13 @@ POSIXFilesystemNode::POSIXFilesystemNode(const Common::String &p) {
 	assert(p.size() > 0);
 
 	// Expand "~/" to the value of the HOME env variable
-	if (p.hasPrefix("~/")) {
+	if (p.hasPrefix("~/") || p == "~") {
 		const char *home = getenv("HOME");
 		if (home != NULL && strlen(home) < MAXPATHLEN) {
 			_path = home;
-			// Skip over the tilda.  We know that p contains at least
-			// two chars, so this is safe:
-			_path += p.c_str() + 1;
+			// Skip over the tilda.
+			if (p.size() > 1)
+				_path += p.c_str() + 1;
 		}
 	} else {
 		_path = p;
@@ -146,6 +172,23 @@ bool POSIXFilesystemNode::getChildren(AbstractFSList &myList, ListMode mode, boo
 	}
 #endif
 
+#if defined(ANDROID_PLAIN_PORT)
+	if (_path == "/") {
+		Common::Array<Common::String> list = JNI::getAllStorageLocations();
+		for (Common::Array<Common::String>::const_iterator it = list.begin(), end = list.end(); it != end; ++it) {
+			POSIXFilesystemNode *entry = new POSIXFilesystemNode();
+
+			entry->_isDirectory = true;
+			entry->_isValid = true;
+			entry->_displayName = *it;
+			++it;
+			entry->_path = *it;
+			myList.push_back(entry);
+		}
+		return true;
+	}
+#endif
+
 	DIR *dirp = opendir(_path.c_str());
 	struct dirent *dp;
 
@@ -219,9 +262,9 @@ AbstractFSNode *POSIXFilesystemNode::getParent() const {
 		return 0;	// The filesystem root has no parent
 
 #ifdef __OS2__
-    if (_path.size() == 3 && _path.hasSuffix(":/"))
-        // This is a root directory of a drive
-        return makeNode("/");   // return a virtual root for a list of drives
+	if (_path.size() == 3 && _path.hasSuffix(":/"))
+		// This is a root directory of a drive
+		return makeNode("/");   // return a virtual root for a list of drives
 #endif
 
 	const char *start = _path.c_str();
@@ -244,11 +287,92 @@ AbstractFSNode *POSIXFilesystemNode::getParent() const {
 }
 
 Common::SeekableReadStream *POSIXFilesystemNode::createReadStream() {
-	return StdioStream::makeFromPath(getPath(), false);
+	return PosixIoStream::makeFromPath(getPath(), false);
 }
 
 Common::WriteStream *POSIXFilesystemNode::createWriteStream() {
-	return StdioStream::makeFromPath(getPath(), true);
+	return PosixIoStream::makeFromPath(getPath(), true);
 }
+
+bool POSIXFilesystemNode::createDirectory() {
+	if (mkdir(_path.c_str(), 0755) == 0)
+		setFlags();
+#if defined(ANDROID_PLAIN_PORT)
+	else {
+		// TODO eventually android specific stuff should be moved to an Android backend for fs
+		//      peterkohaut already has some work on that in his fork (moving the port to more native code)
+		//      However, I have not found a way to do this Storage Access Framework stuff natively yet.
+		if (JNI::createDirectoryWithSAF(_path)) {
+			setFlags();
+		}
+	}
+#endif // ANDROID_PLAIN_PORT
+
+
+	return _isValid && _isDirectory;
+}
+
+namespace Posix {
+
+bool assureDirectoryExists(const Common::String &dir, const char *prefix) {
+	struct stat sb;
+
+	// Check whether the prefix exists if one is supplied.
+	if (prefix) {
+		if (stat(prefix, &sb) != 0) {
+			return false;
+		} else if (!S_ISDIR(sb.st_mode)) {
+			return false;
+		}
+	}
+
+	// Obtain absolute path.
+	Common::String path;
+	if (prefix) {
+		path = prefix;
+		path += '/';
+		path += dir;
+	} else {
+		path = dir;
+	}
+
+	path = Common::normalizePath(path, '/');
+
+	const Common::String::iterator end = path.end();
+	Common::String::iterator cur = path.begin();
+	if (*cur == '/')
+		++cur;
+
+	do {
+		if (cur + 1 != end) {
+			if (*cur != '/') {
+				continue;
+			}
+
+			// It is kind of ugly and against the purpose of Common::String to
+			// insert 0s inside, but this is just for a local string and
+			// simplifies the code a lot.
+			*cur = '\0';
+		}
+
+		if (mkdir(path.c_str(), 0755) != 0) {
+			if (errno == EEXIST) {
+				if (stat(path.c_str(), &sb) != 0) {
+					return false;
+				} else if (!S_ISDIR(sb.st_mode)) {
+					return false;
+				}
+			} else {
+				return false;
+			}
+		}
+
+		*cur = '/';
+	} while (cur++ != end);
+
+	return true;
+}
+
+} // End of namespace Posix
 
 #endif //#if defined(POSIX)

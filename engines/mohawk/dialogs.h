@@ -27,10 +27,21 @@
 
 #include "common/events.h"
 #include "common/str.h"
+#include "common/ustr.h"
+
+#include "engines/dialogs.h"
+
 #include "gui/dialog.h"
-#include "gui/options.h"
 #include "gui/widget.h"
-#include "gui/widgets/list.h"
+
+namespace GUI {
+class SaveLoadChooser;
+class ButtonWidget;
+class CheckboxWidget;
+class CommandSender;
+class PopUpWidget;
+class StaticTextWidget;
+}
 
 namespace Mohawk {
 
@@ -39,70 +50,93 @@ class MohawkEngine;
 class InfoDialog : public GUI::Dialog {
 protected:
 	MohawkEngine *_vm;
-	Common::String _message;
+	Common::U32String _message;
 	GUI::StaticTextWidget *_text;
 
 public:
-	InfoDialog(MohawkEngine *vm, const Common::String &message);
+	InfoDialog(MohawkEngine *vm, const Common::U32String &message);
 
-	void setInfoText(const Common::String &message);
+	void setInfoText(const Common::U32String &message);
 
-	virtual void handleMouseDown(int x, int y, int button, int clickCount) {
+	void handleMouseDown(int x, int y, int button, int clickCount) override {
 		setResult(0);
 		close();
 	}
 
-	virtual void handleKeyDown(Common::KeyState state) {
+	void handleKeyDown(Common::KeyState state) override {
 		setResult(state.ascii);
 		close();
 	}
 
-	virtual void reflowLayout();
+	void reflowLayout() override;
 };
 
 class PauseDialog : public InfoDialog {
 public:
-	PauseDialog(MohawkEngine* vm, const Common::String &message);
-	virtual void handleKeyDown(Common::KeyState state);
+	PauseDialog(MohawkEngine* vm, const Common::U32String &message);
+	void handleKeyDown(Common::KeyState state) override;
 };
 
 #ifdef ENABLE_MYST
 
-class MohawkEngine_Myst;
-
-class MystOptionsDialog : public GUI::OptionsDialog {
+class MystOptionsWidget : public GUI::OptionsContainerWidget {
 public:
-	MystOptionsDialog(MohawkEngine_Myst *vm);
-	~MystOptionsDialog();
-	void open();
+	MystOptionsWidget(GuiObject *boss, const Common::String &name, const Common::String &domain);
+	~MystOptionsWidget() override;
 
-	virtual void handleCommand(GUI::CommandSender*, uint32, uint32);
+	// Widget API
+	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) override;
+
+	// OptionsContainerWidget API
+	void load() override;
+	bool save() override;
+
 private:
-	MohawkEngine_Myst *_vm;
+	// OptionsContainerWidget API
+	void defineLayout(GUI::ThemeEval &layouts, const Common::String &layoutName, const Common::String &overlayedLayout) const override;
+
+	bool isInGame() const;
+
 	GUI::CheckboxWidget *_zipModeCheckbox;
 	GUI::CheckboxWidget *_transitionsCheckbox;
+	GUI::CheckboxWidget *_mystFlyByCheckbox;
+	GUI::PopUpWidget *_languagePopUp;
+
 	GUI::ButtonWidget *_dropPageButton;
 	GUI::ButtonWidget *_showMapButton;
 	GUI::ButtonWidget *_returnToMenuButton;
+};
+
+class MystMenuDialog : public MainMenuDialog {
+public:
+	MystMenuDialog(Engine *engine);
+	~MystMenuDialog() override;
+
+	// MainMenuDialog API
+	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) override;
 };
 
 #endif
 
 #ifdef ENABLE_RIVEN
 
-class MohawkEngine_Riven;
-
-class RivenOptionsDialog : public GUI::OptionsDialog {
+class RivenOptionsWidget : public GUI::OptionsContainerWidget {
 public:
-	RivenOptionsDialog(MohawkEngine_Riven *vm);
-	~RivenOptionsDialog();
-	void open();
+	explicit RivenOptionsWidget(GuiObject *boss, const Common::String &name, const Common::String &domain);
+	~RivenOptionsWidget() override;
 
-	virtual void handleCommand(GUI::CommandSender*, uint32, uint32);
+	// OptionsContainerWidget API
+	void load() override;
+	bool save() override;
+
 private:
-	MohawkEngine_Riven *_vm;
+	// OptionsContainerWidget API
+	void defineLayout(GUI::ThemeEval &layouts, const Common::String &layoutName, const Common::String &overlayedLayout) const override;
+
 	GUI::CheckboxWidget *_zipModeCheckbox;
 	GUI::CheckboxWidget *_waterEffectCheckbox;
+	GUI::PopUpWidget *_transitionModePopUp;
+	GUI::PopUpWidget *_languagePopUp;
 };
 
 #endif

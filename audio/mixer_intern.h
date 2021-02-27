@@ -30,6 +30,14 @@
 namespace Audio {
 
 /**
+ * @defgroup audio_mixer_intern Mixer implementation
+ * @ingroup audio
+ *
+ * @brief The (default) implementation of the ScummVM audio mixing subsystem.
+ * @{
+ */
+
+/**
  * The (default) implementation of the ScummVM audio mixing subsystem.
  *
  * Backends are responsible for allocating (and later releasing) an instance
@@ -51,7 +59,7 @@ namespace Audio {
 class MixerImpl : public Mixer {
 private:
 	enum {
-		NUM_CHANNELS = 16
+		NUM_CHANNELS = 32
 	};
 
 	Common::Mutex _mutex;
@@ -73,10 +81,10 @@ private:
 
 public:
 
-	MixerImpl(OSystem *system, uint sampleRate);
+	MixerImpl(uint sampleRate);
 	~MixerImpl();
 
-	virtual bool isReady() const { return _mixerReady; }
+	virtual bool isReady() const { Common::StackLock lock(_mutex); return _mixerReady; }
 
 	virtual void playStream(
 		SoundType type,
@@ -141,7 +149,7 @@ public:
 	void setReady(bool ready);
 };
 
-
+/** @} */
 } // End of namespace Audio
 
 #endif

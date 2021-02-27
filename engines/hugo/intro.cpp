@@ -29,9 +29,13 @@
 
 #include "common/system.h"
 #include "common/textconsole.h"
+#include "graphics/font.h"
+#include "graphics/pixelformat.h"
 
 #include "hugo/hugo.h"
 #include "hugo/intro.h"
+#include "hugo/file.h"
+#include "hugo/game.h"
 #include "hugo/util.h"
 #include "hugo/display.h"
 #include "hugo/sound.h"
@@ -219,6 +223,8 @@ bool intro_v1d::introPlay() {
 			strcpy(buffer, "E n j o y !");
 			_font.drawString(&_surf, buffer, 0, 100, 320, _TLIGHTMAGENTA, Graphics::kTextAlignCenter);
 			break;
+		default:
+			break;
 		}
 
 		_vm->_screen->displayBackground();
@@ -335,6 +341,8 @@ bool intro_v3d::introPlay() {
 		case 35:
 			Utils::notifyBox(_vm->_text->getTextIntro(kIntro3));
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -426,6 +434,8 @@ bool intro_v3w::introPlay() {
 			break;
 		case 35:
 			Utils::notifyBox(_vm->_text->getTextIntro(kIntro3));
+			break;
+		default:
 			break;
 		}
 	}

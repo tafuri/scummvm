@@ -20,14 +20,16 @@
  *
  */
 
-#ifndef COMPOSER_H
-#define COMPOSER_H
+#ifndef COMPOSER_COMPOSER_H
+#define COMPOSER_COMPOSER_H
 
 #include "common/ini-file.h"
 #include "common/random.h"
 #include "common/system.h"
 #include "common/debug.h"
 #include "common/debug-channels.h"
+#include "common/error.h"
+#include "common/serializer.h"
 #include "common/textconsole.h"
 #include "common/rect.h"
 
@@ -42,19 +44,13 @@
 
 #include "composer/resource.h"
 #include "composer/console.h"
+#include "composer/detection.h"
 
 namespace Audio {
 	class QueuingAudioStream;
 }
 
 namespace Composer {
-
-struct ComposerGameDescription;
-
-enum GameType {
-	GType_ComposerV1,
-	GType_ComposerV2
-};
 
 class Archive;
 struct Animation;
@@ -113,6 +109,7 @@ struct Library {
 	uint _id;
 	Archive *_archive;
 
+	Common::String _group;
 	Common::List<Button> _buttons;
 	Common::List<KeyboardHandler> _keyboardHandlers;
 };
@@ -147,23 +144,35 @@ struct OldScript {
 
 class ComposerEngine : public Engine {
 protected:
-	Common::Error run();
+	Common::Error run() override;
+
+	template <typename T>
+	void syncArray(Common::Serializer &ser, Common::Array<T> &data, Common::Serializer::Version minVersion = 0, Common::Serializer::Version maxVersion = Common::Serializer::kLastVersion);
+	template <typename T>
+	void syncList(Common::Serializer &ser, Common::List<T> &data, Common::Serializer::Version minVersion = 0, Common::Serializer::Version maxVersion = Common::Serializer::kLastVersion);
+	template <typename T>
+	void syncListReverse(Common::Serializer &ser, Common::List<T> &data, Common::Serializer::Version minVersion = 0, Common::Serializer::Version maxVersion = Common::Serializer::kLastVersion);
+	template <typename T>
+	void sync(Common::Serializer &ser, T &data, Common::Serializer::Version minVersion, Common::Serializer::Version maxVersion);
+	bool canLoadGameStateCurrently() override { return true; }
+	Common::Error loadGameState(int slot) override;
+	bool canSaveGameStateCurrently() override { return true; }
+	Common::Error saveGameState(int slot, const Common::String &desc, bool isAutosave = false) override;
 
 public:
 	ComposerEngine(OSystem *syst, const ComposerGameDescription *gameDesc);
-	virtual ~ComposerEngine();
+	~ComposerEngine() override;
 
-	virtual bool hasFeature(EngineFeature f) const;
+	bool hasFeature(EngineFeature f) const override;
 
 	int getGameType() const;
 	const char *getGameId() const;
 	uint32 getFeatures() const;
 	Common::Language getLanguage() const;
+	Common::Platform getPlatform() const;
+	bool loadDetectedConfigFile(Common::INIFile &configFile) const;
 
 	const ComposerGameDescription *_gameDescription;
-
-	Console *_console;
-	GUI::Debugger *getDebugger() { return _console; }
 
 private:
 	Common::RandomSource *_rnd;
@@ -172,7 +181,7 @@ private:
 	Audio::QueuingAudioStream *_audioStream;
 	uint16 _currSoundPriority;
 
-	uint32 _currentTime, _lastTime;
+	uint32 _currentTime, _lastTime, _timeDelta;
 
 	bool _needsUpdate;
 	Common::Array<Common::Rect> _dirtyRects;
@@ -209,6 +218,7 @@ private:
 	uint16 _mouseSpriteId;
 	Common::Point _mouseOffset;
 
+	virtual Common::String getSaveStateName(int slot) const override;
 	Common::String getStringFromConfig(const Common::String &section, const Common::String &key);
 	Common::String getFilename(const Common::String &section, uint id);
 	Common::String mangleFilename(Common::String filename);
@@ -230,6 +240,7 @@ private:
 	void tickOldScripts();
 	bool tickOldScript(OldScript *script);
 
+	void loadAnimation(Animation *&anim, uint16 animId, int16 x, int16 y, int16 eventParam, int32 size = 0);
 	void playAnimation(uint16 animId, int16 param1, int16 param2, int16 param3);
 	void stopAnimation(Animation *anim, bool localOnly = false, bool pipesOnly = false);
 	void playWaveForAnim(uint16 id, uint16 priority, bool bufferingOnly);

@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -930,7 +930,7 @@ void Scene804::enter() {
 void Scene804::step() {
 	if (!_messWithThrottle) {
 
-		if ((_throttleGone) && (_movingThrottle) && (_scene->_activeAnimation->getCurrentFrame() == 39)) {
+		if ((_throttleGone) && (_movingThrottle) && (_scene->_animation[0]->getCurrentFrame() == 39)) {
 			_globals._sequenceIndexes[1] = _scene->_sequences.startCycle
 				(_globals._spriteIndexes[1], false, 1);
 			_scene->_sequences.setPosition(_globals._sequenceIndexes[1], Common::Point(133, 139));
@@ -938,7 +938,7 @@ void Scene804::step() {
 			_throttleGone = false;
 		}
 
-		if ((_movingThrottle) && (_scene->_activeAnimation->getCurrentFrame() == 42)) {
+		if ((_movingThrottle) && (_scene->_animation[0]->getCurrentFrame() == 42)) {
 			_resetFrame = 0;
 			_movingThrottle = false;
 		}
@@ -947,12 +947,13 @@ void Scene804::step() {
 			_resetFrame = 42;
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() == 65)
+		if (_scene->_animation[0]->getCurrentFrame() == 65)
 			_scene->_sequences.remove(_globals._sequenceIndexes[7]);
 
 		switch (_game._storyMode) {
 		case STORYMODE_NAUGHTY:
-			if (_scene->_activeAnimation->getCurrentFrame() == 81) {
+		default:
+			if (_scene->_animation[0]->getCurrentFrame() == 81) {
 				_resetFrame = 80;
 				_globals[kInSpace] = false;
 				_globals[kBeamIsUp] = true;
@@ -964,7 +965,7 @@ void Scene804::step() {
 			break;
 
 		case STORYMODE_NICE:
-			if (_scene->_activeAnimation->getCurrentFrame() == 68) {
+			if (_scene->_animation[0]->getCurrentFrame() == 68) {
 				_resetFrame = 66;
 				_globals[kInSpace] = false;
 				_globals[kBeamIsUp] = true;
@@ -975,12 +976,12 @@ void Scene804::step() {
 			}
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() == 34) {
+		if (_scene->_animation[0]->getCurrentFrame() == 34) {
 			_resetFrame = 36;
 			_scene->_sequences.remove(_globals._sequenceIndexes[1]);
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() == 37) {
+		if (_scene->_animation[0]->getCurrentFrame() == 37) {
 			_resetFrame = 36;
 			if (!_dontPullThrottleAgain) {
 				_dontPullThrottleAgain = true;
@@ -992,20 +993,20 @@ void Scene804::step() {
 			_scene->_nextSceneId = 803;
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() == 7) && (!_globals[kWindowFixed])) {
+		if ((_scene->_animation[0]->getCurrentFrame() == 7) && (!_globals[kWindowFixed])) {
 			_globals._sequenceIndexes[4] = _scene->_sequences.startCycle(_globals._spriteIndexes[4], false, 1);
 			_scene->_sequences.addTimer(20, 110);
 			_globals[kWindowFixed] = true;
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() == 10) {
+		if (_scene->_animation[0]->getCurrentFrame() == 10) {
 			_resetFrame = 0;
 			_game._player._stepEnabled = true;
 			_game._objects.setRoom(OBJ_POLYCEMENT, NOWHERE);
 		}
 
 		// FIXME: Original doesn't have resetFrame check. Check why this has been needed
-		if (_resetFrame == -1 &&  _scene->_activeAnimation->getCurrentFrame() == 1) {
+		if (_resetFrame == -1 &&  _scene->_animation[0]->getCurrentFrame() == 1) {
 			int randomVal = _vm->getRandomNumber(29) + 1;
 			switch (randomVal) {
 			case 1:
@@ -1023,26 +1024,30 @@ void Scene804::step() {
 			}
 		}
 
-		switch (_scene->_activeAnimation->getCurrentFrame()) {
+		switch (_scene->_animation[0]->getCurrentFrame()) {
 		case 26:
 		case 28:
 		case 31:
 			_resetFrame = 0;
 			break;
+		default:
+			break;
 		}
 	} else {
-		if ((_scene->_activeAnimation->getCurrentFrame() == 36) && (!_throttleGone)) {
+		if ((_scene->_animation[0]->getCurrentFrame() == 36) && (!_throttleGone)) {
 			_scene->_sequences.remove(_globals._sequenceIndexes[1]);
 			_throttleGone = true;
 		}
 
-		if (_scene->_activeAnimation->getCurrentFrame() == 39) {
+		if (_scene->_animation[0]->getCurrentFrame() == 39) {
 			_movingThrottle = false;
 			switch (_throttleCounter) {
 			case 1:
 				break;
 			case 3:
 				_scene->_sequences.addTimer(130, 120);
+				break;
+			default:
 				break;
 			}
 		}
@@ -1074,8 +1079,8 @@ void Scene804::step() {
 	}
 
 	if (_resetFrame >= 0) {
-		if (_resetFrame != _scene->_activeAnimation->getCurrentFrame()) {
-			_scene->_activeAnimation->setCurrentFrame(_resetFrame);
+		if (_resetFrame != _scene->_animation[0]->getCurrentFrame()) {
+			_scene->_animation[0]->setCurrentFrame(_resetFrame);
 			_resetFrame = -1;
 		}
 	}
@@ -1084,12 +1089,12 @@ void Scene804::step() {
 		_scene->_nextSceneId = 803;
 	}
 
-	if ((_scene->_activeAnimation->getCurrentFrame() == 72) && !_alreadyPop) {
+	if ((_scene->_animation[0]->getCurrentFrame() == 72) && !_alreadyPop) {
 		_vm->_sound->command(21);
 		_alreadyPop = true;
 	}
 
-	if ((_scene->_activeAnimation->getCurrentFrame() == 80) && !_alreadyOrgan) {
+	if ((_scene->_animation[0]->getCurrentFrame() == 80) && !_alreadyOrgan) {
 		_vm->_sound->command(22);
 		_alreadyOrgan = true;
 	}
@@ -1606,7 +1611,7 @@ void Scene810::enter() {
 }
 
 void Scene810::step() {
-	if (_scene->_activeAnimation && (_scene->_activeAnimation->getCurrentFrame() == 200) 
+	if (_scene->_animation[0] && (_scene->_animation[0]->getCurrentFrame() == 200)
 			&& _moveAllowed) {
 		_scene->_sequences.addTimer(100, 70);
 		_moveAllowed = false;

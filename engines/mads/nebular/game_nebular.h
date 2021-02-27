@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -108,32 +108,32 @@ private:
 protected:
 	GameNebular(MADSEngine *vm);
 
-	virtual void startGame();
+	void startGame() override;
 
-	virtual void initializeGlobals();
+	void initializeGlobals() override;
 
-	virtual void setSectionHandler();
+	void setSectionHandler() override;
 
-	virtual void checkShowDialog();
+	void checkShowDialog() override;
 public:
 	NebularGlobals _globals;
 	StoryMode _storyMode;
 	Difficulty _difficulty;
 
-	virtual Globals &globals() { return _globals; }
+	Globals &globals() override { return _globals; }
 
-	virtual void doObjectAction();
+	void doObjectAction() override;
 
 	void showRecipe();
 
-	virtual void unhandledAction();
+	void unhandledAction() override;
 
-	virtual void step();
+	void step() override;
 
-	virtual void synchronize(Common::Serializer &s, bool phase1);
+	void synchronize(Common::Serializer &s, bool phase1) override;
 
-	virtual void setNaughtyMode(bool naughtyMode) { _storyMode = naughtyMode ? STORYMODE_NAUGHTY : STORYMODE_NICE; }
-	virtual bool getNaughtyMode() const { return _storyMode == STORYMODE_NAUGHTY; }
+	void setNaughtyMode(bool naughtyMode) override { _storyMode = naughtyMode ? STORYMODE_NAUGHTY : STORYMODE_NICE; }
+	bool getNaughtyMode() const override { return _storyMode == STORYMODE_NAUGHTY; }
 };
 
 // Section handlers aren't needed in ScummVM implementation
@@ -141,9 +141,9 @@ class Section1Handler : public SectionHandler {
 public:
 	Section1Handler(MADSEngine *vm) : SectionHandler(vm) {}
 
-	virtual void preLoadSection() {}
-	virtual void sectionPtr2() {}
-	virtual void postLoadSection() {}
+	void preLoadSection() override {}
+	void sectionPtr2() override {}
+	void postLoadSection() override {}
 };
 
 typedef Section1Handler Section2Handler;

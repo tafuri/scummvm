@@ -53,12 +53,24 @@ struct CameraData {
 	int _leftTrigger, _rightTrigger;
 	byte _follows, _mode;
 	bool _movingToActor;
+
+	void reset() {
+		_cur.x = _cur.y = 0;
+		_dest.x = _dest.y = 0;
+		_accel.x = _accel.y = 0;
+		_last.x = _last.y = 0;
+		_leftTrigger = 0;
+		_rightTrigger = 0;
+		_follows = 0;
+		_mode = 0;
+		_movingToActor = 0;
+	}
 };
 
 /** Virtual screen identifiers */
 enum VirtScreenNumber {
 	kMainVirtScreen = 0,	// The 'stage'
-	kTextVirtScreen = 1,	// In V1-V3 games: the area where text is printed
+	kTextVirtScreen = 1,	// In V0-V3 games: the area where text is printed
 	kVerbVirtScreen = 2,	// The verb area
 	kUnkVirtScreen = 3		// ?? Not sure what this one is good for...
 };
@@ -281,13 +293,13 @@ protected:
 protected:
 	void decompressTMSK(byte *dst, const byte *tmsk, const byte *src, int height) const;
 
-	virtual void decodeMask(int x, int y, const int width, const int height,
+	void decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag);
+	                bool transpStrip, byte flag) override;
 
-	virtual void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+	void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
-	                int stripnr, int numstrip);
+	                int stripnr, int numstrip) override;
 public:
 	GdiHE(ScummEngine *vm);
 };
@@ -309,22 +321,22 @@ protected:
 	void drawStripNES(byte *dst, byte *mask, int dstPitch, int stripnr, int top, int height);
 	void drawStripNESMask(byte *dst, int stripnr, int top, int height) const;
 
-	virtual bool drawStrip(byte *dstPtr, VirtScreen *vs,
+	bool drawStrip(byte *dstPtr, VirtScreen *vs,
 					int x, int y, const int width, const int height,
-					int stripnr, const byte *smap_ptr);
+					int stripnr, const byte *smap_ptr) override;
 
-	virtual void decodeMask(int x, int y, const int width, const int height,
+	void decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag);
+	                bool transpStrip, byte flag) override;
 
-	virtual void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+	void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
-	                int stripnr, int numstrip);
+	                int stripnr, int numstrip) override;
 
 public:
 	GdiNES(ScummEngine *vm);
 
-	virtual void roomChanged(byte *roomptr);
+	void roomChanged(byte *roomptr) override;
 };
 
 #ifdef USE_RGB_COLOR
@@ -352,24 +364,24 @@ protected:
 	void drawStripPCEngine(byte *dst, byte *mask, int dstPitch, int stripnr, int top, int height);
 	void drawStripPCEngineMask(byte *dst, int stripnr, int top, int height) const;
 
-	virtual bool drawStrip(byte *dstPtr, VirtScreen *vs,
+	bool drawStrip(byte *dstPtr, VirtScreen *vs,
 					int x, int y, const int width, const int height,
-					int stripnr, const byte *smap_ptr);
+					int stripnr, const byte *smap_ptr) override;
 
-	virtual void decodeMask(int x, int y, const int width, const int height,
+	void decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag);
+	                bool transpStrip, byte flag) override;
 
-	virtual void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+	void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
-	                int stripnr, int numstrip);
+	                int stripnr, int numstrip) override;
 
 public:
 	GdiPCEngine(ScummEngine *vm);
-	~GdiPCEngine();
+	~GdiPCEngine() override;
 
-	virtual void loadTiles(byte *roomptr);
-	virtual void roomChanged(byte *roomptr);
+	void loadTiles(byte *roomptr) override;
+	void roomChanged(byte *roomptr) override;
 };
 #endif
 
@@ -389,22 +401,22 @@ protected:
 	void drawStripV1Background(byte *dst, int dstPitch, int stripnr, int height);
 	void drawStripV1Mask(byte *dst, int stripnr, int width, int height) const;
 
-	virtual bool drawStrip(byte *dstPtr, VirtScreen *vs,
+	bool drawStrip(byte *dstPtr, VirtScreen *vs,
 					int x, int y, const int width, const int height,
-					int stripnr, const byte *smap_ptr);
+					int stripnr, const byte *smap_ptr) override;
 
-	virtual void decodeMask(int x, int y, const int width, const int height,
+	void decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag);
+	                bool transpStrip, byte flag) override;
 
-	virtual void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+	void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
-	                int stripnr, int numstrip);
+	                int stripnr, int numstrip) override;
 
 public:
 	GdiV1(ScummEngine *vm);
 
-	virtual void roomChanged(byte *roomptr);
+	void roomChanged(byte *roomptr) override;
 };
 
 class GdiV2 : public Gdi {
@@ -415,57 +427,57 @@ protected:
 protected:
 	StripTable *generateStripTable(const byte *src, int width, int height, StripTable *table) const;
 
-	virtual bool drawStrip(byte *dstPtr, VirtScreen *vs,
+	bool drawStrip(byte *dstPtr, VirtScreen *vs,
 					int x, int y, const int width, const int height,
-					int stripnr, const byte *smap_ptr);
+					int stripnr, const byte *smap_ptr) override;
 
-	virtual void decodeMask(int x, int y, const int width, const int height,
+	void decodeMask(int x, int y, const int width, const int height,
 	                int stripnr, int numzbuf, const byte *zplane_list[9],
-	                bool transpStrip, byte flag);
+	                bool transpStrip, byte flag) override;
 
-	virtual void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
+	void prepareDrawBitmap(const byte *ptr, VirtScreen *vs,
 					const int x, const int y, const int width, const int height,
-	                int stripnr, int numstrip);
+	                int stripnr, int numstrip) override;
 
 public:
 	GdiV2(ScummEngine *vm);
-	~GdiV2();
+	~GdiV2() override;
 
-	virtual void roomChanged(byte *roomptr);
+	void roomChanged(byte *roomptr) override;
 };
 
 #ifdef USE_RGB_COLOR
 class GdiHE16bit : public GdiHE {
 protected:
-	virtual void writeRoomColor(byte *dst, byte color) const;
+	void writeRoomColor(byte *dst, byte color) const override;
 public:
 	GdiHE16bit(ScummEngine *vm);
 };
 #endif
 
 #ifndef DISABLE_TOWNS_DUAL_LAYER_MODE
-// Helper class for FM-Towns output (required for specific hardware effects like
-// switching graphics layers on and off).
+// Helper class for FM-Towns output (required for specific hardware effects like switching graphics layers on and off).
 class TownsScreen {
 public:
 	TownsScreen(OSystem *system, int width, int height, Graphics::PixelFormat &format);
 	~TownsScreen();
 
-	void setupLayer(int layer, int width, int height, int numCol, void *srcPal = 0);
+	void setupLayer(int layer, int width, int height, int scaleW, int scaleH, int numCol, void *srcPal = 0);
 	void clearLayer(int layer);
 	void fillLayerRect(int layer, int x, int y, int w, int h, int col);
-	//void copyRectToLayer(int layer, int x, int y, int w, int h, const uint8 *src);
-
-	uint8 *getLayerPixels(int layer, int x, int y);
-	int getLayerPitch(int layer);
-	int getLayerHeight(int layer);
-	int getLayerBpp(int layer);
-	int getLayerScaleW(int layer);
-	int getLayerScaleH(int layer);
-
 	void addDirtyRect(int x, int y, int w, int h);
-	void toggleLayers(int flag);
+	void toggleLayers(int flags);
+	void scrollLayers(int flags, int offset);
 	void update();
+	bool isScrolling(int direction, int threshold = 0) const { return (direction == 0) ? _scrollRemainder != threshold : (direction == 1 ? _scrollRemainder > threshold : _scrollRemainder < threshold); }
+
+	uint8 *getLayerPixels(int layer, int x, int y) const;
+	int getLayerPitch(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].pitch : 0; }
+	int getLayerWidth(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].width : 0; }
+	int getLayerHeight(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].height : 0; }
+	int getLayerBpp(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].bpp : 0; }
+	int getLayerScaleW(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].scaleW : 0; }
+	int getLayerScaleH(int layer) const { return (layer >= 0 && layer < 2) ? _layers[layer].scaleH : 0; }
 
 private:
 	void updateOutputBuffer();
@@ -476,9 +488,12 @@ private:
 		uint8 *pixels;
 		uint8 *palette;
 		int pitch;
+		int width;
 		int height;
+		int modW;
 		int bpp;
 		int numCol;
+		int hScroll;
 		uint8 scaleW;
 		uint8 scaleH;
 		bool onBottom;
@@ -495,6 +510,8 @@ private:
 	int _height;
 	int _width;
 	int _pitch;
+	uint16 _scrollOffset;
+	int _scrollRemainder;
 	Graphics::PixelFormat _pixelFormat;
 
 	int _numDirtyRects;

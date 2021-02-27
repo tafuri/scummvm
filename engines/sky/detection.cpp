@@ -20,9 +20,6 @@
  *
  */
 
-#include "sky/control.h"
-#include "sky/sky.h"
-
 #include "base/plugins.h"
 
 #include "common/config-manager.h"
@@ -30,12 +27,8 @@
 #include "engines/metaengine.h"
 #include "common/system.h"
 #include "common/file.h"
-#include "common/fs.h"
-#include "common/savefile.h"
 #include "common/textconsole.h"
 #include "common/translation.h"
-
-#include "engines/metaengine.h"
 
 static const PlainGameDescriptor skySetting =
 	{"sky", "Beneath a Steel Sky" };
@@ -70,53 +63,36 @@ static const SkyVersion skyVersions[] = {
 	{ 0, 0, 0, 0, 0 }
 };
 
-class SkyMetaEngine : public MetaEngine {
+class SkyMetaEngineDetection : public MetaEngineDetection {
 public:
-	virtual const char *getName() const;
-	virtual const char *getOriginalCopyright() const;
+	const char *getName() const override;
+	const char *getOriginalCopyright() const override;
 
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual GameList getSupportedGames() const;
-	virtual const ExtraGuiOptions getExtraGuiOptions(const Common::String &target) const;
-	virtual GameDescriptor findGame(const char *gameid) const;
-	virtual GameList detectGames(const Common::FSList &fslist) const;
+	const char *getEngineId() const override {
+		return "sky";
+	}
 
-	virtual Common::Error createInstance(OSystem *syst, Engine **engine) const;
-
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const;
-	virtual void removeSaveState(const char *target, int slot) const;
+	PlainGameList getSupportedGames() const override;
+	const ExtraGuiOptions getExtraGuiOptions(const Common::String &target) const override;
+	PlainGameDescriptor findGame(const char *gameid) const override;
+	DetectedGames detectGames(const Common::FSList &fslist) const override;
 };
 
-const char *SkyMetaEngine::getName() const {
-	return "Sky";
+const char *SkyMetaEngineDetection::getName() const {
+	return "Beneath a Steel Sky";
 }
 
-const char *SkyMetaEngine::getOriginalCopyright() const {
+const char *SkyMetaEngineDetection::getOriginalCopyright() const {
 	return "Beneath a Steel Sky (C) Revolution";
 }
 
-bool SkyMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves) ||
-		(f == kSupportsLoadingDuringStartup) ||
-		(f == kSupportsDeleteSave);
-}
-
-bool Sky::SkyEngine::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL) ||
-		(f == kSupportsLoadingDuringRuntime) ||
-		(f == kSupportsSavingDuringRuntime);
-}
-
-GameList SkyMetaEngine::getSupportedGames() const {
-	GameList games;
+PlainGameList SkyMetaEngineDetection::getSupportedGames() const {
+	PlainGameList games;
 	games.push_back(skySetting);
 	return games;
 }
 
-const ExtraGuiOptions SkyMetaEngine::getExtraGuiOptions(const Common::String &target) const {
+const ExtraGuiOptions SkyMetaEngineDetection::getExtraGuiOptions(const Common::String &target) const {
 	Common::String guiOptions;
 	ExtraGuiOptions options;
 
@@ -135,14 +111,14 @@ const ExtraGuiOptions SkyMetaEngine::getExtraGuiOptions(const Common::String &ta
 	return options;
 }
 
-GameDescriptor SkyMetaEngine::findGame(const char *gameid) const {
-	if (0 == scumm_stricmp(gameid, skySetting.gameid))
+PlainGameDescriptor SkyMetaEngineDetection::findGame(const char *gameid) const {
+	if (0 == scumm_stricmp(gameid, skySetting.gameId))
 		return skySetting;
-	return GameDescriptor();
+	return PlainGameDescriptor::empty();
 }
 
-GameList SkyMetaEngine::detectGames(const Common::FSList &fslist) const {
-	GameList detectedGames;
+DetectedGames SkyMetaEngineDetection::detectGames(const Common::FSList &fslist) const {
+	DetectedGames detectedGames;
 	bool hasSkyDsk = false;
 	bool hasSkyDnr = false;
 	int dinnerTableEntries = -1;
@@ -151,9 +127,7 @@ GameList SkyMetaEngine::detectGames(const Common::FSList &fslist) const {
 	// Iterate over all files in the given directory
 	for (Common::FSList::const_iterator file = fslist.begin(); file != fslist.end(); ++file) {
 		if (!file->isDirectory()) {
-			const char *fileName = file->getName().c_str();
-
-			if (0 == scumm_stricmp("sky.dsk", fileName)) {
+			if (0 == scumm_stricmp("sky.dsk", file->getName().c_str())) {
 				Common::File dataDisk;
 				if (dataDisk.open(*file)) {
 					hasSkyDsk = true;
@@ -161,7 +135,7 @@ GameList SkyMetaEngine::detectGames(const Common::FSList &fslist) const {
 				}
 			}
 
-			if (0 == scumm_stricmp("sky.dnr", fileName)) {
+			if (0 == scumm_stricmp("sky.dnr", file->getName().c_str())) {
 				Common::File dinner;
 				if (dinner.open(*file)) {
 					hasSkyDnr = true;
@@ -175,168 +149,28 @@ GameList SkyMetaEngine::detectGames(const Common::FSList &fslist) const {
 		// Match found, add to list of candidates, then abort inner loop.
 		// The game detector uses US English by default. We want British
 		// English to match the recorded voices better.
-		GameDescriptor dg(skySetting.gameid, skySetting.description, Common::UNK_LANG, Common::kPlatformUnknown);
 		const SkyVersion *sv = skyVersions;
 		while (sv->dinnerTableEntries) {
 			if (dinnerTableEntries == sv->dinnerTableEntries &&
 				(sv->dataDiskSize == dataDiskSize || sv->dataDiskSize == -1)) {
-				dg.updateDesc(Common::String::format("v0.0%d %s", sv->version, sv->extraDesc).c_str());
-				dg.setGUIOptions(sv->guioptions);
 				break;
 			}
 			++sv;
 		}
-		detectedGames.push_back(dg);
+
+		if (sv->dinnerTableEntries) {
+			Common::String extra = Common::String::format("v0.0%d %s", sv->version, sv->extraDesc);
+
+			DetectedGame game = DetectedGame(getEngineId(), skySetting.gameId, skySetting.description, Common::UNK_LANG, Common::kPlatformUnknown, extra);
+			game.setGUIOptions(sv->guioptions);
+
+			detectedGames.push_back(game);
+		} else {
+			detectedGames.push_back(DetectedGame(getEngineId(), skySetting.gameId, skySetting.description));
+		}
 	}
 
 	return detectedGames;
 }
 
-Common::Error SkyMetaEngine::createInstance(OSystem *syst, Engine **engine) const {
-	assert(engine);
-	*engine = new Sky::SkyEngine(syst);
-	return Common::kNoError;
-}
-
-SaveStateList SkyMetaEngine::listSaves(const char *target) const {
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	SaveStateList saveList;
-
-	// Load the descriptions
-	Common::StringArray savenames;
-	savenames.resize(MAX_SAVE_GAMES+1);
-
-	Common::InSaveFile *inf;
-	inf = saveFileMan->openForLoading("SKY-VM.SAV");
-	if (inf != NULL) {
-		char *tmpBuf =  new char[MAX_SAVE_GAMES * MAX_TEXT_LEN];
-		char *tmpPtr = tmpBuf;
-		inf->read(tmpBuf, MAX_SAVE_GAMES * MAX_TEXT_LEN);
-		for (int i = 0; i < MAX_SAVE_GAMES; ++i) {
-			savenames[i] = tmpPtr;
-			tmpPtr += savenames[i].size() + 1;
-		}
-		delete inf;
-		delete[] tmpBuf;
-	}
-
-	// Find all saves
-	Common::StringArray filenames;
-	filenames = saveFileMan->listSavefiles("SKY-VM.???");
-	sort(filenames.begin(), filenames.end());	// Sort (hopefully ensuring we are sorted numerically..)
-
-	// Slot 0 is the autosave, if it exists.
-	// TODO: Check for the existence of the autosave -- but this require us
-	// to know which SKY variant we are looking at.
-	saveList.insert_at(0, SaveStateDescriptor(0, "*AUTOSAVE*"));
-
-	// Prepare the list of savestates by looping over all matching savefiles
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		// Extract the extension
-		Common::String ext = file->c_str() + file->size() - 3;
-		ext.toUppercase();
-		if (Common::isDigit(ext[0]) && Common::isDigit(ext[1]) && Common::isDigit(ext[2])) {
-			int slotNum = atoi(ext.c_str());
-			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
-			if (in) {
-				saveList.push_back(SaveStateDescriptor(slotNum+1, savenames[slotNum]));
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-int SkyMetaEngine::getMaximumSaveSlot() const { return MAX_SAVE_GAMES; }
-
-void SkyMetaEngine::removeSaveState(const char *target, int slot) const {
-	if (slot == 0)	// do not delete the auto save
-		return;
-
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	char fName[20];
-	sprintf(fName,"SKY-VM.%03d", slot - 1);
-	saveFileMan->removeSavefile(fName);
-
-	// Load current save game descriptions
-	Common::StringArray savenames;
-	savenames.resize(MAX_SAVE_GAMES+1);
-	Common::InSaveFile *inf;
-	inf = saveFileMan->openForLoading("SKY-VM.SAV");
-	if (inf != NULL) {
-		char *tmpBuf =  new char[MAX_SAVE_GAMES * MAX_TEXT_LEN];
-		char *tmpPtr = tmpBuf;
-		inf->read(tmpBuf, MAX_SAVE_GAMES * MAX_TEXT_LEN);
-		for (int i = 0; i < MAX_SAVE_GAMES; ++i) {
-			savenames[i] = tmpPtr;
-			tmpPtr += savenames[i].size() + 1;
-		}
-		delete inf;
-		delete[] tmpBuf;
-	}
-
-	// Update the save game description at the given slot
-	savenames[slot - 1] = "";
-
-	// Save the updated descriptions
-	Common::OutSaveFile *outf;
-
-	outf = saveFileMan->openForSaving("SKY-VM.SAV");
-	bool ioFailed = true;
-	if (outf) {
-		for (uint16 cnt = 0; cnt < MAX_SAVE_GAMES; cnt++) {
-			outf->write(savenames[cnt].c_str(), savenames[cnt].size() + 1);
-		}
-		outf->finalize();
-		if (!outf->err())
-			ioFailed = false;
-		delete outf;
-	}
-	if (ioFailed)
-		warning("Unable to store Savegame names to file SKY-VM.SAV. (%s)", saveFileMan->popErrorDesc().c_str());
-}
-
-#if PLUGIN_ENABLED_DYNAMIC(SKY)
-	REGISTER_PLUGIN_DYNAMIC(SKY, PLUGIN_TYPE_ENGINE, SkyMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(SKY, PLUGIN_TYPE_ENGINE, SkyMetaEngine);
-#endif
-
-namespace Sky {
-Common::Error SkyEngine::loadGameState(int slot) {
-	uint16 result = _skyControl->quickXRestore(slot);
-	return (result == GAME_RESTORED) ? Common::kNoError : Common::kUnknownError;
-}
-
-Common::Error SkyEngine::saveGameState(int slot, const Common::String &desc) {
-	if (slot == 0)
-		return Common::kWritePermissionDenied;	// we can't overwrite the auto save
-
-	// Set the save slot and save the game
-	_skyControl->_selectedGame = slot - 1;
-	if (_skyControl->saveGameToFile(false) != GAME_SAVED)
-		return Common::kWritePermissionDenied;
-
-	// Load current save game descriptions
-	Common::StringArray saveGameTexts;
-	saveGameTexts.resize(MAX_SAVE_GAMES+1);
-	_skyControl->loadDescriptions(saveGameTexts);
-
-	// Update the save game description at the given slot
-	saveGameTexts[slot - 1] = desc;
-	// Save the updated descriptions
-	_skyControl->saveDescriptions(saveGameTexts);
-
-	return Common::kNoError;
-}
-
-bool SkyEngine::canLoadGameStateCurrently() {
-	return _systemVars.pastIntro && _skyControl->loadSaveAllowed();
-}
-
-bool SkyEngine::canSaveGameStateCurrently() {
-	return _systemVars.pastIntro && _skyControl->loadSaveAllowed();
-}
-
-} // End of namespace Sky
+REGISTER_PLUGIN_STATIC(SKY_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, SkyMetaEngineDetection);

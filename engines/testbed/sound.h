@@ -23,7 +23,6 @@
 #ifndef TESTBED_SOUND_H
 #define TESTBED_SOUND_H
 
-#include "gui/dialog.h"
 #include "audio/mixer.h"
 #include "testbed/config.h"
 #include "testbed/testsuite.h"
@@ -33,8 +32,8 @@ namespace Testbed {
 class SoundSubsystemDialog : public TestbedInteractionDialog {
 public:
 	SoundSubsystemDialog();
-	~SoundSubsystemDialog() {}
-	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data);
+	~SoundSubsystemDialog() override {}
+	void handleCommand(GUI::CommandSender *sender, uint32 cmd, uint32 data) override;
 	Audio::Mixer *_mixer;
 	Audio::SoundHandle _h1, _h2, _h3;
 };
@@ -61,13 +60,13 @@ public:
 	 * @see addTest()
 	 */
 	SoundSubsystemTestSuite();
-	~SoundSubsystemTestSuite() {}
+	~SoundSubsystemTestSuite() override {}
 
-	const char *getName() const {
+	const char *getName() const override {
 		return "SoundSubsystem";
 	}
 
-	const char *getDescription() const {
+	const char *getDescription() const override {
 		return "Sound Subsystem";
 	}
 };

@@ -40,14 +40,6 @@ namespace Testbed {
 byte GFXTestSuite::_palette[256 * 3] = {0, 0, 0, 255, 255, 255, 255, 255, 255};
 
 GFXTestSuite::GFXTestSuite() {
-	// Initialize color palettes
-	// The fourth field is for alpha channel which is unused
-	// Assuming 8bpp as of now
-	g_system->getPaletteManager()->setPalette(_palette, 0, 3);
-
-	// Init Mouse Palette (White-black-yellow)
-	GFXtests::initMousePalette();
-
 	// Add tests here
 
 	// Blitting buffer on screen
@@ -55,6 +47,7 @@ GFXTestSuite::GFXTestSuite() {
 
 	// GFX Transcations
 	addTest("FullScreenMode", &GFXtests::fullScreenMode);
+	addTest("FilteringMode", &GFXtests::filteringMode);
 	addTest("AspectRatio", &GFXtests::aspectRatio);
 	addTest("IconifyingWindow", &GFXtests::iconifyWindow);
 
@@ -75,6 +68,17 @@ GFXTestSuite::GFXTestSuite() {
 	addTest("PaletteRotation", &GFXtests::paletteRotation);
 	addTest("cursorTrailsInGUI", &GFXtests::cursorTrails);
 	//addTest("Pixel Formats", &GFXtests::pixelFormats);
+}
+
+void GFXTestSuite::prepare() {
+	// Initialize color palettes
+	// The fourth field is for alpha channel which is unused
+	// Assuming 8bpp as of now
+	g_system->getPaletteManager()->setPalette(_palette, 0, 3);
+
+	// Init Mouse Palette (White-black-yellow)
+	GFXtests::initMousePalette();
+	GFXtests::initMouseCursor();
 }
 
 void GFXTestSuite::setCustomColor(uint r, uint g, uint b) {
@@ -101,6 +105,29 @@ void GFXtests::initMousePalette() {
 	palette[8] = 0;
 
 	CursorMan.replaceCursorPalette(palette, 0, 3);
+}
+
+static const byte MOUSECURSOR_SCI[] = {
+	1,1,0,0,0,0,0,0,0,0,0,
+	1,2,1,0,0,0,0,0,0,0,0,
+	1,2,2,1,0,0,0,0,0,0,0,
+	1,2,2,2,1,0,0,0,0,0,0,
+	1,2,2,2,2,1,0,0,0,0,0,
+	1,2,2,2,2,2,1,0,0,0,0,
+	1,2,2,2,2,2,2,1,0,0,0,
+	1,2,2,2,2,2,2,2,1,0,0,
+	1,2,2,2,2,2,2,2,2,1,0,
+	1,2,2,2,2,2,2,2,2,2,1,
+	1,2,2,2,2,2,1,0,0,0,0,
+	1,2,1,0,1,2,2,1,0,0,0,
+	1,1,0,0,1,2,2,1,0,0,0,
+	0,0,0,0,0,1,2,2,1,0,0,
+	0,0,0,0,0,1,2,2,1,0,0,
+	0,0,0,0,0,0,1,2,2,1,0
+};
+
+void GFXtests::initMouseCursor() {
+	CursorMan.replaceCursor(MOUSECURSOR_SCI, 11, 16, 0, 0, 0);
 }
 
 Common::Rect GFXtests::computeSize(const Common::Rect &cursorRect, int scalingFactor, int cursorTargetScale) {
@@ -439,7 +466,7 @@ TestExitStatus GFXtests::fullScreenMode() {
 		}
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureFullscreenMode, !isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureFullscreenMode, !isFeatureEnabled);
 		g_system->endGFXTransaction();
 
 		// Current state should be now !isFeatureEnabled
@@ -457,17 +484,117 @@ TestExitStatus GFXtests::fullScreenMode() {
 		}
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureFullscreenMode, !isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureFullscreenMode, !isFeatureEnabled);
 		g_system->endGFXTransaction();
 
 		g_system->delayMillis(1000);
 
 		prompt = "This should be your initial state. Is it?";
 
-		if (!Testsuite::handleInteractiveInput(prompt, "Yes, it is", "Nopes", shouldSelect)) {
+		if (!Testsuite::handleInteractiveInput(prompt, "Yes, it is", "Nopes", kOptionLeft)) {
 			// User selected incorrect mode
 			Testsuite::logDetailedPrintf("switching back to initial state failed\n");
 			passed = kTestFailed;
+		}
+
+	} else {
+		Testsuite::displayMessage("feature not supported");
+	}
+
+	return passed;
+}
+
+/**
+ * Tests the filtering mode by: toggling between filtered and non-filtered modes.
+ */
+TestExitStatus GFXtests::filteringMode() {
+	Testsuite::clearScreen();
+	Common::String info = "Filtering test. Here you should expect a toggle between filtered and non-filtered states depending "
+	"upon your initial state.";
+
+	Common::Point pt(0, 100);
+	Testsuite::writeOnScreen("Testing filtering mode", pt);
+
+	if (Testsuite::handleInteractiveInput(info, "OK", "Skip", kOptionRight)) {
+		Testsuite::logPrintf("Info! Skipping test : FilteringMode\n");
+		return kTestSkipped;
+	}
+
+	bool isFeaturePresent;
+	bool isFeatureEnabled;
+	TestExitStatus passed = kTestPassed;
+	Common::String prompt;
+	OptionSelected shouldSelect;
+
+	isFeaturePresent = g_system->hasFeature(OSystem::kFeatureFilteringMode);
+
+	if (isFeaturePresent) {
+		// Toggle
+		isFeatureEnabled = g_system->getFeatureState(OSystem::kFeatureFilteringMode);
+		shouldSelect = isFeatureEnabled ? kOptionLeft : kOptionRight;
+
+		// Do test in fullscreen if possible as filtering may have no effect in windowed mode
+		bool fullScreenToggled = false;
+		if (g_system->hasFeature(OSystem::kFeatureFullscreenMode) && !g_system->getFeatureState(OSystem::kFeatureFullscreenMode)) {
+			fullScreenToggled = true;
+			g_system->beginGFXTransaction();
+				g_system->setFeatureState(OSystem::kFeatureFullscreenMode, true);
+			g_system->endGFXTransaction();
+		}
+
+		g_system->delayMillis(1000);
+
+		if (isFeatureEnabled) {
+			Testsuite::logDetailedPrintf("Current Mode is Filtered\n");
+		} else {
+			Testsuite::logDetailedPrintf("Current Mode is Unfiltered\n");
+		}
+
+		prompt = " Which mode do you see currently ?  ";
+
+		if (!Testsuite::handleInteractiveInput(prompt, "Filtered", "Unfiltered", shouldSelect)) {
+			// User selected incorrect current state
+			passed = kTestFailed;
+			Testsuite::logDetailedPrintf("g_system->getFeatureState() failed\n");
+		}
+
+		g_system->beginGFXTransaction();
+			g_system->setFeatureState(OSystem::kFeatureFilteringMode, !isFeatureEnabled);
+		g_system->endGFXTransaction();
+
+		// Current state should be now !isFeatureEnabled
+		isFeatureEnabled = g_system->getFeatureState(OSystem::kFeatureFilteringMode);
+		shouldSelect = isFeatureEnabled ? kOptionLeft : kOptionRight;
+
+		g_system->delayMillis(1000);
+
+		prompt = "  Which mode do you see now ?   ";
+
+		if (!Testsuite::handleInteractiveInput(prompt, "Filtered", "Unfiltered", shouldSelect)) {
+			// User selected incorrect mode
+			passed = kTestFailed;
+			Testsuite::logDetailedPrintf("g_system->setFeatureState() failed\n");
+		}
+
+		g_system->beginGFXTransaction();
+			g_system->setFeatureState(OSystem::kFeatureFilteringMode, !isFeatureEnabled);
+		g_system->endGFXTransaction();
+
+		g_system->delayMillis(1000);
+
+		prompt = "This should be your initial state. Is it?";
+
+		if (!Testsuite::handleInteractiveInput(prompt, "Yes, it is", "Nopes", kOptionLeft)) {
+			// User selected incorrect mode
+			Testsuite::logDetailedPrintf("switching back to initial state failed\n");
+			passed = kTestFailed;
+		}
+
+		// Restore fullscreen state
+		if (fullScreenToggled) {
+			g_system->beginGFXTransaction();
+				g_system->setFeatureState(OSystem::kFeatureFullscreenMode, false);
+			g_system->endGFXTransaction();
 		}
 
 	} else {
@@ -514,7 +641,7 @@ TestExitStatus GFXtests::aspectRatio() {
 		}
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, !isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, !isFeatureEnabled);
 		g_system->endGFXTransaction();
 
 		g_system->delayMillis(1000);
@@ -528,7 +655,7 @@ TestExitStatus GFXtests::aspectRatio() {
 		}
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, isFeatureEnabled);
 		g_system->endGFXTransaction();
 	} else {
 		Testsuite::displayMessage("feature not supported");
@@ -626,9 +753,12 @@ TestExitStatus GFXtests::mouseMovements() {
 	g_system->updateScreen();
 	g_system->delayMillis(1000);
 
+	Common::Event event;
+
 	for (int i = 0; i <= 100; i++) {
 		g_system->delayMillis(20);
 		g_system->warpMouse(i, i);
+		g_system->getEventManager()->pollEvent(event);
 		g_system->updateScreen();
 	}
 
@@ -707,13 +837,13 @@ TestExitStatus GFXtests::iconifyWindow() {
 		// Toggle
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureIconifyWindow, !isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureIconifyWindow, !isFeatureEnabled);
 		g_system->endGFXTransaction();
 
 		g_system->delayMillis(1000);
 
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureIconifyWindow, isFeatureEnabled);
+			g_system->setFeatureState(OSystem::kFeatureIconifyWindow, isFeatureEnabled);
 		g_system->endGFXTransaction();
 	} else {
 		Testsuite::displayMessage("feature not supported");
@@ -756,7 +886,7 @@ TestExitStatus GFXtests::scaledCursors() {
 
 	if (isAspectRatioCorrected) {
 		g_system->beginGFXTransaction();
-		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, false);
+			g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, false);
 		g_system->endGFXTransaction();
 	}
 
@@ -783,8 +913,8 @@ TestExitStatus GFXtests::scaledCursors() {
 
 		g_system->beginGFXTransaction();
 
-		bool isGFXModeSet = g_system->setGraphicsMode(gfxMode->id);
-		g_system->initSize(320, 200);
+			bool isGFXModeSet = g_system->setGraphicsMode(gfxMode->id);
+			g_system->initSize(320, 200);
 
 		OSystem::TransactionError gfxError = g_system->endGFXTransaction();
 
@@ -819,12 +949,13 @@ TestExitStatus GFXtests::scaledCursors() {
 
 	// Restore Original State
 	g_system->beginGFXTransaction();
-	bool isGFXModeSet = g_system->setGraphicsMode(currGFXMode);
-	g_system->initSize(320, 200);
 
-	if (isAspectRatioCorrected) {
-		g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, true);
-	}
+		bool isGFXModeSet = g_system->setGraphicsMode(currGFXMode);
+		g_system->initSize(320, 200);
+
+		if (isAspectRatioCorrected) {
+			g_system->setFeatureState(OSystem::kFeatureAspectRatioCorrection, true);
+		}
 
 	OSystem::TransactionError gfxError = g_system->endGFXTransaction();
 
@@ -848,23 +979,48 @@ TestExitStatus GFXtests::shakingEffect() {
 		return kTestSkipped;
 	}
 
+	// test vertical, horizontal, and diagonal
 	Common::Point pt(0, 100);
-	Testsuite::writeOnScreen("If Shaking Effect works, this should shake!", pt);
-	int times = 15;
-	while (times--) {
-		g_system->setShakePos(25);
-		g_system->delayMillis(50);
-		g_system->updateScreen();
-		g_system->setShakePos(0);
-		g_system->delayMillis(50);
-		g_system->updateScreen();
-	}
-	g_system->delayMillis(1500);
+	for (int i = 0; i < 3; ++i) {
+		Common::String direction;
+		int shakeXOffset;
+		int shakeYOffset;
+		switch (i) {
+		case 0:
+			direction = "vertical";
+			shakeXOffset = 0;
+			shakeYOffset = 25;
+			break;
+		case 1:
+			direction = "horizontal";
+			shakeXOffset = 25;
+			shakeYOffset = 0;
+			break;
+		default:
+			direction = "diagonal";
+			shakeXOffset = 25;
+			shakeYOffset = 25;
+			break;
+		}
 
-	if (Testsuite::handleInteractiveInput("Did the Shaking test worked as you were expecting?", "Yes", "No", kOptionRight)) {
-		Testsuite::logDetailedPrintf("Shaking Effect didn't worked");
-		return kTestFailed;
+		Testsuite::writeOnScreen(Common::String::format("If Shaking Effect works, this should shake %s", direction.c_str()), pt);
+		int times = 15;
+		while (times--) {
+			g_system->setShakePos(shakeXOffset, shakeYOffset);
+			g_system->delayMillis(50);
+			g_system->updateScreen();
+			g_system->setShakePos(0, 0);
+			g_system->delayMillis(50);
+			g_system->updateScreen();
+		}
+		g_system->delayMillis(1500);
+
+		if (Testsuite::handleInteractiveInput("Did the Shaking test work as you were expecting?", "Yes", "No", kOptionRight)) {
+			Testsuite::logDetailedPrintf("Shaking Effect didn't work");
+			return kTestFailed;
+		}
 	}
+
 	return kTestPassed;
 }
 
@@ -926,6 +1082,8 @@ TestExitStatus GFXtests::overlayGraphics() {
 		return kTestSkipped;
 	}
 
+	int16 w = g_system->getOverlayWidth();
+	int16 h = g_system->getOverlayHeight();
 	Graphics::PixelFormat pf = g_system->getOverlayFormat();
 
 	byte *buffer = new byte[50 * 100 * pf.bytesPerPixel];
@@ -946,7 +1104,7 @@ TestExitStatus GFXtests::overlayGraphics() {
 	}
 
 	g_system->showOverlay();
-	g_system->copyRectToOverlay(buffer, 100 * pf.bytesPerPixel, 270, 175, 100, 50);
+	g_system->copyRectToOverlay(buffer, 100 * pf.bytesPerPixel, (w - 100) / 2, (h - 50) / 2, 100, 50);
 	g_system->updateScreen();
 
 	delete[] buffer;
@@ -1058,12 +1216,12 @@ TestExitStatus GFXtests::cursorTrails() {
 		return kTestSkipped;
 	}
 	TestExitStatus passed = kTestFailed;
-	g_system->setShakePos(25);
+	g_system->setShakePos(25, 25);
 	g_system->updateScreen();
 	if (Testsuite::handleInteractiveInput("Does the cursor leaves trails while moving?", "Yes", "No", kOptionRight)) {
 		passed = kTestPassed;
 	}
-	g_system->setShakePos(0);
+	g_system->setShakePos(0, 0);
 	g_system->updateScreen();
 	return passed;
 }
@@ -1098,7 +1256,7 @@ TestExitStatus GFXtests::pixelFormats() {
 
 		// Switch to that pixel Format
 		g_system->beginGFXTransaction();
-		g_system->initSize(320, 200, &(*iter));
+			g_system->initSize(320, 200, &(*iter));
 		g_system->endGFXTransaction();
 		Testsuite::clearScreen(true);
 
@@ -1144,7 +1302,7 @@ TestExitStatus GFXtests::pixelFormats() {
 
 	// Revert back to 8bpp
 	g_system->beginGFXTransaction();
-	g_system->initSize(320, 200);
+		g_system->initSize(320, 200);
 	g_system->endGFXTransaction();
 	GFXTestSuite::setCustomColor(255, 0, 0);
 	initMousePalette();

@@ -32,6 +32,15 @@ class WriteStream;
 
 namespace Graphics {
 
+/**
+ * @defgroup graphics_thumbnail Thumbnails
+ * @ingroup graphics
+ *
+ * @brief API for managing screen thumbnails used for save games.
+ *
+ * @{
+ */
+
 struct Surface;
 
 /**
@@ -52,7 +61,7 @@ bool skipThumbnail(Common::SeekableReadStream &in);
 /**
  * Loads a thumbnail from the given input stream.
  */
-Graphics::Surface *loadThumbnail(Common::SeekableReadStream &in);
+bool loadThumbnail(Common::SeekableReadStream &in, Graphics::Surface *&thumbnail, bool skipThumbnail = false);
 
 /**
  * Saves a thumbnail to the given write stream.
@@ -82,7 +91,7 @@ bool createScreenShot(Graphics::Surface &surf);
  */
 Graphics::Surface *scale(const Graphics::Surface &srcImage, int xSize, int ySize);
 
-
+/** @} */
 } // End of namespace Graphics
 
 #endif

@@ -37,6 +37,16 @@
 namespace Toltecs {
 
 MenuSystem::MenuSystem(ToltecsEngine *vm) : _vm(vm) {
+	_background = nullptr;
+	_running = false;
+	_currMenuID = _newMenuID = kMenuIdNone;
+	_currItemID = kItemIdNone;
+	_top = 0;
+	_savegameListTopIndex = 0;
+	_editingDescription = false;
+	_editingDescriptionID = kItemIdNone;
+	_editingDescriptionItem = nullptr;
+	_needRedraw = false;
 }
 
 MenuSystem::~MenuSystem() {
@@ -114,6 +124,7 @@ void MenuSystem::handleEvents() {
 		case Common::EVENT_KEYDOWN:
 			handleKeyDown(event.kbd);
 			break;
+		case Common::EVENT_RETURN_TO_LAUNCHER:
 		case Common::EVENT_QUIT:
 			_running = false;
 			break;
@@ -515,7 +526,7 @@ int MenuSystem::loadSavegamesList() {
 		if (slotNum >= 0 && slotNum <= 999) {
 			Common::InSaveFile *in = saveFileMan->openForLoading(file->c_str());
 			if (in) {
-				if (Toltecs::ToltecsEngine::readSaveHeader(in, false, header) == Toltecs::ToltecsEngine::kRSHENoError) {
+				if (Toltecs::ToltecsEngine::readSaveHeader(in, header) == Toltecs::ToltecsEngine::kRSHENoError) {
 					_savegames.push_back(SavegameItem(slotNum, header.description));
 					//debug("%s -> %s", file->c_str(), header.description.c_str());
 				}

@@ -31,8 +31,8 @@
 #include <OpenGLES/ES1/gl.h>
 #include <OpenGLES/ES1/glext.h>
 
-#include "iphone_keyboard.h"
-#include "iphone_common.h"
+#include "backends/platform/iphone/iphone_keyboard.h"
+#include "backends/platform/iphone/iphone_common.h"
 
 #include "common/list.h"
 
@@ -69,7 +69,8 @@
 	GLint _mouseWidth, _mouseHeight;
 	GLfloat _mouseScaleX, _mouseScaleY;
 
-	int _scaledShakeOffsetY;
+	int _scaledShakeXOffset;
+	int _scaledShakeYOffset;
 	CGFloat _contentScaleFactor;
 
 	UITouch *_firstTouch;
@@ -99,6 +100,9 @@
 - (void)updateMouseCursor;
 
 - (void)deviceOrientationChanged:(UIDeviceOrientation)orientation;
+
+- (void)disableIdleTimer;
+- (void)enableIdleTimer;
 
 - (void)applicationSuspend;
 

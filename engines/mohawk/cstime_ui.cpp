@@ -79,6 +79,8 @@ CSTimeInterface::CSTimeInterface(MohawkEngine_CSTime *vm) : _vm(vm) {
 	_rolloverTextFeature = NULL;
 	_bubbleTextFeature = NULL;
 
+	_draggedItem = 0;
+
 	_mouseWasInScene = false;
 	_state = kCSTimeInterfaceStateNormal;
 
@@ -263,6 +265,8 @@ void CSTimeInterface::mouseDown(Common::Point pos) {
 	case 13:
 		cursorChangeShape(14);
 		break;
+	default:
+		break;
 	}
 
 	if (_book->getState() == 2) {
@@ -439,6 +443,8 @@ void CSTimeInterface::mouseUp(Common::Point pos) {
 		break;
 	case 14:
 		cursorChangeShape(13);
+		break;
+	default:
 		break;
 	}
 
@@ -1033,6 +1039,8 @@ CSTimeInventoryDisplay::CSTimeInventoryDisplay(MohawkEngine_CSTime *vm, Common::
 	_state = 0;
 	_cuffsState = false;
 	_cuffsShape = 10;
+
+	_draggedItem = 0;
 
 	_invRect = baseRect;
 

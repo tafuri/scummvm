@@ -26,7 +26,7 @@
 // for dynamic engine plugins.
 // If you plan to use this code in another engine, you will have
 // to add the proper define check here.
-#if !(defined(ENABLE_KYRA) || defined(ENABLE_SCI) || defined(ENABLE_SCUMM) || defined(DYNAMIC_MODULES))
+#if !(defined(ENABLE_KYRA) || defined(ENABLE_SCI) || defined(ENABLE_SCUMM) || defined(ENABLE_SAGA) || defined(DYNAMIC_MODULES))
 
 // If neither of the above mentioned is enabled, do not include the SJIS code.
 
@@ -47,6 +47,15 @@
 #include "common/platform.h"
 
 namespace Graphics {
+
+/**
+ * @defgroup graphics_sjis Shift JIS font
+ * @ingroup graphics
+ *
+ * @brief FontSJIS class for handling Japanese characters.
+ *
+ * @{
+ */
 
 struct Surface;
 
@@ -84,11 +93,17 @@ public:
 	enum DrawingMode {
 		kDefaultMode,
 		kOutlineMode,
-		kShadowMode,
+		kShadowRightMode,
+		kShadowLeftMode,
 		kFMTownsShadowMode
 	};
 
 	virtual void setDrawingMode(DrawingMode mode) {}
+
+	/**
+	* Enable fat character drawing if supported by the Font (used in EOB II FM-Towns).
+	*/
+	virtual void toggleFatPrint(bool enable) {}
 
 	/**
 	 * Enable flipped character drawing if supported by the Font (e.g. in the MI1 circus scene after Guybrush gets shot out of the cannon).
@@ -147,6 +162,8 @@ public:
 
 	virtual void toggleFlippedMode(bool enable);
 
+	virtual void toggleFatPrint(bool enable);
+
 	virtual uint getFontHeight() const;
 
 	virtual uint getMaxFontWidth() const;
@@ -165,9 +182,11 @@ private:
 	const uint8 *flipCharacter(const uint8 *glyph, const int w) const;
 	mutable uint8 _tempGlyph[32];
 #endif
+	const uint8 *makeFatCharacter(const uint8 *glyph, const int w) const;
+	mutable uint8 _tempGlyph2[32];
 protected:
 	DrawingMode _drawMode;
-	bool _flippedMode;
+	bool _flippedMode, _fatPrint;
 	int _fontWidth, _fontHeight;
 	uint8 _bitPosNewLineMask;
 
@@ -180,7 +199,8 @@ protected:
 		kFeatOutline		= 1 << 1,
 		kFeatShadow			= 1 << 2,
 		kFeatFMTownsShadow	= 1 << 3,
-		kFeatFlipped		= 1 << 4
+		kFeatFlipped		= 1 << 4,
+		kFeatFatPrint		= 1 << 5
 	};
 
 	virtual bool hasFeature(int feat) const = 0;
@@ -197,6 +217,9 @@ public:
 	 * Loads the ROM data from "FMT_FNT.ROM".
 	 */
 	bool loadData();
+
+	static int getCharFMTChunk(uint16 ch);
+
 private:
 	enum {
 		kFont16x16Chars = 7808,
@@ -271,7 +294,7 @@ private:
 };
 
 // TODO: Consider adding support for PC98 ROM
-
+ /** @} */
 } // End of namespace Graphics
 
 #endif

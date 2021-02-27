@@ -21,7 +21,7 @@
  */
 
 #include "sci/sci.h"
-#include "sci/resource.h"
+#include "sci/resource/resource.h"
 #include "sci/engine/features.h"
 #include "sci/engine/state.h"
 #include "sci/engine/selector.h"
@@ -305,12 +305,23 @@ reg_t kDoBresen(EngineState *s, int argc, reg_t *argv) {
 		for (uint i = 0; i < clientVarNum; ++i)
 			clientBackup[i] = clientObject->getVariable(i);
 
-		if (mover_xAxis) {
-			if (ABS(mover_x - client_x) < ABS(mover_dx))
-				completed = true;
+		if ((getSciVersion() <= SCI_VERSION_1_EGA_ONLY)) {
+			if (mover_xAxis) {
+				if (ABS(mover_x - client_x) < ABS(mover_dx))
+					completed = true;
+			} else {
+				if (ABS(mover_y - client_y) < ABS(mover_dy))
+					completed = true;
+			}
 		} else {
-			if (ABS(mover_y - client_y) < ABS(mover_dy))
-				completed = true;
+			// SCI1EARLY+ code
+			if (mover_xAxis) {
+				if (ABS(mover_x - client_x) <= ABS(mover_dx))
+					completed = true;
+			} else {
+				if (ABS(mover_y - client_y) <= ABS(mover_dy))
+					completed = true;
+			}
 		}
 		if (completed) {
 			client_x = mover_x;
@@ -336,10 +347,10 @@ reg_t kDoBresen(EngineState *s, int argc, reg_t *argv) {
 		bool collision = false;
 		reg_t cantBeHere = NULL_REG;
 
+		// adding this here for hoyle 3 to get happy. CantBeHere is a dummy in hoyle 3 and acc is != 0 so we would
+		//  get a collision otherwise. Resetting the result was always done in SSCI
+		s->r_acc = NULL_REG;
 		if (SELECTOR(cantBeHere) != -1) {
-			// adding this here for hoyle 3 to get happy. CantBeHere is a dummy in hoyle 3 and acc is != 0 so we would
-			//  get a collision otherwise
-			s->r_acc = NULL_REG;
 			invokeSelector(s, client, SELECTOR(cantBeHere), argc, argv);
 			if (!s->r_acc.isNull())
 				collision = true;
@@ -396,7 +407,11 @@ reg_t kDoAvoider(EngineState *s, int argc, reg_t *argv) {
 	reg_t avoider = argv[0];
 	int16 timesStep = argc > 1 ? argv[1].toUint16() : 1;
 
-	if (!s->_segMan->isHeapObject(avoider)) {
+	// Note: the avoider must be an object but it may already have been freed.
+	//  Avoid:doit calls kDoAvoider multiple times and any of these calls might
+	//  result in the avoider being disposed when invoking mover:doit.
+	//  This can happen in kq4 early when captured by a witch in room 57.
+	if (!s->_segMan->isObject(avoider)) {
 		error("DoAvoider() where avoider %04x:%04x is not an object", PRINT_REG(avoider));
 		return SIGNAL_REG;
 	}
@@ -465,6 +480,9 @@ reg_t kDoAvoider(EngineState *s, int argc, reg_t *argv) {
 			case 270:
 			case 315:
 				newX -= clientXstep;
+				break;
+			default:
+				break;
 			}
 
 			switch (newHeading) {
@@ -477,6 +495,9 @@ reg_t kDoAvoider(EngineState *s, int argc, reg_t *argv) {
 			case 180:
 			case 225:
 				newY += clientYstep;
+				break;
+			default:
+				break;
 			}
 			writeSelectorValue(segMan, client, SELECTOR(x), newX);
 			writeSelectorValue(segMan, client, SELECTOR(y), newY);

@@ -41,7 +41,7 @@
 #include "engines/wintermute/base/scriptables/script_value.h"
 #include "engines/wintermute/base/scriptables/script.h"
 #include "engines/wintermute/base/scriptables/script_stack.h"
-#include "engines/wintermute/game_description.h"
+#include "engines/wintermute/detection.h"
 
 namespace Wintermute {
 
@@ -327,6 +327,9 @@ bool BaseSprite::loadBuffer(char *buffer, bool complete, int lifeTime, TSpriteCa
 
 		case TOKEN_EDITOR_PROPERTY:
 			parseEditorProperty(params, false);
+			break;
+
+		default:
 			break;
 		}
 	}
@@ -826,4 +829,7 @@ bool BaseSprite::killAllSounds() {
 	return STATUS_OK;
 }
 
+Common::String BaseSprite::debuggerToString() const {
+	return Common::String::format("%p: Sprite \"%s\"", (const void *)this, getName());
+}
 } // End of namespace Wintermute

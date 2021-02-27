@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -36,19 +36,19 @@ namespace ZVision {
 class PaintControl : public Control {
 public:
 	PaintControl(ZVision *engine, uint32 key, Common::SeekableReadStream &stream);
-	~PaintControl();
+	~PaintControl() override;
 
 	/**
 	 * @param screenSpacePos             The position of the mouse in screen space
 	 * @param backgroundImageSpacePos    The position of the mouse in background image space
 	 */
-	bool onMouseUp(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos);
+	bool onMouseUp(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos) override;
 
 	/**
 	 * @param screenSpacePos             The position of the mouse in screen space
 	 * @param backgroundImageSpacePos    The position of the mouse in background image space
 	 */
-	bool onMouseDown(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos);
+	bool onMouseDown(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos) override;
 	/**
 	 * Called on every MouseMove. Tests if the mouse is inside _hotspot, and if so, sets the cursor.
 	 *
@@ -57,9 +57,9 @@ public:
 	 * @param backgroundImageSpacePos    The position of the mouse in background image space
 	 * @return                           Was the cursor changed?
 	 */
-	bool onMouseMove(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos);
+	bool onMouseMove(const Common::Point &screenSpacePos, const Common::Point &backgroundImageSpacePos) override;
 
-	bool process(uint32 deltaTimeInMillis) {
+	bool process(uint32 deltaTimeInMillis) override {
 		return false;
 	};
 

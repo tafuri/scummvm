@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,24 +39,25 @@ private:
 	MartianEngine *_game;
 
 	void roomSet();
+
+	int _byte26CD2[30];
+	int _byte26CBC[10];
 protected:
-	virtual void loadRoom(int roomNumber);
+	void loadRoom(int roomNumber) override;
 
-	virtual void reloadRoom();
+	void reloadRoom() override;
 
-	virtual void reloadRoom1();
+	void reloadRoom1() override;
 
-	virtual void mainAreaClick();
+	void mainAreaClick() override;
 public:
 	MartianRoom(AccessEngine *vm);
 
-	virtual ~MartianRoom();
+	~MartianRoom() override;
 
-	virtual void loadRoomData(const byte *roomData) { warning("TODO - loadRoomData"); }
+	void init4Quads() override { }
 
-	virtual void init4Quads() { }
-
-	virtual void roomMenu();
+	void roomMenu() override;
 };
 
 } // End of namespace Martian

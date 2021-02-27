@@ -32,6 +32,7 @@
 #include "dosbox.h"
 #include "dbopl.h"
 
+#include "audio/mixer.h"
 #include "common/system.h"
 #include "common/scummsys.h"
 #include "common/util.h"
@@ -91,36 +92,40 @@ bool Chip::write(uint32 reg, uint8 val) {
 		timer[1].counter = val;
 		return true;
 	case 0x04:
-		double time = g_system->getMillis() / 1000.0;
+		{
+			double time = g_system->getMillis() / 1000.0;
 
-		if (val & 0x80) {
-			timer[0].reset(time);
-			timer[1].reset(time);
-		} else {
-			timer[0].update(time);
-			timer[1].update(time);
+			if (val & 0x80) {
+				timer[0].reset(time);
+				timer[1].reset(time);
+			} else {
+				timer[0].update(time);
+				timer[1].update(time);
 
-			if (val & 0x1)
-				timer[0].start(time, 80);
-			else
-				timer[0].stop();
+				if (val & 0x1)
+					timer[0].start(time, 80);
+				else
+					timer[0].stop();
 
-			timer[0].masked = (val & 0x40) > 0;
+				timer[0].masked = (val & 0x40) > 0;
 
-			if (timer[0].masked)
-				timer[0].overflow = false;
+				if (timer[0].masked)
+					timer[0].overflow = false;
 
-			if (val & 0x2)
-				timer[1].start(time, 320);
-			else
-				timer[1].stop();
+				if (val & 0x2)
+					timer[1].start(time, 320);
+				else
+					timer[1].stop();
 
-			timer[1].masked = (val & 0x20) > 0;
+				timer[1].masked = (val & 0x20) > 0;
 
-			if (timer[1].masked)
-				timer[1].overflow = false;
+				if (timer[1].masked)
+					timer[1].overflow = false;
+			}
 		}
 		return true;
+	default:
+		break;
 	}
 	return false;
 }
@@ -148,6 +153,7 @@ OPL::OPL(Config::OplType type) : _type(type), _rate(0), _emulator(0) {
 }
 
 OPL::~OPL() {
+	stop();
 	free();
 }
 
@@ -156,30 +162,30 @@ void OPL::free() {
 	_emulator = 0;
 }
 
-bool OPL::init(int rate) {
+bool OPL::init() {
 	free();
 
 	memset(&_reg, 0, sizeof(_reg));
-	memset(_chip, 0, sizeof(_chip));
+	ARRAYCLEAR(_chip);
 
 	_emulator = new DBOPL::Chip();
 	if (!_emulator)
 		return false;
 
 	DBOPL::InitTables();
-	_emulator->Setup(rate);
+	_rate = g_system->getMixer()->getOutputRate();
+	_emulator->Setup(_rate);
 
 	if (_type == Config::kDualOpl2) {
 		// Setup opl3 mode in the hander
 		_emulator->WriteReg(0x105, 1);
 	}
 
-	_rate = rate;
 	return true;
 }
 
 void OPL::reset() {
-	init(_rate);
+	init();
 }
 
 void OPL::write(int port, int val) {
@@ -200,6 +206,8 @@ void OPL::write(int port, int val) {
 				dualWrite(0, _reg.dual[0], val);
 				dualWrite(1, _reg.dual[1], val);
 			}
+			break;
+		default:
 			break;
 		}
 	} else {
@@ -222,6 +230,8 @@ void OPL::write(int port, int val) {
 				_reg.dual[1] = val & 0xff;
 			}
 			break;
+		default:
+			break;
 		}
 	}
 }
@@ -243,6 +253,8 @@ byte OPL::read(int port) {
 			return 0xff;
 		// Make sure the low bits are 6 on opl2
 		return _chip[(port >> 1) & 1].read() | 0x6;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -280,6 +292,8 @@ void OPL::writeReg(int r, int v) {
 			write(0x388, tempReg);
 		}
 		break;
+	default:
+		break;
 	};
 }
 
@@ -307,7 +321,7 @@ void OPL::dualWrite(uint8 index, uint8 reg, uint8 val) {
 	_emulator->WriteReg(fullReg, val);
 }
 
-void OPL::readBuffer(int16 *buffer, int length) {
+void OPL::generateSamples(int16 *buffer, int length) {
 	// For stereo OPL cards, we divide the sample count by 2,
 	// to match stereo AudioStream behavior.
 	if (_type != Config::kOpl2)

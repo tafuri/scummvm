@@ -23,11 +23,15 @@
 #ifndef TESTBED_MIDI_H
 #define TESTBED_MIDI_H
 
-#include "common/stream.h"
-#include "audio/midiparser.h"
 #include "testbed/testsuite.h"
 
 // This file can be used as template for header files of other newer testsuites.
+
+class MidiParser;
+
+namespace Common {
+class WriteStream;
+}
 
 namespace Testbed {
 
@@ -54,16 +58,16 @@ public:
 	 * @see addTest()
 	 */
 	MidiTestSuite();
-	~MidiTestSuite() {}
-	const char *getName() const {
+	~MidiTestSuite() override {}
+	const char *getName() const override {
 		return "MIDI";
 	}
 
-	const char *getDescription() const {
+	const char *getDescription() const override {
 		return "Midi Music";
 	}
 
-	void enable(bool flag);
+	void enable(bool flag) override;
 
 private:
 	bool _isMidiDataFound;

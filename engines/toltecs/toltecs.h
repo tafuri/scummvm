@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef TOLTECS_H
-#define TOLTECS_H
+#ifndef TOLTECS_TOLTECS_H
+#define TOLTECS_TOLTECS_H
 
 #include "common/scummsys.h"
 #include "common/endian.h"
@@ -96,23 +96,21 @@ class ToltecsEngine : public ::Engine {
 	Common::KeyState _keyPressed;
 
 protected:
-	Common::Error run();
+	Common::Error run() override;
 //	void shutdown();
 
 public:
 	ToltecsEngine(OSystem *syst, const ToltecsGameDescription *gameDesc);
-	virtual ~ToltecsEngine();
+	~ToltecsEngine() override;
 
-	virtual bool hasFeature(EngineFeature f) const;
+	bool hasFeature(EngineFeature f) const override;
 
 	Common::RandomSource *_rnd;
 	const ToltecsGameDescription *_gameDescription;
 	uint32 getFeatures() const;
 	Common::Language getLanguage() const;
 	const Common::String& getTargetName() const { return _targetName; }
-	void syncSoundSettings();
-
-	GUI::Debugger *getDebugger() { return _console; }
+	void syncSoundSettings() override;
 
 	void setupSysStrings();
 	void requestSavegame(int slotNum, Common::String &description);
@@ -149,7 +147,6 @@ public:
 
 	AnimationPlayer *_anim;
 	ArchiveReader *_arc;
-	Console *_console;
 	Input *_input;
 	MenuSystem *_menuSystem;
 	MoviePlayer *_moviePlayer;
@@ -215,20 +212,20 @@ public:
 
 	bool _isSaveAllowed;
 
-	bool canLoadGameStateCurrently() { return _isSaveAllowed; }
-	bool canSaveGameStateCurrently() { return _isSaveAllowed; }
-	Common::Error loadGameState(int slot);
-	Common::Error saveGameState(int slot, const Common::String &description);
+	bool canLoadGameStateCurrently() override { return _isSaveAllowed; }
+	bool canSaveGameStateCurrently() override { return _isSaveAllowed; }
+	Common::Error loadGameState(int slot) override;
+	Common::Error saveGameState(int slot, const Common::String &description, bool isAutosave = false) override;
 	void savegame(const char *filename, const char *description);
 	void loadgame(const char *filename);
 
 	const char *getSavegameFilename(int num);
 	static Common::String getSavegameFilename(const Common::String &target, int num);
 
-	static kReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *in, bool loadThumbnail, SaveHeader &header);
+	WARN_UNUSED_RESULT static kReadSaveHeaderError readSaveHeader(Common::SeekableReadStream *in, SaveHeader &header, bool skipThumbnail = true);
 
 };
 
 } // End of namespace Toltecs
 
-#endif /* TOLTECS_H */
+#endif /* TOLTECS_TOLTECS_H */

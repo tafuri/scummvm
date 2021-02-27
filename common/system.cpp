@@ -29,56 +29,72 @@
 #include "common/str.h"
 #include "common/taskbar.h"
 #include "common/updates.h"
+#include "common/dialogs.h"
 #include "common/textconsole.h"
-#ifdef ENABLE_EVENTRECORDER
-#include "gui/EventRecorder.h"
-#endif
+#include "common/text-to-speech.h"
 
 #include "backends/audiocd/default/default-audiocd.h"
 #include "backends/fs/fs-factory.h"
 #include "backends/timer/default/default-timer.h"
 
-OSystem *g_system = 0;
+OSystem *g_system = nullptr;
 
 OSystem::OSystem() {
-	_audiocdManager = 0;
-	_eventManager = 0;
-	_timerManager = 0;
-	_savefileManager = 0;
+	_audiocdManager = nullptr;
+	_eventManager = nullptr;
+	_timerManager = nullptr;
+	_savefileManager = nullptr;
 #if defined(USE_TASKBAR)
-	_taskbarManager = 0;
+	_taskbarManager = nullptr;
 #endif
 #if defined(USE_UPDATES)
-	_updateManager = 0;
+	_updateManager = nullptr;
 #endif
-	_fsFactory = 0;
+#if defined(USE_TTS)
+	_textToSpeechManager = nullptr;
+#endif
+#if defined(USE_SYSDIALOGS)
+	_dialogManager = nullptr;
+#endif
+	_fsFactory = nullptr;
+	_backendInitialized = false;
 }
 
 OSystem::~OSystem() {
 	delete _audiocdManager;
-	_audiocdManager = 0;
+	_audiocdManager = nullptr;
 
 	delete _eventManager;
-	_eventManager = 0;
+	_eventManager = nullptr;
 
 	delete _timerManager;
-	_timerManager = 0;
+	_timerManager = nullptr;
 
 #if defined(USE_TASKBAR)
 	delete _taskbarManager;
-	_taskbarManager = 0;
+	_taskbarManager = nullptr;
 #endif
 
 #if defined(USE_UPDATES)
 	delete _updateManager;
-	_updateManager = 0;
+	_updateManager = nullptr;
+#endif
+
+#if defined(USE_TTS)
+	delete _textToSpeechManager;
+	_textToSpeechManager = 0;
+#endif
+
+#if defined(USE_SYSDIALOGS)
+	delete _dialogManager;
+	_dialogManager = nullptr;
 #endif
 
 	delete _savefileManager;
-	_savefileManager = 0;
+	_savefileManager = nullptr;
 
 	delete _fsFactory;
-	_fsFactory = 0;
+	_fsFactory = nullptr;
 }
 
 void OSystem::initBackend() {
@@ -90,17 +106,21 @@ void OSystem::initBackend() {
 	if (!getTimerManager())
 		error("Backend failed to instantiate timer manager");
 
-	// TODO: We currently don't check _savefileManager, because at least
-	// on the Nintendo DS, it is possible that none is set. That should
-	// probably be treated as "saving is not possible". Or else the NDS
-	// port needs to be changed to always set a _savefileManager
-// 	if (!_savefileManager)
-// 		error("Backend failed to instantiate savefile manager");
+	if (!_savefileManager)
+		error("Backend failed to instantiate savefile manager");
 
 	// TODO: We currently don't check _fsFactory because not all ports
 	// set it.
 // 	if (!_fsFactory)
 // 		error("Backend failed to instantiate fs factory");
+
+	_backendInitialized = true;
+}
+
+void OSystem::destroy() {
+	_backendInitialized = false;
+	Common::String::releaseMemoryPoolMutex();
+	delete this;
 }
 
 bool OSystem::setGraphicsMode(const char *name) {
@@ -124,6 +144,48 @@ bool OSystem::setGraphicsMode(const char *name) {
 	return false;
 }
 
+bool OSystem::setShader(const char *name) {
+	if (!name)
+		return false;
+
+	// Special case for the 'default' filter
+	if (!scumm_stricmp(name, "default")) {
+		return setShader(getDefaultShader());
+	}
+
+	const GraphicsMode *sm = getSupportedShaders();
+
+	while (sm->name) {
+		if (!scumm_stricmp(sm->name, name)) {
+			return setShader(sm->id);
+		}
+		sm++;
+	}
+
+	return false;
+}
+
+bool OSystem::setStretchMode(const char *name) {
+	if (!name)
+		return false;
+
+	// Special case for the 'default' filter
+	if (!scumm_stricmp(name, "default")) {
+		return setStretchMode(getDefaultStretchMode());
+	}
+
+	const GraphicsMode *sm = getSupportedStretchModes();
+
+	while (sm->name) {
+		if (!scumm_stricmp(sm->name, name)) {
+			return setStretchMode(sm->id);
+		}
+		sm++;
+	}
+
+	return false;
+}
+
 void OSystem::fatalError() {
 	quit();
 	exit(1);
@@ -141,7 +203,7 @@ Common::SeekableReadStream *OSystem::createConfigReadStream() {
 
 Common::WriteStream *OSystem::createConfigWriteStream() {
 #ifdef __DC__
-	return 0;
+	return nullptr;
 #else
 	Common::FSNode file(getDefaultConfigFileName());
 	return file.createWriteStream();
@@ -156,14 +218,15 @@ Common::String OSystem::getSystemLanguage() const {
 	return "en_US";
 }
 
+bool OSystem::isConnectionLimited() {
+	warning("OSystem::isConnectionLimited(): not limited by default");
+	return false;
+}
+
 Common::TimerManager *OSystem::getTimerManager() {
 	return _timerManager;
 }
 
 Common::SaveFileManager *OSystem::getSavefileManager() {
-#ifdef ENABLE_EVENTRECORDER
-	return g_eventRec.getSaveManager(_savefileManager);
-#else
 	return _savefileManager;
-#endif
 }

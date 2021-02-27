@@ -23,10 +23,40 @@
 #include "common/util.h"
 #include "common/savefile.h"
 #include "common/str.h"
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+#include "backends/cloud/cloudmanager.h"
+#endif
 
 namespace Common {
 
-bool SaveFileManager::copySavefile(const String &oldFilename, const String &newFilename) {
+OutSaveFile::OutSaveFile(WriteStream *w): _wrapped(w) {}
+
+OutSaveFile::~OutSaveFile() {
+	delete _wrapped;
+}
+
+bool OutSaveFile::err() const { return _wrapped->err(); }
+
+void OutSaveFile::clearErr() { _wrapped->clearErr(); }
+
+void OutSaveFile::finalize() {
+	_wrapped->finalize();
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	CloudMan.syncSaves();
+#endif
+}
+
+bool OutSaveFile::flush() { return _wrapped->flush(); }
+
+uint32 OutSaveFile::write(const void *dataPtr, uint32 dataSize) {
+	return _wrapped->write(dataPtr, dataSize);
+}
+
+int32 OutSaveFile::pos() const {
+	return _wrapped->pos();
+}
+
+bool SaveFileManager::copySavefile(const String &oldFilename, const String &newFilename, bool compress) {
 	InSaveFile *inFile = 0;
 	OutSaveFile *outFile = 0;
 	uint32 size = 0;
@@ -40,7 +70,7 @@ bool SaveFileManager::copySavefile(const String &oldFilename, const String &newF
 		buffer = malloc(size);
 		assert(buffer);
 
-		outFile = openForSaving(newFilename);
+		outFile = openForSaving(newFilename, compress);
 
 		if (buffer && outFile) {
 			inFile->read(buffer, size);
@@ -64,8 +94,8 @@ bool SaveFileManager::copySavefile(const String &oldFilename, const String &newF
 	return success;
 }
 
-bool SaveFileManager::renameSavefile(const String &oldFilename, const String &newFilename) {
-	if (!copySavefile(oldFilename, newFilename))
+bool SaveFileManager::renameSavefile(const String &oldFilename, const String &newFilename, bool compress) {
+	if (!copySavefile(oldFilename, newFilename, compress))
 		return false;
 
 	return removeSavefile(oldFilename);

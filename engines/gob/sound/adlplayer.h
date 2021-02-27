@@ -36,8 +36,8 @@ namespace Gob {
 /** A player for Coktel Vision's ADL music format. */
 class ADLPlayer : public AdLib {
 public:
-	ADLPlayer(Audio::Mixer &mixer);
-	~ADLPlayer();
+	ADLPlayer();
+	~ADLPlayer() override;
 
 	bool load(Common::SeekableReadStream &adl);
 	bool load(const byte *data, uint32 dataSize, int index = -1);
@@ -47,8 +47,8 @@ public:
 
 protected:
 	// AdLib interface
-	uint32 pollMusic(bool first);
-	void rewind();
+	uint32 pollMusic(bool first) override;
+	void rewind() override;
 
 private:
 	struct Timbre {
@@ -76,8 +76,6 @@ private:
 	bool readHeader  (Common::SeekableReadStream &adl, int &timbreCount);
 	bool readTimbres (Common::SeekableReadStream &adl, int  timbreCount);
 	bool readSongData(Common::SeekableReadStream &adl);
-
-	uint32 getSampleDelay(uint16 delay) const;
 };
 
 } // End of namespace Gob

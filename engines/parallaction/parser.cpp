@@ -190,6 +190,9 @@ char *Script::parseNextToken(char *s, char *tok, uint16 count, const char *brk) 
 				count--;
 			}
 			break;
+
+		default:
+			break;
 		}
 
 	}
@@ -226,6 +229,7 @@ uint16 Script::readLineToken(bool errorOnEOF) {
 void Parser::reset() {
 	_currentOpcodes = 0;
 	_currentStatements = 0;
+	_lookup = 0;
 
 	_statements.clear();
 	_opcodes.clear();

@@ -23,30 +23,61 @@
 #ifndef ENGINES_UTIL_H
 #define ENGINES_UTIL_H
 
+#include "common/array.h"
 #include "common/scummsys.h"
 #include "common/list.h"
 #include "graphics/pixelformat.h"
+#include "graphics/mode.h"
 
 /**
- * Setup the backend's graphics mode.
- */
-void initCommonGFX(bool defaultTo1XScaler);
-
-/**
- * Setup the backend's screen size and graphics mode.
+ * @defgroup engines_util Util
+ * @ingroup engines
  *
- * Shows an various warnings on certain backend graphics
+ * @brief Various utility functions related to engines.
+ *
+ * @{
+ */
+
+/**
+ * Set up the graphics mode of the backend.
+ */
+void initCommonGFX();
+
+/**
+ * Send a list of graphics modes to the backend so it can make a decision
+ * about the best way to set up the display hardware.
+ *
+ * Engines that switch between different virtual screen sizes during the game
+ * should call this function prior to any call to initGraphics. Engines that use
+ * only a single screen size do not need to call this function.
+ */
+void initGraphicsModes(const Graphics::ModeList &modes);
+
+/**
+ * Set up the screen size and graphics mode of the backend.
+ *
+ * Shows various warnings on certain backend graphics
  * transaction failures (aspect switch, fullscreen switch, etc.).
  *
- * Errors out when backend is not able to switch to the specified
+ * Errors are returned when the backend is not able to switch to the specified
  * mode.
  *
- * Defaults to 256 color paletted mode if no graphics format is provided.
- * Uses the backend's preferred format if graphics format pointer is NULL.
+ * Defaults to 256 color palette mode if no graphics format is provided.
+ * Uses the preferred format of the backend if graphics format pointer is NULL.
  * Finds the best compatible format if a list of graphics formats is provided.
  */
-void initGraphics(int width, int height, bool defaultTo1xScaler);
-void initGraphics(int width, int height, bool defaultTo1xScaler, const Graphics::PixelFormat *format);
-void initGraphics(int width, int height, bool defaultTo1xScaler, const Common::List<Graphics::PixelFormat> &formatList);
-
+void initGraphics(int width, int height);
+/**
+ * @overload
+ */
+void initGraphics(int width, int height, const Graphics::PixelFormat *format);
+/**
+ * @overload
+ */
+void initGraphics(int width, int height, const Common::List<Graphics::PixelFormat> &formatList);
+/**
+ * @overload
+ */
+void initGraphics3d(int width, int height);
+/** @} */
 #endif

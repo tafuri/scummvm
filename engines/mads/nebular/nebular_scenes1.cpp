@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -21,6 +21,7 @@
  */
 
 #include "common/scummsys.h"
+#include "common/math.h"
 #include "mads/mads.h"
 #include "mads/scene.h"
 #include "mads/nebular/nebular_scenes.h"
@@ -84,7 +85,7 @@ void Scene1xx::setPlayerSpritesPrefix() {
 	} else if (_scene->_nextSceneId == 112)
 		_game._player._spritesPrefix = "";
 
-	if (oldName == _game._player._spritesPrefix)
+	if (oldName != _game._player._spritesPrefix)
 		_game._player._spritesChanged = true;
 
 	if (_scene->_nextSceneId == 105 || (_scene->_nextSceneId == 109 && _globals[kHoovicAlive])) {
@@ -258,32 +259,32 @@ void Scene101::step() {
 		break;
 	}
 
-	if (_scene->_activeAnimation != nullptr) {
-		if ((_scene->_activeAnimation->getCurrentFrame() >= 6) && (_messageNum == 0)) {
+	if (_scene->_animation[0] != nullptr) {
+		if ((_scene->_animation[0]->getCurrentFrame() >= 6) && (_messageNum == 0)) {
 			_messageNum++;
 			_scene->_kernelMessages.add(Common::Point(63, _posY), 0x1110, 0, 0, 240, _game.getQuote(49));
 			_posY += 14;
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() >= 7) && (_messageNum == 1)) {
+		if ((_scene->_animation[0]->getCurrentFrame() >= 7) && (_messageNum == 1)) {
 			_messageNum++;
 			_scene->_kernelMessages.add(Common::Point(63, _posY), 0x1110, 0, 0, 240, _game.getQuote(54));
 			_posY += 14;
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() >= 10) && (_messageNum == 2)) {
+		if ((_scene->_animation[0]->getCurrentFrame() >= 10) && (_messageNum == 2)) {
 			_messageNum++;
 			_scene->_kernelMessages.add(Common::Point(63, _posY), 0x1110, 0, 0, 240, _game.getQuote(55));
 			_posY += 14;
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() >= 17) && (_messageNum == 3)) {
+		if ((_scene->_animation[0]->getCurrentFrame() >= 17) && (_messageNum == 3)) {
 			_messageNum++;
 			_scene->_kernelMessages.add(Common::Point(63, _posY), 0x1110, 0, 0, 240, _game.getQuote(56));
 			_posY += 14;
 		}
 
-		if ((_scene->_activeAnimation->getCurrentFrame() >= 20) && (_messageNum == 4)) {
+		if ((_scene->_animation[0]->getCurrentFrame() >= 20) && (_messageNum == 4)) {
 			_messageNum++;
 			_scene->_kernelMessages.add(Common::Point(63, _posY), 0x1110, 0, 0, 240, _game.getQuote(50));
 			_posY += 14;
@@ -1263,7 +1264,7 @@ void Scene102::actions() {
 		return;
 	}
 
-	if (_action.isAction(VERB_LOOK, NOUN_BURGER) && (_action._mainObjectSource == 4)) {
+	if (_action.isAction(VERB_LOOK, NOUN_BURGER) && (_action._mainObjectSource == CAT_HOTSPOT)) {
 		_vm->_dialogs->show(801);
 		_action._inProgress = false;
 	}
@@ -1375,14 +1376,14 @@ void Scene103::step() {
 
 	case 72: {
 		Common::Point pt = _vm->_game->_player._playerPos;
-		int dist = _vm->hypotenuse(pt.x - 58, pt.y - 93);
+		int dist = Common::hypotenuse(pt.x - 58, pt.y - 93);
 		_vm->_sound->command(27, (dist * -128 / 378) + 127);
 		}
 		break;
 
 	case 73: {
 		Common::Point pt = _vm->_game->_player._playerPos;
-		int dist = _vm->hypotenuse(pt.x - 266, pt.y - 81);
+		int dist = Common::hypotenuse(pt.x - 266, pt.y - 81);
 		_vm->_sound->command(27, (dist * -127 / 378) + 127);
 		}
 		break;
@@ -1393,15 +1394,15 @@ void Scene103::step() {
 
 	if (_scene->_frameStartTime >= _updateClock) {
 		Common::Point pt = _vm->_game->_player._playerPos;
-		int dist = _vm->hypotenuse(pt.x - 79, pt.y - 137);
+		int dist = Common::hypotenuse(pt.x - 79, pt.y - 137);
 		_vm->_sound->command(29, (dist * -127 / 378) + 127);
 
 		pt = _vm->_game->_player._playerPos;
-		dist = _vm->hypotenuse(pt.x - 69, pt.y - 80);
+		dist = Common::hypotenuse(pt.x - 69, pt.y - 80);
 		_vm->_sound->command(30, (dist * -127 / 378) + 127);
 
 		pt = _vm->_game->_player._playerPos;
-		dist = _vm->hypotenuse(pt.x - 266, pt.y - 138);
+		dist = Common::hypotenuse(pt.x - 266, pt.y - 138);
 		_vm->_sound->command(32, (dist * -127 / 378) + 127);
 
 		_updateClock = _scene->_frameStartTime + _vm->_game->_player._ticksAmount;
@@ -1782,7 +1783,7 @@ void Scene104::step() {
 	if ((_game._player._special > 0) && _game._player._stepEnabled)
 		_game._player._stepEnabled = false;
 
-	if (_kargShootingFl && (_scene->_activeAnimation->getCurrentFrame() >= 19)) {
+	if (_kargShootingFl && (_scene->_animation[0]->getCurrentFrame() >= 19)) {
 		_scene->_kernelMessages.add(Common::Point(0, 0), 0x1110, 34, 0, 120, _game.getQuote(52));
 		_kargShootingFl = false;
 	}
@@ -2079,7 +2080,7 @@ void Scene106::step() {
 		}
 	}
 
-	if (_firstEmergingFl && (_scene->_activeAnimation->getCurrentFrame() >= 19)) {
+	if (_firstEmergingFl && (_scene->_animation[0]->getCurrentFrame() >= 19)) {
 		_firstEmergingFl = false;
 		_scene->_kernelMessages.add(Common::Point(0, 0), 0x1110, 34, 0, 120, _game.getQuote(52));
 	}
@@ -2263,7 +2264,7 @@ void Scene107::enter() {
 }
 
 void Scene107::step() {
-	if (_shootingFl && (_scene->_activeAnimation->getCurrentFrame() >= 19)) {
+	if (_shootingFl && (_scene->_animation[0]->getCurrentFrame() >= 19)) {
 		_scene->_kernelMessages.add(Common::Point(0, 0), 0x1110, 34, 0, 120, _game.getQuote(52));
 		_shootingFl = false;
 	}
@@ -2295,7 +2296,7 @@ void Scene107::actions() {
 		_scene->_nextSceneId = 105;
 	else if (_action.isAction(VERB_LOOK, NOUN_NORTHERN_SEA_CLIFF))
 		_vm->_dialogs->show(10701);
-	else if (_action.isAction(VERB_LOOK, NOUN_DEAD_FISH) && (_action._mainObjectSource == 4))
+	else if (_action.isAction(VERB_LOOK, NOUN_DEAD_FISH) && (_action._mainObjectSource == CAT_HOTSPOT))
 		_vm->_dialogs->show(10702);
 	else if (_action.isAction(VERB_LOOK, NOUN_BUSH_LIKE_FORMATION))
 		_vm->_dialogs->show(10703);
@@ -2534,6 +2535,9 @@ void Scene109::step() {
 			case 71:
 				_scene->_reloadSceneFlag = true;
 				break;
+
+			default:
+				break;
 			}
 		}
 	}
@@ -2640,6 +2644,9 @@ void Scene109::actions() {
 							_hoovicDifficultFl = (_game._difficulty == DIFFICULTY_HARD);
 							_globals._spriteIndexes[8] = _scene->_sprites.addSprites(formAnimName('H', (_hoovicDifficultFl ? 3 : 1)));
 							break;
+
+						default:
+							break;
 						}
 
 						_vm->_palette->refreshSceneColors();
@@ -2669,6 +2676,8 @@ void Scene109::actions() {
 							_globals._sequenceIndexes[2] = _scene->_sequences.addSpriteCycle(_globals._spriteIndexes[2], false, 4, 1, 0, 0);
 							_scene->_sequences.addSubEntry(_globals._sequenceIndexes[2], SEQUENCE_TRIGGER_SPRITE, 2, 2);
 							_hoovicTrigger = 3;
+							break;
+						default:
 							break;
 						}
 						break;
@@ -2774,6 +2783,9 @@ void Scene109::actions() {
 					case 8:
 						_globals._sequenceIndexes[3] = _scene->_sequences.addSpriteCycle(_globals._spriteIndexes[3], false, 7, 1, 0, 0);
 						_scene->_sequences.setAnimRange(_globals._sequenceIndexes[3], 5, 16);
+						break;
+
+					default:
 						break;
 					}
 					_action._inProgress = false;
@@ -2919,7 +2931,7 @@ void Scene110::actions() {
 		switch (_game._trigger) {
 		case 0:
 			_scene->loadAnimation(Resources::formatName(110, 'T', 0, EXT_AA, ""), 1);
-			_scene->_activeAnimation->setNextFrameTimer(_game._player._ticksAmount + _game._player._priorTimer);
+			_scene->_animation[0]->setNextFrameTimer(_game._player._ticksAmount + _game._player._priorTimer);
 			_game._player._stepEnabled = false;
 			_game._player._visible = false;
 			break;
@@ -2927,6 +2939,8 @@ void Scene110::actions() {
 			_game._player._visible = true;
 			_game._player._stepEnabled = true;
 			_scene->_nextSceneId = 111;
+			break;
+		default:
 			break;
 		}
 	} else if ((_action._lookFlag) || _action.isAction(VERB_LOOK, NOUN_CAVE))
@@ -3066,7 +3080,7 @@ void Scene111::step() {
 	if (_game._trigger == 73)
 		_vm->_sound->command(37);
 
-	if (_rexDivingFl && (_scene->_activeAnimation->getCurrentFrame() >= 9)) {
+	if (_rexDivingFl && (_scene->_animation[0]->getCurrentFrame() >= 9)) {
 		_vm->_sound->command(36);
 		_rexDivingFl = false;
 	}
@@ -3089,6 +3103,9 @@ void Scene111::actions() {
 
 		case 1:
 			_scene->_nextSceneId = 110;
+			break;
+
+		default:
 			break;
 		}
 	} else if (_action.isAction(VERB_LOOK, NOUN_CAVE_FLOOR))
@@ -3138,8 +3155,8 @@ void Scene112::enter() {
 }
 
 void Scene112::step() {
-	if ((_scene->_activeAnimation != nullptr) && (_game._storyMode == STORYMODE_NICE)) {
-		if (_scene->_activeAnimation->getCurrentFrame() >= 54) {
+	if ((_scene->_animation[0] != nullptr) && (_game._storyMode == STORYMODE_NICE)) {
+		if (_scene->_animation[0]->getCurrentFrame() >= 54) {
 			_scene->freeAnimation();
 			_game._trigger = 70;
 		}

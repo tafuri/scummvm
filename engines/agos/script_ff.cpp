@@ -28,6 +28,8 @@
 
 #include "agos/animation.h"
 #include "agos/agos.h"
+#include "agos/intern.h"
+#include "agos/sound.h"
 
 namespace AGOS {
 
@@ -325,6 +327,8 @@ void AGOSEngine_Feeble::setLoyaltyRating(byte rating) {
 	case 6:
 		// Arriving at rebel base: Freedom Fighters Operative
 		writeVariable(120, 6);
+		break;
+	default:
 		break;
 	}
 }

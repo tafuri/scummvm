@@ -25,6 +25,7 @@
 
 #include "common/scummsys.h"
 #include "common/mutex.h"
+#include "common/serializer.h"
 #include "common/textconsole.h"
 #include "common/util.h"
 
@@ -34,8 +35,10 @@
 #include "scumm/music.h"
 #include "scumm/sound.h"
 
-#include "audio/mixer.h"
-#include "audio/audiostream.h"
+namespace Audio {
+class AudioStream;
+class Mixer;
+}
 
 namespace Scumm {
 
@@ -46,7 +49,6 @@ enum {
 
 struct imuseDigTable;
 struct imuseComiTable;
-class Serializer;
 class ScummEngine_v7;
 struct Track;
 
@@ -67,6 +69,18 @@ private:
 	TriggerParams _triggerParams;
 	bool _triggerUsed;
 
+	struct ScheduledCrossfade {
+		bool scheduled;
+		int destRegion;
+		int destDataOffset;
+		int fadeDelay;
+		int destHookId;
+		int volumeBefJump;
+		bool isJumpToLoop;
+	};
+
+	ScheduledCrossfade _scheduledCrossfades[MAX_DIGITAL_TRACKS];
+
 	Track *_track[MAX_DIGITAL_TRACKS + MAX_DIGITAL_FADETRACKS];
 
 	Common::Mutex _mutex;
@@ -86,12 +100,13 @@ private:
 	int32 _curMusicCue;		// current cue for current music. used in FT
 	int _stopingSequence;
 	bool _radioChatterSFX;
+	bool _speechIsPlaying;
 
 	static void timer_handler(void *refConf);
 	void callback();
 	void switchToNextRegion(Track *track);
 	int allocSlot(int priority);
-	void startSound(int soundId, const char *soundName, int soundType, int volGroupId, Audio::AudioStream *input, int hookId, int volume, int priority, Track *otherTrack);
+	int startSound(int soundId, const char *soundName, int soundType, int volGroupId, Audio::AudioStream *input, int hookId, int volume, int priority, Track *otherTrack);
 	void selectVolumeGroup(int soundId, int volGroupId);
 
 	int32 getPosInMs(int soundId);
@@ -103,7 +118,10 @@ private:
 	void setTrigger(TriggerParams *trigger);
 	void setHookIdForMusic(int hookId);
 	Track *cloneToFadeOutTrack(Track *track, int fadeDelay);
-
+	Track *handleComiFadeOut(Track *track, int fadeDelay);
+	int transformVolumeLinearToEqualPow(int volume, int mode);
+	int transformVolumeEqualPowToLinear(int volume, int mode);
+	
 	void setFtMusicState(int stateId);
 	void setFtMusicSequence(int seqId);
 	void setFtMusicCuePoint(int cueId);
@@ -111,7 +129,9 @@ private:
 
 	void setComiMusicState(int stateId);
 	void setComiMusicSequence(int seqId);
+	void setComiDemoMusicState(int stateId);
 	void playComiMusic(const char *songName, const imuseComiTable *table, int attribPos, bool sequence);
+	void playComiDemoMusic(const char *songName, const imuseComiTable *table, int attribPos);
 
 	void setDigMusicState(int stateId);
 	void setDigMusicSequence(int seqId);
@@ -121,20 +141,21 @@ private:
 
 public:
 	IMuseDigital(ScummEngine_v7 *scumm, Audio::Mixer *mixer, int fps);
-	virtual ~IMuseDigital();
+	~IMuseDigital() override;
 
 	void setAudioNames(int32 num, char *names);
 
-	void startVoice(int soundId, Audio::AudioStream *input);
-	void startVoice(int soundId, const char *soundName);
-	void startMusic(int soundId, int volume);
-	void startMusic(const char *soundName, int soundId, int hookId, int volume);
-	void startMusicWithOtherPos(const char *soundName, int soundId, int hookId, int volume, Track *otherTrack);
-	void startSfx(int soundId, int priority);
-	void startSound(int sound)
+	int startVoice(int soundId, Audio::AudioStream *input);
+	int startVoice(int soundId, const char *soundName);
+	int startMusic(int soundId, int volume);
+	int startMusic(const char *soundName, int soundId, int hookId, int volume);
+	int startMusicWithOtherPos(const char *soundName, int soundId, int hookId, int volume, Track *otherTrack);
+	int startSfx(int soundId, int priority);
+	void startSound(int sound) override
 		{ error("IMuseDigital::startSound(int) should be never called"); }
 
-	void saveOrLoad(Serializer *ser);
+	void saveLoadEarly(Common::Serializer &ser);
+	void runScheduledCrossfades();
 	void resetState();
 	void setRadioChatterSFX(bool state) {
 		_radioChatterSFX = state;
@@ -146,19 +167,20 @@ public:
 	void setFade(int soundId, int destVolume, int delay60HzTicks);
 	int getCurMusicSoundId();
 	void setHookId(int soundId, int hookId);
-	void setMusicVolume(int vol) {}
-	void stopSound(int sound);
-	void stopAllSounds();
+	void setMusicVolume(int vol) override {}
+	void stopSound(int sound) override;
+	void stopAllSounds() override;
 	void pause(bool pause);
 	void parseScriptCmds(int cmd, int soundId, int sub_cmd, int d, int e, int f, int g, int h);
 	void refreshScripts();
 	void flushTracks();
-	int getSoundStatus(int sound) const;
+	int getSoundStatus(int sound) const override;
 	int32 getCurMusicPosInMs();
 	int32 getCurVoiceLipSyncWidth();
 	int32 getCurVoiceLipSyncHeight();
 	int32 getCurMusicLipSyncWidth(int syncId);
 	int32 getCurMusicLipSyncHeight(int syncId);
+	int32 getSoundElapsedTimeInMs(int soundId);
 };
 
 } // End of namespace Scumm

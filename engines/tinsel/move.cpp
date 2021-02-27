@@ -74,7 +74,7 @@ HPOLYGON InitExtraBlock(PMOVER ca, PMOVER ta);
 
 //----------------- LOCAL GLOBAL DATA --------------------
 
-// FIXME: Avoid non-const global vars
+// These vars are reset upon engine destruction
 
 #if SLOW_RINCE_DOWN
 static int g_Interlude = 0;	// For slowing down walking, for testing
@@ -107,6 +107,12 @@ void AddInterlude(int n) {
 }
 #endif
 
+void ResetVarsMove() {
+	g_DefaultRefer = 0;
+	g_lastLeadXdest = g_lastLeadYdest = 0;
+	g_hSlowVar = 0;
+}
+
 /**
  * Given (x, y) of a click within a path polygon, checks that the
  * co-ordinates are not within a blocking polygon. If it is not, the
@@ -133,7 +139,7 @@ static int ClickedOnPath(int clickX, int clickY, int *ptgtX, int *ptgtY) {
 		 In a Blocking polygon - try searching down and up.
 		 If still nowhere (for now) give up!
 		 ------------------------------------------------------*/
-		PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
+		_vm->_bg->PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
 
 		for (i = clickY+1; i < SCREEN_HEIGHT + Toffset; i++) {
 			// Don't leave the path system
@@ -180,7 +186,7 @@ static int ClickedOnRefer(HPOLYGON hRefpoly, int clickX, int clickY, int *ptgtX,
 	int	end;		// Extreme of the scene
 	int	Loffset, Toffset;
 
-	PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
+	_vm->_bg->PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
 	*ptgtX = *ptgtY = -1;
 
 	switch (PolySubtype(hRefpoly)) {
@@ -190,7 +196,7 @@ static int ClickedOnRefer(HPOLYGON hRefpoly, int clickX, int clickY, int *ptgtX,
 		break;
 
 	case REF_DOWN:				// Search downwards
-		end = BgHeight();
+		end = _vm->_bg->BgHeight();
 		for (i = clickY+1; i < end; i++)
 			if (InPolygon(clickX, i, PATH) != NOPOLY
 					&& InPolygon(clickX, i, BLOCK) == NOPOLY) {
@@ -211,7 +217,7 @@ static int ClickedOnRefer(HPOLYGON hRefpoly, int clickX, int clickY, int *ptgtX,
 		break;
 
 	case REF_RIGHT:				// Search to the right
-		end = BgWidth();
+		end = _vm->_bg->BgWidth();
 		for (i = clickX+1; i < end; i++)
 			if (InPolygon(i, clickY, PATH) != NOPOLY
 			&& InPolygon(i, clickY, BLOCK) == NOPOLY) {
@@ -229,6 +235,9 @@ static int ClickedOnRefer(HPOLYGON hRefpoly, int clickX, int clickY, int *ptgtX,
 				*ptgtY = clickY;
 				break;
 			}
+		break;
+
+	default:
 		break;
 	}
 	if (*ptgtX != -1 && *ptgtY != -1) {
@@ -249,7 +258,7 @@ static int ClickedOnNothing(int clickX, int clickY, int *ptgtX, int *ptgtY) {
 	int	end;		// Extreme of the scene
 	int	Loffset, Toffset;
 
-	PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
+	_vm->_bg->PlayfieldGetPos(FIELD_WORLD, &Loffset, &Toffset);
 
 	switch (g_DefaultRefer) {
 	case REF_DEFAULT:
@@ -263,7 +272,7 @@ static int ClickedOnNothing(int clickX, int clickY, int *ptgtX, int *ptgtY) {
 				return ClickedOnPath(clickX, i, ptgtX, ptgtY);
 			}
 		// Try searching down and up (offscreen).
-		end = BgHeight();
+		end = _vm->_bg->BgHeight();
 		for (i = clickY+1; i < end; i++)
 			if (InPolygon(clickX, i, PATH) != NOPOLY) {
 				return ClickedOnPath(clickX, i, ptgtX, ptgtY);
@@ -282,7 +291,7 @@ static int ClickedOnNothing(int clickX, int clickY, int *ptgtX, int *ptgtY) {
 		break;
 
 	case REF_DOWN:
-		end = BgHeight();
+		end = _vm->_bg->BgHeight();
 		for (i = clickY+1; i < end; i++)
 			if (InPolygon(clickX, i, PATH) != NOPOLY) {
 				return ClickedOnPath(clickX, i, ptgtX, ptgtY);
@@ -297,11 +306,14 @@ static int ClickedOnNothing(int clickX, int clickY, int *ptgtX, int *ptgtY) {
 		break;
 
 	case REF_RIGHT:
-		end = BgWidth();
+		end = _vm->_bg->BgWidth();
 		for (i = clickX + 1; i < end; i++)
 			if (InPolygon(i, clickY, PATH) != NOPOLY) {
 				return ClickedOnPath(i, clickY, ptgtX, ptgtY);
 			}
+		break;
+
+	default:
 		break;
 	}
 
@@ -394,6 +406,9 @@ DIRECTION GetDirection(int fromx, int fromy, int tox, int toy, DIRECTION lastree
 	case YB_X1_5:
 		ychange += ychange / 2;	// Double y distance to cover
 		break;
+
+	default:
+		break;
 	}
 
 	/*
@@ -453,6 +468,8 @@ DIRECTION GetDirection(int fromx, int fromy, int tox, int toy, DIRECTION lastree
 					if (ydir == Y_UP)
 						DontBother = true;
 					break;
+				default:
+					break;
 				}
 			}
 			if (!DontBother) {
@@ -474,7 +491,7 @@ static void GotThereWithoutMoving(PMOVER pActor) {
 	DIRECTION	reel;
 
 	if (!pActor->bSpecReel) {
-		GetCursorXYNoWait(&curX, &curY, true);
+		_vm->_cursor->GetCursorXYNoWait(&curX, &curY, true);
 
 		reel = GetDirection(pActor->objX, pActor->objY, curX, curY, pActor->direction, pActor->hCpath);
 
@@ -501,7 +518,7 @@ static void GotThere(PMOVER pMover) {
 			int curX, curY;
 			DIRECTION direction;
 
-			GetCursorXY(&curX, &curY, true);
+			_vm->_cursor->GetCursorXY(&curX, &curY, true);
 			direction = GetDirection(pMover->objX, pMover->objY,
 						curX, curY,
 						pMover->direction,
@@ -514,7 +531,7 @@ static void GotThere(PMOVER pMover) {
 	}
 
 	if (!TinselV2)
-		ReTagActor(pMover->actorID);	// Tag allowed while stationary
+		_vm->_actor->ReTagActor(pMover->actorID);	// Tag allowed while stationary
 
 	SetMoverStanding(pMover);
 	pMover->bMoving = false;
@@ -744,6 +761,7 @@ static void SetNextDest(PMOVER pMover) {
 	hNpoly = pMover->hFnpath;		// The node path we're in (if any)
 	switch (pMover->npstatus) {
 	case NOT_IN:
+	default:
 		break;
 
 	case ENTERING:
@@ -771,7 +789,7 @@ static void SetNextDest(PMOVER pMover) {
 			pMover->over = true;
 			return;
 		}
-		// Fall through for LEAVING
+		// fall through
 
 	case LEAVING:
 		assert(pMover->bIgPath || InPolygon(pMover->UtargetX, pMover->UtargetY, PATH) != NOPOLY); // Error 5002
@@ -1326,8 +1344,8 @@ int SetActorDest(PMOVER pMover, int clickX, int clickY, bool igPath, SCNHANDLE h
 		// Fix interrupted-walking-to-wardrobe bug in mortuary
 		StopMover(pMover);
 	} else {
-		if (pMover->actorID == GetLeadId())		// Now only for lead actor
-			UnTagActor(pMover->actorID);	// Tag not allowed while moving
+		if (pMover->actorID == _vm->_actor->GetLeadId()) // Now only for lead actor
+			_vm->_actor->UnTagActor(pMover->actorID);    // Tag not allowed while moving
 	}
 
 	pMover->walkNumber++;
@@ -1352,14 +1370,14 @@ int SetActorDest(PMOVER pMover, int clickX, int clickY, bool igPath, SCNHANDLE h
 		targetX = clickX;
 		targetY = clickY;
 
-		if (pMover->actorID == GetLeadId()) {
+		if (pMover->actorID == _vm->_actor->GetLeadId()) {
 			g_lastLeadXdest = targetX;
 			g_lastLeadYdest = targetY;
 		}
 	} else {
 		int wodResult = WorkOutDestination(clickX, clickY, &targetX, &targetY);
 
-		if (pMover->actorID == GetLeadId()) {
+		if (pMover->actorID == _vm->_actor->GetLeadId()) {
 			g_lastLeadXdest = targetX;
 			g_lastLeadYdest = targetY;
 		}

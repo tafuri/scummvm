@@ -20,91 +20,16 @@
  *
  */
 
-#include "base/plugins.h"
 
-#include "engines/advancedDetector.h"
-#include "common/config-manager.h"
-#include "common/file.h"
-#include "common/md5.h"
-#include "common/savefile.h"
-#include "common/textconsole.h"
 #include "common/translation.h"
+#include "common/system.h"
+#include "common/debug.h"
 
-#include "graphics/thumbnail.h"
-#include "graphics/surface.h"
+#include "base/plugins.h"
+#include "engines/advancedDetector.h"
 
-#include "agi/agi.h"
-#include "agi/preagi.h"
-#include "agi/preagi_mickey.h"
-#include "agi/preagi_troll.h"
-#include "agi/preagi_winnie.h"
-#include "agi/wagparser.h"
-
-
-namespace Agi {
-
-struct AGIGameDescription {
-	ADGameDescription desc;
-
-	int gameID;
-	int gameType;
-	uint32 features;
-	uint16 version;
-};
-
-uint32 AgiBase::getGameID() const {
-	return _gameDescription->gameID;
-}
-
-uint32 AgiBase::getFeatures() const {
-	return _gameFeatures;
-}
-
-Common::Platform AgiBase::getPlatform() const {
-	return _gameDescription->desc.platform;
-}
-
-Common::Language AgiBase::getLanguage() const {
-	return _gameDescription->desc.language;
-}
-
-uint16 AgiBase::getVersion() const {
-	return _gameVersion;
-}
-
-uint16 AgiBase::getGameType() const {
-	return _gameDescription->gameType;
-}
-
-const char *AgiBase::getGameMD5() const {
-	return _gameDescription->desc.filesDescriptions[0].md5;
-}
-
-void AgiBase::initFeatures() {
-	_gameFeatures = _gameDescription->features;
-}
-
-void AgiBase::setFeature(uint32 feature) {
-	_gameFeatures |= feature;
-}
-
-void AgiBase::setVersion(uint16 version) {
-	_gameVersion = version;
-}
-
-void AgiBase::initVersion() {
-	_gameVersion = _gameDescription->version;
-}
-
-const char *AgiBase::getDiskName(uint16 id) {
-	for (int i = 0; _gameDescription->desc.filesDescriptions[i].fileName != NULL; i++)
-		if (_gameDescription->desc.filesDescriptions[i].fileType == id)
-			return _gameDescription->desc.filesDescriptions[i].fileName;
-
-	return "";
-}
-
-}
+#include "agi/detection.h"
+#include "agi/wagparser.h" // for fallback detection
 
 static const PlainGameDescriptor agiGames[] = {
 	{"agi", "Sierra AGI game"},
@@ -138,208 +63,99 @@ static const PlainGameDescriptor agiGames[] = {
 	{0, 0}
 };
 
-static const ExtraGuiOption agiExtraGuiOption = {
-	_s("Use original save/load screens"),
-	_s("Use the original save/load screens, instead of the ScummVM ones"),
-	"originalsaveload",
-	false
-};
-
-static const ExtraGuiOption agiExtraGuiOptionAmiga = {
-	_s("Use an alternative palette"),
-	_s("Use an alternative palette, common for all Amiga games. This was the old behavior"),
-	"altamigapalette",
-	false
-};
-
 #include "agi/detection_tables.h"
+
+static const ADExtraGuiOptionsMap optionsList[] = {
+	{
+		GAMEOPTION_ORIGINAL_SAVELOAD,
+		{
+			_s("Use original save/load screens"),
+			_s("Use the original save/load screens instead of the ScummVM ones"),
+			"originalsaveload",
+			false
+		}
+	},
+
+	{
+		GAMEOPTION_AMIGA_ALTERNATIVE_PALETTE,
+		{
+			_s("Use an alternative palette"),
+			_s("Use an alternative palette, common for all Amiga games. This was the old behavior"),
+			"altamigapalette",
+			false
+		}
+	},
+
+	{
+		GAMEOPTION_DISABLE_MOUSE,
+		{
+			_s("Mouse support"),
+			_s("Enables mouse support. Allows to use mouse for movement and in game menus."),
+			"mousesupport",
+			true
+		}
+	},
+
+	{
+		GAMEOPTION_USE_HERCULES_FONT,
+		{
+			_s("Use Hercules hires font"),
+			_s("Uses Hercules hires font, when font file is available."),
+			"herculesfont",
+			false
+		}
+	},
+
+	{
+		GAMEOPTION_COMMAND_PROMPT_WINDOW,
+		{
+			_s("Pause when entering commands"),
+			_s("Shows a command prompt window and pauses the game (like in SCI) instead of a real-time prompt."),
+			"commandpromptwindow",
+			false
+		}
+	},
+
+	{
+		GAMEOPTION_APPLE2GS_ADD_SPEED_MENU,
+		{
+			_s("Add speed menu"),
+			_s("Add game speed menu (similar to PC version)"),
+			"apple2gs_speedmenu",
+			false
+		}
+	},
+
+	AD_EXTRA_GUI_OPTIONS_TERMINATOR
+};
 
 using namespace Agi;
 
-class AgiMetaEngine : public AdvancedMetaEngine {
-	mutable Common::String	_gameid;
-	mutable Common::String	_extra;
+class AgiMetaEngineDetection : public AdvancedMetaEngineDetection {
+	mutable Common::String _gameid;
+	mutable Common::String _extra;
 
 public:
-	AgiMetaEngine() : AdvancedMetaEngine(Agi::gameDescriptions, sizeof(Agi::AGIGameDescription), agiGames) {
-		_singleid = "agi";
-		_guioptions = GUIO1(GUIO_NOSPEECH);
+	AgiMetaEngineDetection() : AdvancedMetaEngineDetection(Agi::gameDescriptions, sizeof(Agi::AGIGameDescription), agiGames, optionsList) {
+		_guiOptions = GUIO1(GUIO_NOSPEECH);
 	}
 
-	virtual const char *getName() const {
+	const char *getEngineId() const override {
+		return "agi";
+	}
+
+	const char *getName() const override {
 		return "AGI preAGI + v2 + v3";
 	}
-	virtual const char *getOriginalCopyright() const {
+
+	const char *getOriginalCopyright() const override {
 		return "Sierra AGI Engine (C) Sierra On-Line Software";
 	}
 
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const;
-	virtual const ExtraGuiOptions getExtraGuiOptions(const Common::String &target) const;
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const;
-	virtual void removeSaveState(const char *target, int slot) const;
-	SaveStateDescriptor querySaveMetaInfos(const char *target, int slot) const;
-
-	const ADGameDescription *fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const;
+	ADDetectedGame fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const override;
 };
 
-bool AgiMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves) ||
-		(f == kSupportsLoadingDuringStartup) ||
-		(f == kSupportsDeleteSave) ||
-		(f == kSavesSupportMetaInfo) ||
-		(f == kSavesSupportThumbnail) ||
-		(f == kSavesSupportCreationDate) ||
-		(f == kSavesSupportPlayTime);
-}
-
-bool AgiBase::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL) ||
-		(f == kSupportsLoadingDuringRuntime) ||
-		(f == kSupportsSavingDuringRuntime);
-}
-
-
-bool AgiMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	const Agi::AGIGameDescription *gd = (const Agi::AGIGameDescription *)desc;
-	bool res = true;
-
-	switch (gd->gameType) {
-	case Agi::GType_PreAGI:
-		switch (gd->gameID) {
-		case GID_MICKEY:
-			*engine = new Agi::MickeyEngine(syst, gd);
-			break;
-		case GID_TROLL:
-			*engine = new Agi::TrollEngine(syst, gd);
-			break;
-		case GID_WINNIE:
-			*engine = new Agi::WinnieEngine(syst, gd);
-			break;
-		}
-		break;
-	case Agi::GType_V1:
-	case Agi::GType_V2:
-	case Agi::GType_V3:
-		*engine = new Agi::AgiEngine(syst, gd);
-		break;
-	default:
-		res = false;
-		error("AGI engine: unknown gameType");
-	}
-
-	return res;
-}
-
-const ExtraGuiOptions AgiMetaEngine::getExtraGuiOptions(const Common::String &target) const {
-	ExtraGuiOptions options;
-	options.push_back(agiExtraGuiOption);
-	if (target.contains("-amiga"))
-		options.push_back(agiExtraGuiOptionAmiga);
-	return options;
-}
-
-SaveStateList AgiMetaEngine::listSaves(const char *target) const {
-	const uint32 AGIflag = MKTAG('A','G','I',':');
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	Common::StringArray filenames;
-	char saveDesc[31];
-	Common::String pattern = target;
-	pattern += ".???";
-
-	filenames = saveFileMan->listSavefiles(pattern);
-	sort(filenames.begin(), filenames.end());	// Sort (hopefully ensuring we are sorted numerically..)
-
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		// Obtain the last 3 digits of the filename, since they correspond to the save slot
-		int slotNum = atoi(file->c_str() + file->size() - 3);
-
-		if (slotNum >= 0 && slotNum <= 999) {
-			Common::InSaveFile *in = saveFileMan->openForLoading(*file);
-			if (in) {
-				uint32 type = in->readUint32BE();
-				if (type == AGIflag)
-					in->read(saveDesc, 31);
-				saveList.push_back(SaveStateDescriptor(slotNum, saveDesc));
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-int AgiMetaEngine::getMaximumSaveSlot() const { return 999; }
-
-void AgiMetaEngine::removeSaveState(const char *target, int slot) const {
-	Common::String fileName = Common::String::format("%s.%03d", target, slot);
-	g_system->getSavefileManager()->removeSavefile(fileName);
-}
-
-SaveStateDescriptor AgiMetaEngine::querySaveMetaInfos(const char *target, int slot) const {
-	const uint32 AGIflag = MKTAG('A','G','I',':');
-	Common::String fileName = Common::String::format("%s.%03d", target, slot);
-
-	Common::InSaveFile *in = g_system->getSavefileManager()->openForLoading(fileName);
-
-	if (in) {
-		if (in->readUint32BE() != AGIflag) {
-			delete in;
-			return SaveStateDescriptor();
-		}
-
-		char name[32];
-		in->read(name, 31);
-
-		SaveStateDescriptor desc(slot, name);
-
-		// Do not allow save slot 0 (used for auto-saving) to be deleted or
-		// overwritten.
-		desc.setDeletableFlag(slot != 0);
-		desc.setWriteProtectedFlag(slot == 0);
-
-		char saveVersion = in->readByte();
-		if (saveVersion >= 4) {
-			Graphics::Surface *const thumbnail = Graphics::loadThumbnail(*in);
-
-			desc.setThumbnail(thumbnail);
-
-			uint32 saveDate = in->readUint32BE();
-			uint16 saveTime = in->readUint16BE();
-			if (saveVersion >= 6) {
-				uint32 playTime = in->readUint32BE();
-				desc.setPlayTime(playTime * 1000);
-			}
-
-			int day = (saveDate >> 24) & 0xFF;
-			int month = (saveDate >> 16) & 0xFF;
-			int year = saveDate & 0xFFFF;
-
-			desc.setSaveDate(year, month, day);
-
-			int hour = (saveTime >> 8) & 0xFF;
-			int minutes = saveTime & 0xFF;
-
-			desc.setSaveTime(hour, minutes);
-		}
-
-
-		delete in;
-
-		return desc;
-	} else {
-		SaveStateDescriptor emptySave;
-		// Do not allow save slot 0 (used for auto-saving) to be overwritten.
-		emptySave.setWriteProtectedFlag(slot == 0);
-		return emptySave;
-	}
-}
-
-const ADGameDescription *AgiMetaEngine::fallbackDetect(const FileMap &allFilesXXX, const Common::FSList &fslist) const {
+ADDetectedGame AgiMetaEngineDetection::fallbackDetect(const FileMap &allFilesXXX, const Common::FSList &fslist) const {
 	typedef Common::HashMap<Common::String, int32> IntMap;
 	IntMap allFiles;
 	bool matchedUsingFilenames = false;
@@ -378,9 +194,9 @@ const ADGameDescription *AgiMetaEngine::fallbackDetect(const FileMap &allFilesXX
 	}
 
 	if (allFiles.contains("logdir") && allFiles.contains("object") &&
-		allFiles.contains("picdir") && allFiles.contains("snddir") &&
-		allFiles.contains("viewdir") && allFiles.contains("vol.0") &&
-		allFiles.contains("words.tok")) { // Check for v2
+	        allFiles.contains("picdir") && allFiles.contains("snddir") &&
+	        allFiles.contains("viewdir") && allFiles.contains("vol.0") &&
+	        allFiles.contains("words.tok")) { // Check for v2
 
 		// The default AGI interpreter version 0x2917 is okay for v2 games
 		// so we don't have to change it here.
@@ -399,7 +215,6 @@ const ADGameDescription *AgiMetaEngine::fallbackDetect(const FileMap &allFilesXX
 
 		if (agipal) { // Check if it is AGIPAL
 			description = "Unknown v2 AGIPAL Game";
-			g_fallbackDesc.features |= GF_AGIPAL; // Add AGIPAL feature flag
 		} else { // Not AGIPAL so just plain v2
 			description = "Unknown v2 Game";
 		}
@@ -412,7 +227,7 @@ const ADGameDescription *AgiMetaEngine::fallbackDetect(const FileMap &allFilesXX
 				strncpy(name, f->_key.c_str(), MIN((uint)8, f->_key.size() > 5 ? f->_key.size() - 5 : f->_key.size()));
 
 				if (allFiles.contains("object") && allFiles.contains("words.tok") &&
-					allFiles.contains(Common::String(name) + "dir")) {
+				        allFiles.contains(Common::String(name) + "dir")) {
 					matchedUsingFilenames = true;
 					description = "Unknown v3 Game";
 					g_fallbackDesc.version = 0x3149; // Set the default AGI version for an AGI v3 game
@@ -490,58 +305,22 @@ const ADGameDescription *AgiMetaEngine::fallbackDetect(const FileMap &allFilesXX
 		// Override the gameid & extra values in g_fallbackDesc.desc. This only works
 		// until the fallback detector is called again, and while the MetaEngine instance
 		// is alive (as else the string storage is modified/deleted).
-		g_fallbackDesc.desc.gameid = _gameid.c_str();
+		g_fallbackDesc.desc.gameId = _gameid.c_str();
 		g_fallbackDesc.desc.extra = _extra.c_str();
 
 		Common::String fallbackWarning;
 
 		fallbackWarning = "Your game version has been detected using fallback matching as a\n";
-		fallbackWarning += Common::String::format("variant of %s (%s).\n", g_fallbackDesc.desc.gameid, g_fallbackDesc.desc.extra);
+		fallbackWarning += Common::String::format("variant of %s (%s).\n", g_fallbackDesc.desc.gameId, g_fallbackDesc.desc.extra);
 		fallbackWarning += "If this is an original and unmodified version or new made Fanmade game,\n";
 		fallbackWarning += "please report any, information previously printed by ScummVM to the team.\n";
 
 		g_system->logMessage(LogMessageType::kWarning, fallbackWarning.c_str());
 
-		return (const ADGameDescription *)&g_fallbackDesc;
+		return ADDetectedGame(&g_fallbackDesc.desc);
 	}
 
-	return 0;
+	return ADDetectedGame();
 }
 
-#if PLUGIN_ENABLED_DYNAMIC(AGI)
-	REGISTER_PLUGIN_DYNAMIC(AGI, PLUGIN_TYPE_ENGINE, AgiMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(AGI, PLUGIN_TYPE_ENGINE, AgiMetaEngine);
-#endif
-
-namespace Agi {
-
-bool AgiBase::canLoadGameStateCurrently() {
-	return (!(getGameType() == GType_PreAGI) && getflag(fMenusWork) && !_noSaveLoadAllowed);
-}
-
-bool AgiBase::canSaveGameStateCurrently() {
-	if (getGameID() == GID_BC) // Technically in Black Cauldron we may save anytime
-		return true;
-
-	return (!(getGameType() == GType_PreAGI) && getflag(fMenusWork) && !_noSaveLoadAllowed && _game.inputEnabled);
-}
-
-int AgiEngine::agiDetectGame() {
-	int ec = errOK;
-
-	assert(_gameDescription != NULL);
-
-	if (getVersion() <= 0x2001) {
-		_loader = new AgiLoader_v1(this);
-	} else if (getVersion() <= 0x2999) {
-		_loader = new AgiLoader_v2(this);
-	} else {
-		_loader = new AgiLoader_v3(this);
-	}
-	ec = _loader->detectGame();
-
-	return ec;
-}
-
-} // End of namespace Agi
+REGISTER_PLUGIN_STATIC(AGI_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, AgiMetaEngineDetection);

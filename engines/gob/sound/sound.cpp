@@ -28,6 +28,7 @@
 #include "gob/game.h"
 #include "gob/inter.h"
 
+#include "gob/sound/bgatmosphere.h"
 #include "gob/sound/pcspeaker.h"
 #include "gob/sound/soundblaster.h"
 #include "gob/sound/adlplayer.h"
@@ -234,7 +235,7 @@ bool Sound::adlibLoadADL(const char *fileName) {
 		return false;
 
 	if (!_adlPlayer)
-		_adlPlayer = new ADLPlayer(*_vm->_mixer);
+		_adlPlayer = new ADLPlayer();
 
 	debugC(1, kDebugSound, "AdLib: Loading ADL data (\"%s\")", fileName);
 
@@ -256,7 +257,7 @@ bool Sound::adlibLoadADL(byte *data, uint32 size, int index) {
 		return false;
 
 	if (!_adlPlayer)
-		_adlPlayer = new ADLPlayer(*_vm->_mixer);
+		_adlPlayer = new ADLPlayer();
 
 	debugC(1, kDebugSound, "AdLib: Loading ADL data (%d)", index);
 
@@ -423,6 +424,16 @@ int32 Sound::adlibGetRepeating() const {
 		return _mdyPlayer->getRepeating();
 
 	return false;
+}
+
+void Sound::adlibSyncVolume() {
+	if (!_hasAdLib)
+		return;
+
+	if (_adlPlayer)
+		_adlPlayer->syncVolume();
+	if (_mdyPlayer)
+		_mdyPlayer->syncVolume();
 }
 
 void Sound::adlibSetRepeating(int32 repCount) {
@@ -614,7 +625,13 @@ void Sound::cdPlay(const Common::String &trackName) {
 // name in the scripts, and therefore doesn't play. This fixes the problem.
 	if ((_vm->getGameType() == kGameTypeFascination) && trackName.equalsIgnoreCase("boscle"))
 		_cdrom->startTrack("bosscle");
-	else
+// WORKAROUND - In Goblins 3 CD, in the chess room, a couple of tracks have the wrong name
+// in the scripts, and therefore don't play. This fixes the problem (ticket #11335). 
+	else if ((_vm->getGameType() == kGameTypeGob3) && trackName.matchString("ECHEQUI?")) {
+		char name[] = "ECHIQUI1";
+		name[7] = trackName[7];
+		_cdrom->startTrack(name);
+	} else
 		_cdrom->startTrack(trackName.c_str());
 }
 
@@ -707,7 +724,7 @@ void Sound::bgStop() {
 	_bgatmos->queueClear();
 }
 
-void Sound::bgSetPlayMode(BackgroundAtmosphere::PlayMode mode) {
+void Sound::bgSetPlayMode(Sound::BackgroundPlayMode mode) {
 	if (!_bgatmos)
 		return;
 
@@ -739,7 +756,7 @@ void Sound::createMDYPlayer() {
 	delete _adlPlayer;
 	_adlPlayer = 0;
 
-	_mdyPlayer = new MUSPlayer(*_vm->_mixer);
+	_mdyPlayer = new MUSPlayer();
 }
 
 void Sound::createADLPlayer() {
@@ -749,7 +766,7 @@ void Sound::createADLPlayer() {
 	delete _mdyPlayer;
 	_mdyPlayer= 0;
 
-	_adlPlayer = new ADLPlayer(*_vm->_mixer);
+	_adlPlayer = new ADLPlayer();
 }
 
 } // End of namespace Gob

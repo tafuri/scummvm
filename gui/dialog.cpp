@@ -22,12 +22,9 @@
 
 #include "common/rect.h"
 
-#ifdef ENABLE_KEYMAPPER
-#include "common/events.h"
-#endif
-
 #include "gui/gui-manager.h"
 #include "gui/dialog.h"
+#include "gui/ThemeEval.h"
 #include "gui/widget.h"
 
 namespace GUI {
@@ -43,7 +40,7 @@ namespace GUI {
 
 Dialog::Dialog(int x, int y, int w, int h)
 	: GuiObject(x, y, w, h),
-	  _mouseWidget(0), _focusedWidget(0), _dragWidget(0), _tickleWidget(0), _visible(false),
+	  _mouseWidget(nullptr), _focusedWidget(nullptr), _dragWidget(nullptr), _tickleWidget(nullptr), _visible(false),
 	_backgroundType(GUI::ThemeEngine::kDialogBackgroundDefault) {
 	// Some dialogs like LauncherDialog use internally a fixed size, even though
 	// their widgets rely on the layout to be initialized correctly by the theme.
@@ -51,11 +48,13 @@ Dialog::Dialog(int x, int y, int w, int h)
 	// will for example crash after returning to the launcher when the user
 	// started a 640x480 game with a non 1x scaler.
 	g_gui.checkScreenChange();
+
+	_result = -1;
 }
 
 Dialog::Dialog(const Common::String &name)
 	: GuiObject(name),
-	  _mouseWidget(0), _focusedWidget(0), _dragWidget(0), _tickleWidget(0), _visible(false),
+	  _mouseWidget(nullptr), _focusedWidget(nullptr), _dragWidget(nullptr), _tickleWidget(nullptr), _visible(false),
 	_backgroundType(GUI::ThemeEngine::kDialogBackgroundDefault) {
 
 	// It may happen that we have 3x scaler in launcher (960xY) and then 640x480
@@ -66,6 +65,8 @@ Dialog::Dialog(const Common::String &name)
 	// Fixes bug #1590596: "HE: When 3x graphics are choosen, F5 crashes game"
 	// and bug #1595627: "SCUMM: F5 crashes game (640x480)"
 	g_gui.checkScreenChange();
+
+	_result = -1;
 }
 
 int Dialog::runModal() {
@@ -84,13 +85,7 @@ void Dialog::open() {
 	_visible = true;
 	g_gui.openDialog(this);
 
-	Widget *w = _firstWidget;
-	// Search for the first objects that wantsFocus() (if any) and give it the focus
-	while (w && !w->wantsFocus()) {
-		w = w->_next;
-	}
-
-	setFocusWidget(w);
+	setDefaultFocusedWidget();
 }
 
 void Dialog::close() {
@@ -98,7 +93,7 @@ void Dialog::close() {
 
 	if (_mouseWidget) {
 		_mouseWidget->handleMouseLeft(0);
-		_mouseWidget = 0;
+		_mouseWidget = nullptr;
 	}
 	releaseFocus();
 	g_gui.closeTopDialog();
@@ -109,16 +104,22 @@ void Dialog::reflowLayout() {
 	// changed, so any cached image may be invalid. The subsequent redraw
 	// should be treated as the very first draw.
 
+	if (!_name.empty()) {
+		g_gui.xmlEval()->reflowDialogLayout(_name, _firstWidget);
+	}
+
+	GuiObject::reflowLayout();
+
 	Widget *w = _firstWidget;
 	while (w) {
 		w->reflowLayout();
 		w = w->_next;
 	}
-
-	GuiObject::reflowLayout();
 }
 
 void Dialog::lostFocus() {
+	_dragWidget = nullptr;
+
 	if (_tickleWidget) {
 		_tickleWidget->lostFocus();
 	}
@@ -136,27 +137,48 @@ void Dialog::setFocusWidget(Widget *widget) {
 	_focusedWidget = widget;
 }
 
+void Dialog::setDefaultFocusedWidget() {
+	Widget *w = _firstWidget;
+	// Search for the first objects that wantsFocus() (if any) and give it the focus
+	while (w && !w->wantsFocus()) {
+		w = w->_next;
+	}
+
+	setFocusWidget(w);
+}
+
 void Dialog::releaseFocus() {
 	if (_focusedWidget) {
 		_focusedWidget->lostFocus();
-		_focusedWidget = 0;
+		_focusedWidget = nullptr;
 	}
 }
 
-void Dialog::draw() {
-	//TANOKU - FIXME when is this enabled? what does this do?
-	// Update: called on tab drawing, mainly...
-	// we can pass this as open a new dialog or something
-//	g_gui._needRedraw = true;
-	g_gui._redrawStatus = GUI::GuiManager::kRedrawTopDialog;
+void Dialog::markWidgetsAsDirty() {
+	Widget *w = _firstWidget;
+	while (w) {
+		w->markAsDirty();
+		w = w->_next;
+	}
 }
 
-void Dialog::drawDialog() {
+void Dialog::drawDialog(DrawLayer layerToDraw) {
 
 	if (!isVisible())
 		return;
 
-	g_gui.theme()->drawDialogBackground(Common::Rect(_x, _y, _x+_w, _y+_h), _backgroundType);
+	g_gui.theme()->disableClipRect();
+	g_gui.theme()->_layerToDraw = layerToDraw;
+	g_gui.theme()->drawDialogBackground(Common::Rect(_x, _y, _x + _w, _y + _h), _backgroundType);
+
+	markWidgetsAsDirty();
+	drawWidgets();
+}
+
+void Dialog::drawWidgets() {
+
+	if (!isVisible())
+		return;
 
 	// Draw all children
 	Widget *w = _firstWidget;
@@ -205,7 +227,7 @@ void Dialog::handleMouseUp(int x, int y, int button, int clickCount) {
 	if (w)
 		w->handleMouseUp(x - (w->getAbsX() - _x), y - (w->getAbsY() - _y), button, clickCount);
 
-	_dragWidget = 0;
+	_dragWidget = nullptr;
 }
 
 void Dialog::handleMouseWheel(int x, int y, int direction) {
@@ -287,7 +309,7 @@ void Dialog::handleMouseMoved(int x, int y, int button) {
 			_mouseWidget = w;
 			w->handleMouseEntered(button);
 		} else if (!mouseInFocusedWidget && _mouseWidget == w) {
-			_mouseWidget = 0;
+			_mouseWidget = nullptr;
 			w->handleMouseLeft(button);
 		}
 
@@ -310,7 +332,7 @@ void Dialog::handleMouseMoved(int x, int y, int button) {
 		// If we have a widget in drag mode we prevent mouseEntered
 		// events from being sent to other widgets.
 		if (_dragWidget && w != _dragWidget)
-			w = 0;
+			w = nullptr;
 
 		if (w)
 			w->handleMouseEntered(button);
@@ -336,12 +358,15 @@ void Dialog::handleCommand(CommandSender *sender, uint32 cmd, uint32 data) {
 	case kCloseCmd:
 		close();
 		break;
+	case kCloseWithResultCmd:
+		setResult(data);
+		close();
+		break;
+	default:
+		break;
 	}
 }
 
-#ifdef ENABLE_KEYMAPPER
-void Dialog::handleOtherEvent(Common::Event evt) { }
-#endif
 /*
  * Determine the widget at location (x,y) if any. Assumes the coordinates are
  * in the local coordinate system, i.e. relative to the top left of the dialog.
@@ -355,12 +380,12 @@ Widget *Dialog::findWidget(const char *name) {
 }
 
 void Dialog::removeWidget(Widget *del) {
-	if (del == _mouseWidget)
-		_mouseWidget = NULL;
-	if (del == _focusedWidget)
-		_focusedWidget = NULL;
-	if (del == _dragWidget)
-		_dragWidget = NULL;
+	if (del == _mouseWidget || del->containsWidget(_mouseWidget))
+		_mouseWidget = nullptr;
+	if (del == _focusedWidget || del->containsWidget(_focusedWidget))
+		_focusedWidget = nullptr;
+	if (del == _dragWidget || del->containsWidget(_dragWidget))
+		_dragWidget = nullptr;
 
 	GuiObject::removeWidget(del);
 }

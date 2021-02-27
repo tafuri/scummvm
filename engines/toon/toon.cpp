@@ -27,6 +27,7 @@
 #include "common/config-manager.h"
 #include "common/savefile.h"
 #include "common/memstream.h"
+#include "common/translation.h"
 
 #include "engines/advancedDetector.h"
 #include "engines/util.h"
@@ -34,7 +35,6 @@
 #include "graphics/surface.h"
 #include "graphics/thumbnail.h"
 #include "gui/saveload.h"
-#include "gui/about.h"
 #include "gui/message.h"
 #include "toon/resource.h"
 #include "toon/toon.h"
@@ -105,6 +105,9 @@ void ToonEngine::init() {
 	resources()->openPackage("LOCAL.PAK");
 	resources()->openPackage("ONETIME.PAK");
 	resources()->openPackage("DREW.PAK");
+
+	// load subtitles if available (if fails to load it only return false, so there's no need to check)
+	resources()->openPackage("SUBTITLES.PAK");
 
 	for (int32 i = 0; i < 32; i++)
 		_characters[i] = NULL;
@@ -219,12 +222,12 @@ void ToonEngine::parseInput() {
 				if (slotNum >= 0 && slotNum <= 9 && canSaveGameStateCurrently()) {
 					if (saveGame(slotNum, "")) {
 						// ok
-						Common::String buf = Common::String::format("Saved game in slot #%d ", slotNum);
+						Common::U32String buf = Common::U32String::format(_("Saved game in slot #%d "), slotNum);
 						GUI::TimedMessageDialog dialog(buf, 1000);
 						dialog.runModal();
 					} else {
-						Common::String buf = Common::String::format("Could not quick save into slot #%d", slotNum);
-						GUI::MessageDialog dialog(buf, "OK", 0);
+						Common::U32String buf = Common::U32String::format(_("Could not quick save into slot #%d"), slotNum);
+						GUI::MessageDialog dialog(buf);
 						dialog.runModal();
 
 					}
@@ -236,20 +239,16 @@ void ToonEngine::parseInput() {
 				if (slotNum >= 0 && slotNum <= 9 && canLoadGameStateCurrently()) {
 					if (loadGame(slotNum)) {
 						// ok
-						Common::String buf = Common::String::format("Savegame #%d quick loaded", slotNum);
+						Common::U32String buf = Common::U32String::format(_("Saved game #%d quick loaded"), slotNum);
 						GUI::TimedMessageDialog dialog(buf, 1000);
 						dialog.runModal();
 					} else {
-						Common::String buf = Common::String::format("Could not quick load the savegame #%d", slotNum);
-						GUI::MessageDialog dialog(buf, "OK", 0);
-						warning("%s", buf.c_str());
+						const char *msg = _s("Could not quick load the saved game #%d");
+						Common::U32String buf = Common::U32String::format(_(msg), slotNum);
+						GUI::MessageDialog dialog(buf);
+						warning(msg, slotNum);
 						dialog.runModal();
 					}
-				}
-
-				if (event.kbd.keycode == Common::KEYCODE_d) {
-					_console->attach();
-					_console->onFrame();
 				}
 			}
 			break;
@@ -708,7 +707,7 @@ bool ToonEngine::showOptions() {
 	entries[2].activeFrame = entries[2].animation->_numFrames - 1;
 
 	if (!_showConversationText) {
-		entries[4].activeFrame = 4;		
+		entries[4].activeFrame = 4;
 	} else if (_useAlternativeFont) {
 		entries[4].activeFrame = 8;
 	} else {
@@ -797,19 +796,19 @@ bool ToonEngine::showOptions() {
 			// handle sliders
 			if (clickingOn == OPTIONMENUHOTSPOT_VOLUMEMUSICSLIDER) {
 				entries[clickingOnSprite].activeFrame = ratioX * (entries[clickingOnSprite].animation->_numFrames) / 256;
-				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames; 
+				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames;
 				_audioManager->_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, vol);
 			}
 
 			if (clickingOn == OPTIONMENUHOTSPOT_VOLUMEVOICESLIDER) {
 				entries[clickingOnSprite].activeFrame = ratioX * (entries[clickingOnSprite].animation->_numFrames) / 256;
-				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames; 
+				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames;
 				_audioManager->_mixer->setVolumeForSoundType(Audio::Mixer::kSpeechSoundType, vol);
 			}
 
 			if (clickingOn == OPTIONMENUHOTSPOT_VOLUMESFXSLIDER) {
 				entries[clickingOnSprite].activeFrame = ratioX * (entries[clickingOnSprite].animation->_numFrames) / 256;
-				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames; 
+				int vol = entries[clickingOnSprite].activeFrame * 256 / entries[clickingOnSprite].animation->_numFrames;
 				_audioManager->_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, vol);
 			}
 
@@ -935,9 +934,11 @@ bool ToonEngine::showOptions() {
 	_gameState->_inMenu = false;
 	_firstFrame = true;
 	_gameState->_currentScrollValue = oldScrollValue;
-	
+
 	restorePalette();
 	dirtyAllScreen();
+
+	delete optionPicture;
 
 	return exitGame;
 }
@@ -1062,6 +1063,8 @@ bool ToonEngine::showMainmenu(bool &loadedGame) {
 		case MAINMENUHOTSPOT_HOTKEYSCLOSE:
 			menuMask = MAINMENUMASK_BASE;
 			continue;
+		default:
+			break;
 		}
 
 		if (musicPlaying) {
@@ -1096,6 +1099,8 @@ bool ToonEngine::showMainmenu(bool &loadedGame) {
 			exitGame = true;
 			doExit = true;
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -1114,7 +1119,7 @@ Common::Error ToonEngine::run() {
 	if (!loadToonDat())
 		return Common::kUnknownError;
 
-	initGraphics(TOON_SCREEN_WIDTH, TOON_SCREEN_HEIGHT, true);
+	initGraphics(TOON_SCREEN_WIDTH, TOON_SCREEN_HEIGHT);
 	init();
 
 	// do we need to load directly a game?
@@ -1206,7 +1211,7 @@ ToonEngine::ToonEngine(OSystem *syst, const ADGameDescription *gameDescription)
 	_saveBufferStream = NULL;
 
 	_pathFinding = NULL;
-	_console = new ToonConsole(this);
+	setDebugger(new ToonConsole(this));
 
 	_cursorAnimation = NULL;
 	_cursorAnimationInstance = NULL;
@@ -1296,6 +1301,7 @@ ToonEngine::ToonEngine(OSystem *syst, const ADGameDescription *gameDescription)
 		_scriptState[i].running = false;
 	}
 	_currentScriptRegion = 0;
+	_currentFont = nullptr;
 }
 
 ToonEngine::~ToonEngine() {
@@ -1368,7 +1374,6 @@ ToonEngine::~ToonEngine() {
 	unloadToonDat();
 
 	DebugMan.clearAllDebugChannels();
-	delete _console;
 }
 
 void ToonEngine::flushPalette(bool deferFlushToNextRender) {
@@ -1424,7 +1429,7 @@ void ToonEngine::updateAnimationSceneScripts(int32 timeElapsed) {
 
 	do {
 		if (_sceneAnimationScripts[_lastProcessedSceneScript]._lastTimer <= _system->getMillis() &&
-		        !_sceneAnimationScripts[_lastProcessedSceneScript]._frozen && !_sceneAnimationScripts[_lastProcessedSceneScript]._frozenForConversation) {
+				!_sceneAnimationScripts[_lastProcessedSceneScript]._frozen && !_sceneAnimationScripts[_lastProcessedSceneScript]._frozenForConversation) {
 			_animationSceneScriptRunFlag = true;
 
 			while (_animationSceneScriptRunFlag && _sceneAnimationScripts[_lastProcessedSceneScript]._lastTimer <= _system->getMillis() && !_shouldQuit) {
@@ -1519,7 +1524,16 @@ void ToonEngine::loadScene(int32 SceneId, bool forGameLoad) {
 	Common::String locationName = state()->_locations[SceneId]._name;
 
 	// load package
-	resources()->openPackage(createRoomFilename(locationName + ".PAK"));
+	if (!resources()->openPackage(createRoomFilename(locationName + ".PAK"))) {
+		const char *msg = _s("Unable to locate the '%s' data file.");
+		Common::String roomFileName = createRoomFilename(locationName + ".PAK");
+
+		Common::U32String buf = Common::U32String::format(_(msg), roomFileName.c_str());
+		GUIErrorMessage(buf);
+		warning(msg, roomFileName.c_str());
+		_shouldQuit = true;
+		return;
+	}
 
 	loadAdditionalPalette(locationName + ".NPP", 0);
 
@@ -1556,9 +1570,9 @@ void ToonEngine::loadScene(int32 SceneId, bool forGameLoad) {
 
 	if (state()->_locations[SceneId]._flags & 0x40) {
 		Common::String cutaway = state()->_locations[SceneId]._cutaway;
-		_hotspots->LoadRif(locationName + ".RIC", cutaway + ".RIC");
+		_hotspots->loadRif(locationName + ".RIC", cutaway + ".RIC");
 	} else {
-		_hotspots->LoadRif(locationName + ".RIC", "");
+		_hotspots->loadRif(locationName + ".RIC", "");
 	}
 	restoreRifFlags(_gameState->_currentScene);
 
@@ -1785,7 +1799,7 @@ int32 ToonEngine::runEventScript(int32 x, int32 y, int32 mode, int32 id, int32 s
 	_currentScriptRegion++;
 
 	_script->start(status, 1);
-	while (_script->run(status))
+	while (_script->run(status) && !_shouldQuit)
 		waitForScriptStep();
 
 	_currentScriptRegion--;
@@ -1834,10 +1848,10 @@ void ToonEngine::clickEvent() {
 	}
 
 	// find hotspot
-	int32 hot = _hotspots->Find(mouseX + state()->_currentScrollValue , _mouseY);
+	int32 hot = _hotspots->find(mouseX + state()->_currentScrollValue , _mouseY);
 	HotspotData *currentHot = 0;
 	if (hot > -1) {
-		currentHot = _hotspots->Get(hot);
+		currentHot = _hotspots->get(hot);
 	}
 
 	if (_currentHotspotItem == -3) {
@@ -2009,9 +2023,9 @@ void ToonEngine::selectHotspot() {
 		}
 	}
 
-	int32 hot = _hotspots->Find(mouseX + state()->_currentScrollValue, _mouseY);
+	int32 hot = _hotspots->find(mouseX + state()->_currentScrollValue, _mouseY);
 	if (hot != -1) {
-		HotspotData *hotspot = _hotspots->Get(hot);
+		HotspotData *hotspot = _hotspots->get(hot);
 		int32 item = hotspot->getData(14);
 		if (hotspot->getType() == 3)
 			item += 2000;
@@ -2268,8 +2282,8 @@ void ToonEngine::storeRifFlags(int32 location) {
 	}
 
 	for (int32 i = 0; i < _hotspots->getCount(); i++) {
-		_gameState->_locations[location]._rifBoxesFlags[i * 2 + 0] = _hotspots->Get(i)->getData(4);
-		_gameState->_locations[location]._rifBoxesFlags[i * 2 + 1] = _hotspots->Get(i)->getData(7);
+		_gameState->_locations[location]._rifBoxesFlags[i * 2 + 0] = _hotspots->get(i)->getData(4);
+		_gameState->_locations[location]._rifBoxesFlags[i * 2 + 1] = _hotspots->get(i)->getData(7);
 	}
 }
 
@@ -2277,8 +2291,8 @@ void ToonEngine::restoreRifFlags(int32 location) {
 	if (_hotspots) {
 		if (!_gameState->_locations[location]._visited) {
 			for (int32 i = 0; i < _hotspots->getCount(); i++) {
-				_gameState->_locations[location]._rifBoxesFlags[i * 2 + 0] = _hotspots->Get(i)->getData(4);
-				_gameState->_locations[location]._rifBoxesFlags[i * 2 + 1] = _hotspots->Get(i)->getData(7);
+				_gameState->_locations[location]._rifBoxesFlags[i * 2 + 0] = _hotspots->get(i)->getData(4);
+				_gameState->_locations[location]._rifBoxesFlags[i * 2 + 1] = _hotspots->get(i)->getData(7);
 			}
 			_gameState->_locations[location]._numRifBoxes = _hotspots->getCount();
 		} else {
@@ -2286,8 +2300,8 @@ void ToonEngine::restoreRifFlags(int32 location) {
 				return;
 
 			for (int32 i = 0; i < _hotspots->getCount(); i++) {
-				_hotspots->Get(i)->setData(4, _gameState->_locations[location]._rifBoxesFlags[i * 2 + 0]);
-				_hotspots->Get(i)->setData(7, _gameState->_locations[location]._rifBoxesFlags[i * 2 + 1]);
+				_hotspots->get(i)->setData(4, _gameState->_locations[location]._rifBoxesFlags[i * 2 + 0]);
+				_hotspots->get(i)->setData(7, _gameState->_locations[location]._rifBoxesFlags[i * 2 + 1]);
 			}
 		}
 	}
@@ -2883,7 +2897,7 @@ int32 ToonEngine::runConversationCommand(int16 **command) {
 		}
 		break;
 	case 103:
-		return result;
+	default:
 		break;
 	}
 	return result;
@@ -2982,8 +2996,8 @@ int32 ToonEngine::showInventory() {
 				int32 x = 57 * (i % 7) + 114;
 				int32 y = ((9 * (i % 7)) & 0xf) + 56 * (i / 7) + 80;
 				if (_mouseX >= (_gameState->_currentScrollValue + x - 6) &&
-				        _mouseX <= (_gameState->_currentScrollValue + x + 44 + 7) &&
-				        _mouseY >= y - 6 && _mouseY <= y + 50) {
+						_mouseX <= (_gameState->_currentScrollValue + x + 44 + 7) &&
+						_mouseY >= y - 6 && _mouseY <= y + 50) {
 					foundObj = i;
 					break;
 				}
@@ -3283,7 +3297,18 @@ void ToonEngine::drawConversationLine() {
 	if (_currentTextLine && _showConversationText) {
 		_fontRenderer->setFontColorByCharacter(_currentTextLineCharacterId);
 		_fontRenderer->setFont(_currentFont);
-		_fontRenderer->renderMultiLineText(_currentTextLineX, _currentTextLineY, _currentTextLine, 0);
+		_fontRenderer->renderMultiLineText(_currentTextLineX, _currentTextLineY, _currentTextLine, 0, *_mainSurface);
+	}
+}
+
+void ToonEngine::drawCustomText(int16 x, int16 y, const char *line, Graphics::Surface *frame, byte color) {
+	if (line) {
+		byte col = color; // 0xce
+		_fontRenderer->setFontColor(0, col, col);
+		//_fontRenderer->setFontColorByCharacter(_currentTextLineCharacterId);
+		_gameState->_currentScrollValue = 0;
+		_fontRenderer->setFont(_currentFont);
+		_fontRenderer->renderMultiLineText(x, y, line, 0, *frame);
 	}
 }
 
@@ -3334,7 +3359,7 @@ bool ToonEngine::saveGame(int32 slot, const Common::String &saveGameDesc) {
 	Common::String savegameDescription;
 
 	if (slot == -1) {
-		GUI::SaveLoadChooser *dialog = new GUI::SaveLoadChooser("Save game:", "Save", true);
+		GUI::SaveLoadChooser *dialog = new GUI::SaveLoadChooser(_("Save game:"), _("Save"), true);
 		savegameId = dialog->runModalWithCurrentTarget();
 		savegameDescription = dialog->getResultString();
 		delete dialog;
@@ -3359,7 +3384,7 @@ bool ToonEngine::saveGame(int32 slot, const Common::String &saveGameDesc) {
 	saveFile->writeSint32BE(TOON_SAVEGAME_VERSION);
 
 	if (savegameDescription == "") {
-		savegameDescription = "Untitled savegame";
+		savegameDescription = "Untitled saved game";
 	}
 
 	saveFile->writeSint16BE(savegameDescription.size() + 1);
@@ -3375,6 +3400,8 @@ bool ToonEngine::saveGame(int32 slot, const Common::String &saveGameDesc) {
 
 	saveFile->writeUint32BE(saveDate);
 	saveFile->writeUint16BE(saveTime);
+	uint32 playTime = getTotalPlayTime();
+	saveFile->writeUint32BE(playTime);
 
 	// save global state
 	_gameState->save(saveFile);
@@ -3426,7 +3453,7 @@ bool ToonEngine::loadGame(int32 slot) {
 	int16 savegameId;
 
 	if (slot == -1) {
-		GUI::SaveLoadChooser *dialog = new GUI::SaveLoadChooser("Restore game:", "Restore", false);
+		GUI::SaveLoadChooser *dialog = new GUI::SaveLoadChooser(_("Restore game:"), _("Restore"), false);
 		savegameId = dialog->runModalWithCurrentTarget();
 		delete dialog;
 	} else {
@@ -3441,7 +3468,7 @@ bool ToonEngine::loadGame(int32 slot) {
 		return false;
 
 	int32 saveGameVersion = loadFile->readSint32BE();
-	if (saveGameVersion != TOON_SAVEGAME_VERSION) {
+	if ( (saveGameVersion < 4) || (saveGameVersion > TOON_SAVEGAME_VERSION) ) {
 		delete loadFile;
 		return false;
 	}
@@ -3452,6 +3479,12 @@ bool ToonEngine::loadGame(int32 slot) {
 	Graphics::skipThumbnail(*loadFile);
 
 	loadFile->skip(6); // date & time skip
+
+	uint32 playTimeMsec = 0;
+	if (saveGameVersion >= 5) {
+		playTimeMsec = loadFile->readUint32BE();
+	}
+	setTotalPlayTime(playTimeMsec);
 
 	if (_gameState->_currentScene != -1) {
 		exitScene();
@@ -3961,7 +3994,6 @@ int32 ToonEngine::handleInventoryOnInventory(int32 itemDest, int32 itemSrc) {
 		break;
 	case 21:
 		switch (itemSrc) {
-
 		case 107:
 			characterTalk(1296);
 			replaceItemFromInventory(107, 109);
@@ -3990,6 +4022,8 @@ int32 ToonEngine::handleInventoryOnInventory(int32 itemDest, int32 itemSrc) {
 			setCursor(0, false, 0, 0);
 			rearrangeInventory();
 			return 1;
+		default:
+			break;
 		}
 		break;
 	case 22:
@@ -4305,6 +4339,8 @@ int32 ToonEngine::handleInventoryOnInventory(int32 itemDest, int32 itemSrc) {
 			setCursor(0, false, 0, 0);
 			rearrangeInventory();
 			return 1;
+		default:
+			break;
 		}
 		break;
 	case 71:
@@ -4617,6 +4653,9 @@ int32 ToonEngine::handleInventoryOnInventory(int32 itemDest, int32 itemSrc) {
 		} else if (itemSrc == 0x59 || itemSrc == 0x52) {
 			characterTalk(1496);
 		}
+		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -4811,6 +4850,8 @@ int32 ToonEngine::handleInventoryOnDrew(int32 itemId) {
 			runEventScript(_mouseX, _mouseY, 2, 108, 0);
 		}
 		return 1;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -4905,15 +4946,17 @@ void ToonEngine::createShadowLUT() {
 
 bool ToonEngine::loadToonDat() {
 	Common::File in;
-	Common::String msg;
+	Common::U32String errorMessage;
+	Common::String filename = "toon.dat";
 	int majVer, minVer;
 
-	in.open("toon.dat");
+	in.open(filename.c_str());
 
 	if (!in.isOpen()) {
-		msg = "You're missing the 'toon.dat' file. Get it from the ScummVM website";
-		GUIErrorMessage(msg);
-		warning("%s", msg.c_str());
+		const char *msg = _s("Unable to locate the '%s' engine data file.");
+		errorMessage = Common::U32String::format(_(msg), filename.c_str());
+		GUIErrorMessage(errorMessage);
+		warning(msg, filename.c_str());
 		return false;
 	}
 
@@ -4923,9 +4966,10 @@ bool ToonEngine::loadToonDat() {
 	buf[4] = '\0';
 
 	if (strcmp(buf, "TOON")) {
-		msg = "File 'toon.dat' is corrupt. Get it from the ScummVM website";
-		GUIErrorMessage(msg);
-		warning("%s", msg.c_str());
+		const char *msg = _s("The '%s' engine data file is corrupt.");
+		errorMessage = Common::U32String::format(_(msg), filename.c_str());
+		GUIErrorMessage(errorMessage);
+		warning(msg, filename.c_str());
 		return false;
 	}
 
@@ -4933,10 +4977,11 @@ bool ToonEngine::loadToonDat() {
 	minVer = in.readByte();
 
 	if ((majVer != TOON_DAT_VER_MAJ) || (minVer != TOON_DAT_VER_MIN)) {
-		msg = Common::String::format("File 'toon.dat' is wrong version. Expected %d.%d but got %d.%d. Get it from the ScummVM website", TOON_DAT_VER_MAJ, TOON_DAT_VER_MIN, majVer, minVer);
-		GUIErrorMessage(msg);
-		warning("%s", msg.c_str());
+		const char *msg = _s("Incorrect version of the '%s' engine data file found. Expected %d.%d but got %d.%d.");
+		errorMessage = Common::U32String::format(_(msg), filename.c_str(), TOON_DAT_VER_MAJ, TOON_DAT_VER_MIN, majVer, minVer);
+		GUIErrorMessage(errorMessage);
 
+		warning(msg, filename.c_str(), TOON_DAT_VER_MAJ, TOON_DAT_VER_MIN, majVer, minVer);
 		return false;
 	}
 

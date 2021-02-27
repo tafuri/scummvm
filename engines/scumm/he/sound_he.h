@@ -25,6 +25,7 @@
 
 #include "common/scummsys.h"
 #include "scumm/sound.h"
+#include "audio/audiostream.h"
 
 namespace Scumm {
 
@@ -44,7 +45,7 @@ protected:
 	HEMusic *_heMusic;
 	int16 _heMusicTracks;
 
-	Audio::SoundHandle _heSoundChannels[8];
+	Audio::SoundHandle *_heSoundChannels;
 
 public: // Used by createSound()
 	struct {
@@ -59,15 +60,15 @@ public: // Used by createSound()
 
 public:
 	SoundHE(ScummEngine *parent, Audio::Mixer *mixer);
-	~SoundHE();
+	~SoundHE() override;
 
-	virtual void addSoundToQueue(int sound, int heOffset = 0, int heChannel = 0, int heFlags = 0);
-	virtual void addSoundToQueue2(int sound, int heOffset = 0, int heChannel = 0, int heFlags = 0);
+	void addSoundToQueue(int sound, int heOffset = 0, int heChannel = 0, int heFlags = 0, int heFreq = 0, int hePan = 0, int heVol = 0) override;
+	void addSoundToQueue2(int sound, int heOffset = 0, int heChannel = 0, int heFlags = 0, int heFreq = 0, int hePan = 0, int heVol = 0) override;
 
-	virtual int isSoundRunning(int sound) const;
-	virtual void stopSound(int sound);
-	virtual void stopAllSounds();
-	virtual void setupSound();
+	int isSoundRunning(int sound) const override;
+	void stopSound(int sound) override;
+	void stopAllSounds() override;
+	void setupSound() override;
 
 	bool getHEMusicDetails(int id, int &musicOffs, int &musicSize);
 	int findFreeSoundChannel();
@@ -75,7 +76,7 @@ public:
 	int getSoundPos(int sound);
 	int getSoundVar(int sound, int var);
 	void setSoundVar(int sound, int var, int val);
-	void playHESound(int soundID, int heOffset, int heChannel, int heFlags);
+	void playHESound(int soundID, int heOffset, int heChannel, int heFlags, int heFreq, int hePan, int heVol);
 	void processSoundCode();
 	void processSoundOpcodes(int sound, byte *codePtr, int *soundVars);
 	void setOverrideFreq(int freq);
@@ -84,7 +85,10 @@ public:
 	void stopSoundChannel(int chan);
 
 protected:
-	virtual void processSoundQueues();
+	void processSoundQueues() override;
+
+private:
+	void tryLoadSoundOverride(int soundID, Audio::RewindableAudioStream **stream);
 };
 
 

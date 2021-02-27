@@ -23,7 +23,7 @@
 // Disable symbol overrides so that we can use system headers.
 #define FORBIDDEN_SYMBOL_ALLOW_ALL
 
-#include "osys_main.h"
+#include "backends/platform/iphone/osys_main.h"
 
 void OSystem_IPHONE::AQBufferCallback(void *in, AudioQueueRef inQ, AudioQueueBufferRef outQB) {
 	//printf("AQBufferCallback()\n");
@@ -46,7 +46,7 @@ void OSystem_IPHONE::mixCallback(void *sys, byte *samples, int len) {
 }
 
 void OSystem_IPHONE::setupMixer() {
-	_mixer = new Audio::MixerImpl(this, AUDIO_SAMPLE_RATE);
+	_mixer = new Audio::MixerImpl(AUDIO_SAMPLE_RATE);
 
 	s_soundCallback = mixCallback;
 	s_soundParam = this;

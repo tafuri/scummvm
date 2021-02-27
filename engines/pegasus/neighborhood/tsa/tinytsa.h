@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -37,33 +37,33 @@ static const RoomID kTinyTSA37 = 0;
 class TinyTSA : public Neighborhood {
 public:
 	TinyTSA(InputHandler *, PegasusEngine *);
-	virtual ~TinyTSA() {}
+	~TinyTSA() override {}
 
-	virtual uint16 getDateResID() const;
+	uint16 getDateResID() const override;
 
-	void start();
+	void start() override;
 
-	void checkContinuePoint(const RoomID, const DirectionConstant);
+	void checkContinuePoint(const RoomID, const DirectionConstant) override;
 
 protected:
-	Common::String getBriefingMovie();
-	Common::String getEnvScanMovie();
-	void loadAmbientLoops();
-	virtual void clickInHotspot(const Input &, const Hotspot *);
+	Common::String getBriefingMovie() override;
+	Common::String getEnvScanMovie() override;
+	void loadAmbientLoops() override;
+	void clickInHotspot(const Input &, const Hotspot *) override;
 
-	virtual int16 getStaticCompassAngle(const RoomID, const DirectionConstant);
+	int16 getStaticCompassAngle(const RoomID, const DirectionConstant) override;
 
 	void arriveFromNorad();
 	void arriveFromMars();
 	void arriveFromWSC();
 
-	InputBits getInputFilter();
-	void arriveAt(const RoomID, const DirectionConstant);
+	InputBits getInputFilter() override;
+	void arriveAt(const RoomID, const DirectionConstant) override;
 	void showMainJumpMenu();
-	void receiveNotification(Notification *, const NotificationFlags);
+	void receiveNotification(Notification *, const NotificationFlags) override;
 
-	Common::String getNavMovieName();
-	Common::String getSoundSpotsName() { return ""; }
+	Common::String getNavMovieName() override;
+	Common::String getSoundSpotsName() override { return ""; }
 };
 
 } // End of namespace Pegasus

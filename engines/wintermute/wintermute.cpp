@@ -29,6 +29,7 @@
 #include "common/file.h"
 #include "common/fs.h"
 #include "common/tokenizer.h"
+#include "common/translation.h"
 
 #include "engines/util.h"
 #include "engines/wintermute/ad/ad_game.h"
@@ -36,11 +37,15 @@
 #include "engines/wintermute/debugger.h"
 #include "engines/wintermute/platform_osystem.h"
 #include "engines/wintermute/base/base_engine.h"
+#include "engines/wintermute/detection.h"
 
 #include "engines/wintermute/base/sound/base_sound_manager.h"
 #include "engines/wintermute/base/base_file_manager.h"
 #include "engines/wintermute/base/gfx/base_renderer.h"
 #include "engines/wintermute/base/scriptables/script_engine.h"
+#include "engines/wintermute/debugger/debugger_controller.h"
+
+#include "gui/message.h"
 
 namespace Wintermute {
 
@@ -49,7 +54,7 @@ namespace Wintermute {
 WintermuteEngine::WintermuteEngine() : Engine(g_system) {
 	_game = new AdGame("");
 	_debugger = nullptr;
-	_trigDebug = false;
+	_dbgController = nullptr;
 	_gameDescription = nullptr;
 }
 
@@ -76,14 +81,14 @@ WintermuteEngine::WintermuteEngine(OSystem *syst, const WMEGameDescription *desc
 
 	_game = nullptr;
 	_debugger = nullptr;
-	_trigDebug = false;
+	_dbgController = nullptr;
 }
 
 WintermuteEngine::~WintermuteEngine() {
 	// Dispose your resources here
 	deinit();
 	delete _game;
-	delete _debugger;
+	//_debugger deleted by Engine
 
 	// Remove all of our debug levels here
 	DebugMan.clearAllDebugChannels();
@@ -91,12 +96,16 @@ WintermuteEngine::~WintermuteEngine() {
 
 bool WintermuteEngine::hasFeature(EngineFeature f) const {
 	switch (f) {
-	case kSupportsRTL:
+	case kSupportsReturnToLauncher:
 		return true;
 	case kSupportsLoadingDuringRuntime:
 		return true;
 	case kSupportsSavingDuringRuntime:
 		return true;
+#ifdef ENABLE_WME3D
+	case kSupportsArbitraryResolutions:
+		return true;
+#endif
 	default:
 		return false;
 	}
@@ -106,13 +115,23 @@ bool WintermuteEngine::hasFeature(EngineFeature f) const {
 Common::Error WintermuteEngine::run() {
 	// Initialize graphics using following:
 	Graphics::PixelFormat format(4, 8, 8, 8, 8, 24, 16, 8, 0);
-	initGraphics(800, 600, true, &format);
+	if (_gameDescription->adDesc.flags & GF_LOWSPEC_ASSETS) {
+		initGraphics(320, 240, &format);
+#ifdef ENABLE_FOXTAIL
+	} else if (BaseEngine::isFoxTailCheck(_gameDescription->targetExecutable)) {
+		initGraphics(640, 360, &format);
+#endif
+	} else {
+		initGraphics(800, 600, &format);
+	}
 	if (g_system->getScreenFormat() != format) {
-		error("Wintermute currently REQUIRES 32bpp");
+		return Common::kUnsupportedColorMode;
 	}
 
 	// Create debugger console. It requires GFX to be initialized
+	_dbgController = new DebuggerController(this);
 	_debugger = new Console(this);
+	setDebugger(_debugger);
 
 //	DebugMan.enableDebugChannel("enginelog");
 	debugC(1, kWintermuteDebugLog, "Engine Debug-LOG enabled");
@@ -133,12 +152,80 @@ Common::Error WintermuteEngine::run() {
 }
 
 int WintermuteEngine::init() {
-	BaseEngine::createInstance(_targetName, _gameDescription->adDesc.gameid, _gameDescription->adDesc.language, _gameDescription->targetExecutable);
+	BaseEngine::createInstance(_targetName, _gameDescription->adDesc.gameId, _gameDescription->adDesc.language, _gameDescription->targetExecutable, _gameDescription->adDesc.flags);
+	BaseEngine &instance = BaseEngine::instance();
+
+	// check if unknown target is a 2.5D game
+	if (instance.getFlags() & ADGF_AUTOGENTARGET) {
+		Common::ArchiveMemberList actors3d;
+		if (instance.getFileManager()->listMatchingPackageMembers(actors3d, "*.act3d")) {
+			warning("Unknown 2.5D game detected");
+			instance.addFlags(GF_3D);
+		}
+	}
+
+	#ifdef ENABLE_WME3D
+	if (instance.getFlags() & GF_3D) {
+		instance.getClassRegistry()->register3DClasses();
+	}
+	#endif
+
+	// check dependencies for games with high resolution assets
+	#if !defined(USE_PNG) || !defined(USE_JPEG) || !defined(USE_VORBIS)
+		if (!(instance.getFlags() & GF_LOWSPEC_ASSETS)) {
+			GUI::MessageDialog dialog(_("This game requires PNG, JPEG and Vorbis support."));
+			dialog.runModal();
+			delete _game;
+			_game = nullptr;
+			return false;
+		}
+	#endif
+
+	// check dependencies for games with FoxTail subengine
+	#if !defined(ENABLE_FOXTAIL)
+		if (BaseEngine::isFoxTailCheck(instance.getTargetExecutable())) {
+			GUI::MessageDialog dialog(_("This game requires the FoxTail subengine, which is not compiled in."));
+			dialog.runModal();
+			delete _game;
+			_game = nullptr;
+			return false;
+		}
+	#endif
+
+	// check dependencies for games with HeroCraft subengine
+	#if !defined(ENABLE_HEROCRAFT)
+		if (instance.getTargetExecutable() == WME_HEROCRAFT) {
+			GUI::MessageDialog dialog(_("This game requires the HeroCraft subengine, which is not compiled in."));
+			dialog.runModal();
+			delete _game;
+			_game = nullptr;
+			return false;
+		}
+	#endif
+
+	#ifndef ENABLE_WME3D
+	// check if game require 3D capabilities
+	if (instance.getFlags() & GF_3D) {
+		GUI::MessageDialog dialog(_("This game requires 3D capabilities that are out ScummVM scope. As such, it"
+			" is likely to be unplayable totally or partially."), _("Start anyway"), _("Cancel"));
+		if (dialog.runModal() != GUI::kMessageOK) {
+			delete _game;
+			_game = nullptr;
+			return false;
+		}
+	}
+	#endif
+
 	_game = new AdGame(_targetName);
 	if (!_game) {
 		return 1;
 	}
-	BaseEngine::instance().setGameRef(_game);
+
+	#ifdef ENABLE_WME3D
+	Common::ArchiveMemberList actors3d;
+	_game->_playing3DGame = BaseEngine::instance().getFileManager()->listMatchingPackageMembers(actors3d, "*.act3d");
+	#endif
+	instance.setGameRef(_game);
 	BasePlatform::initialize(this, _game, 0, nullptr);
 
 	_game->initConfManSettings();
@@ -158,7 +245,13 @@ int WintermuteEngine::init() {
 		return 2;
 	}
 
-	_game->initialize2();
+	if (!_game->initialize2()) {
+		_game->LOG(0, "Error initializing renderer. Exiting.");
+
+		delete _game;
+		_game = nullptr;
+		return 3;
+	}
 
 	bool ret = _game->initRenderer();
 
@@ -171,7 +264,6 @@ int WintermuteEngine::init() {
 	}
 
 	_game->initialize3();
-
 	// initialize sound manager (non-fatal if we fail)
 	ret = _game->_soundMgr->initialize();
 	if (DID_FAIL(ret)) {
@@ -200,6 +292,8 @@ int WintermuteEngine::init() {
 		_game->loadGame(slot);
 	}
 
+	_game->_scEngine->attachMonitor(_dbgController);
+
 	// all set, ready to go
 	return 0;
 }
@@ -217,16 +311,10 @@ int WintermuteEngine::messageLoop() {
 		if (!_game) {
 			break;
 		}
-		_debugger->onFrame();
 
 		Common::Event event;
 		while (_system->getEventManager()->pollEvent(event)) {
 			BasePlatform::handleEvent(&event);
-		}
-
-		if (_trigDebug) {
-			_debugger->attach();
-			_trigDebug = false;
 		}
 
 		if (_game && _game->_renderer->_active && _game->_renderer->isReady()) {
@@ -275,7 +363,7 @@ Common::Error WintermuteEngine::loadGameState(int slot) {
 	return Common::kNoError;
 }
 
-Common::Error WintermuteEngine::saveGameState(int slot, const Common::String &desc) {
+Common::Error WintermuteEngine::saveGameState(int slot, const Common::String &desc, bool isAutosave) {
 	BaseEngine::instance().getGameRef()->saveGame(slot, desc.c_str(), false);
 	return Common::kNoError;
 }

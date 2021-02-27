@@ -25,48 +25,33 @@
 
 #if defined(WIN32) && defined(USE_TASKBAR)
 
-#include "backends/platform/sdl/sdl-window.h"
-
 #include "common/str.h"
 #include "common/taskbar.h"
 
+class SdlWindow_Win32;
 struct ITaskbarList3;
 
-class Win32TaskbarManager : public Common::TaskbarManager {
+class Win32TaskbarManager final : public Common::TaskbarManager {
 public:
-	Win32TaskbarManager(SdlWindow *window);
+	Win32TaskbarManager(SdlWindow_Win32 *window);
 	virtual ~Win32TaskbarManager();
 
-	virtual void setOverlayIcon(const Common::String &name, const Common::String &description);
-	virtual void setProgressValue(int completed, int total);
-	virtual void setProgressState(TaskbarProgressState state);
-	virtual void setCount(int count);
-	virtual void addRecent(const Common::String &name, const Common::String &description);
-	virtual void notifyError();
-	virtual void clearError();
+	virtual void setOverlayIcon(const Common::String &name, const Common::String &description) override;
+	virtual void setProgressValue(int completed, int total) override;
+	virtual void setProgressState(TaskbarProgressState state) override;
+	virtual void setCount(int count) override;
+	virtual void addRecent(const Common::String &name, const Common::String &description) override;
+	virtual void notifyError() override;
+	virtual void clearError() override;
 
 private:
-	SdlWindow *_window;
+	SdlWindow_Win32 *_window;
 
 	ITaskbarList3 *_taskbar;
 
 	// Count handling
 	HICON _icon;
 	int   _count;
-
-	/**
-	 * 	Get the path to an icon for the game
-	 *
-	 * @param	target	The game target
-	 *
-	 * @return	The icon path (or "" if no icon was found)
-	 */
-	Common::String getIconPath(Common::String target);
-
-	// Helper functions
-	bool isWin7OrLater();
-	LPWSTR ansiToUnicode(const char *s);
-	HWND getHwnd();
 };
 
 #endif

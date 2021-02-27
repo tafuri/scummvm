@@ -52,10 +52,9 @@ struct MEM_NODE {
 // Currently this is set at 5MB for the DW1 demo and DW1 and 10MB for DW2
 // This could probably be reduced somewhat
 // If the memory is not enough, the engine throws an "Out of memory" error in handle.cpp inside LockMem()
-static const uint32 MemoryPoolSize[3] = {5 * 1024 * 1024, 5 * 1024 * 1024, 10 * 1024 * 1024};
+static const uint32 MemoryPoolSize[4] = {5 * 1024 * 1024, 5 * 1024 * 1024, 10 * 1024 * 1024, 512 * 1024 * 1024};
 
-// FIXME: Avoid non-const global vars
-
+// These vars are reset upon engine destruction
 
 // list of all memory nodes
 MEM_NODE g_mnodeList[NUM_MNODES];
@@ -113,7 +112,7 @@ void MemoryInit() {
 	}
 
 	// null the last mnode
-	g_mnodeList[NUM_MNODES - 1].pNext = NULL;
+	g_mnodeList[NUM_MNODES - 1].pNext = nullptr;
 
 	// clear list of fixed memory nodes
 	memset(g_s_fixedMnodesList, 0, sizeof(g_s_fixedMnodesList));
@@ -129,6 +128,10 @@ void MemoryInit() {
 	uint32 size = MemoryPoolSize[0];
 	if (TinselVersion == TINSEL_V1) size = MemoryPoolSize[1];
 	else if (TinselVersion == TINSEL_V2) size = MemoryPoolSize[2];
+	else if (TinselVersion == TINSEL_V3) {
+		warning("TODO: Find the correct memory pool size for Noir, using 512 MiB for now");
+		size = MemoryPoolSize[3];
+	}
 	g_heapSentinel.size = size;
 }
 
@@ -149,6 +152,10 @@ void MemoryDeinit() {
 		free(pCur->pBaseAddr);
 		pCur->pBaseAddr = 0;
 	}
+
+	memset(g_mnodeList, 0, sizeof(g_mnodeList));
+	memset(g_s_fixedMnodesList, 0, sizeof(g_s_fixedMnodesList));
+	g_pFreeMemNodes = nullptr;
 }
 
 
@@ -202,7 +209,7 @@ static bool HeapCompact(long size) {
 
 		// find the oldest discardable block
 		oldest = DwGetCurrentTime();
-		pOldest = NULL;
+		pOldest = nullptr;
 		for (pCur = pHeap->pNext; pCur != pHeap; pCur = pCur->pNext) {
 			if (pCur->flags == DWM_USED) {
 				// found a non-discarded discardable block
@@ -359,7 +366,7 @@ void MemoryDiscard(MEM_NODE *pMemNode) {
 
 		// mark the node as discarded
 		pMemNode->flags |= DWM_DISCARDED;
-		pMemNode->pBaseAddr = NULL;
+		pMemNode->pBaseAddr = nullptr;
 		pMemNode->size = 0;
 	}
 }

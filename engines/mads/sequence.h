@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -38,7 +38,7 @@ enum SequenceTrigger {
 	SEQUENCE_TRIGGER_SPRITE = 2		// Trigger when sequence reaches specific sprite
 };
 
-enum SpriteAnimType { ANIMTYPE_NONE = 0, ANIMTYPE_CYCLED = 1, ANIMTYPE_PING_PONG = 2 };
+enum SpriteAnimType { ANIMTYPE_NONE = 0, ANIMTYPE_CYCLED = 1, ANIMTYPE_PING_PONG = 2, ANIMTYPE_STAMP = 9 };
 
 #define SEQUENCE_ENTRY_SUBSET_MAX 5
 
@@ -125,6 +125,9 @@ public:
 	void setMsgLayout(int seqIndex);
 	void setDone(int seqIndex);
 	void setMotion(int seqIndex, int flags, int deltaX, int deltaY);
+
+	int addStampCycle(int srcSpriteIdx, bool flipped, int sprite);
+	void setSeqPlayer(int idx, bool flag);
 };
 
 } // End of namespace MADS

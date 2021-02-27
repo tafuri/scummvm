@@ -34,15 +34,20 @@ clean-devtools:
 
 devtools/convbdf$(EXEEXT): $(srcdir)/devtools/convbdf.cpp
 	$(QUIET)$(MKDIR) devtools/$(DEPDIR)
-	$(QUIET_LINK)$(LD) $(CXXFLAGS) -Wall -o $@ $<
+	+$(QUIET_LINK)$(LD) $(CXXFLAGS) -Wall -o $@ $<
 
 devtools/md5table$(EXEEXT): $(srcdir)/devtools/md5table.c
 	$(QUIET)$(MKDIR) devtools/$(DEPDIR)
-	$(QUIET_LINK)$(LD) $(CFLAGS) -Wall -o $@ $<
+	+$(QUIET_LINK)$(LD) $(CFLAGS) -Wall -o $@ $<
 
 devtools/make-scumm-fontdata$(EXEEXT): $(srcdir)/devtools/make-scumm-fontdata.c
 	$(QUIET)$(MKDIR) devtools/$(DEPDIR)
-	$(QUIET_LINK)$(LD) $(CFLAGS) -Wall -o $@ $<
+	+$(QUIET_LINK)$(LD) $(CFLAGS) -Wall -o $@ $<
+
+# Rule to explicitly rebuild the wwwroot archive
+wwwroot:
+	$(srcdir)/devtools/make-www-archive.py $(srcdir)/dists/networking/
+
 
 #
 # Rules to explicitly rebuild the credits / MD5 tables.
@@ -56,8 +61,7 @@ credits:
 	$(srcdir)/devtools/credits.pl --text > $(srcdir)/AUTHORS
 #	$(srcdir)/devtools/credits.pl --rtf > $(srcdir)/Credits.rtf
 	$(srcdir)/devtools/credits.pl --cpp > $(srcdir)/gui/credits.h
-	$(srcdir)/devtools/credits.pl --xml-website > $(srcdir)/../scummvm-web/data/credits.xml
-#	$(srcdir)/devtools/credits.pl --xml-docbook > $(srcdir)/../../docs/trunk/docbook/credits.xml
+	$(srcdir)/devtools/credits.pl --yaml > $(srcdir)/../scummvm-web/data/en/credits.yaml
 
 md5scumm: devtools/md5table$(EXEEXT)
 	devtools/md5table$(EXEEXT) --c++ < $(srcdir)/devtools/scumm-md5.txt > $(srcdir)/engines/scumm/scumm-md5.h

@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -35,15 +35,15 @@ namespace Pegasus {
 class NoradAlphaECRMonitor : public GameInteraction, public NotificationReceiver {
 public:
 	NoradAlphaECRMonitor(Neighborhood *);
-	virtual ~NoradAlphaECRMonitor() {}
+	~NoradAlphaECRMonitor() override {}
 
-	virtual void handleInput(const Input &, const Hotspot *);
+	void handleInput(const Input &, const Hotspot *) override;
 
 protected:
-	virtual void openInteraction();
-	virtual void closeInteraction();
+	void openInteraction() override;
+	void closeInteraction() override;
 
-	virtual void receiveNotification(Notification *, const NotificationFlags);
+	void receiveNotification(Notification *, const NotificationFlags) override;
 
 	void ecrSection1Finished();
 	void ecrPanFinished();

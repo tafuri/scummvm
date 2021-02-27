@@ -22,7 +22,9 @@
 
 #include "backends/audiocd/default/default-audiocd.h"
 #include "audio/audiostream.h"
+#include "common/config-manager.h"
 #include "common/system.h"
+#include "common/util.h"
 
 DefaultAudioCDManager::DefaultAudioCDManager() {
 	_cd.playing = false;
@@ -37,7 +39,26 @@ DefaultAudioCDManager::DefaultAudioCDManager() {
 	assert(_mixer);
 }
 
-void DefaultAudioCDManager::play(int track, int numLoops, int startFrame, int duration, bool only_emulate) {
+DefaultAudioCDManager::~DefaultAudioCDManager() {
+	// Subclasses should call close as well
+	close();
+}
+
+bool DefaultAudioCDManager::open() {
+	// For emulation, opening is always valid
+	close();
+	return true;
+}
+
+void DefaultAudioCDManager::close() {
+	// Only need to stop for emulation
+	stop();
+}
+
+bool DefaultAudioCDManager::play(int track, int numLoops, int startFrame, int duration, bool onlyEmulate,
+		Audio::Mixer::SoundType soundType) {
+	stop();
+
 	if (numLoops != 0 || startFrame != 0) {
 		_cd.track = track;
 		_cd.numLoops = numLoops;
@@ -47,16 +68,15 @@ void DefaultAudioCDManager::play(int track, int numLoops, int startFrame, int du
 		// Try to load the track from a compressed data file, and if found, use
 		// that. If not found, attempt to start regular Audio CD playback of
 		// the requested track.
-		char trackName[2][16];
-		sprintf(trackName[0], "track%d", track);
-		sprintf(trackName[1], "track%02d", track);
+		Common::String trackName[4];
+		trackName[0] = Common::String::format("track%d", track);
+		trackName[1] = Common::String::format("track%02d", track);
+		trackName[2] = Common::String::format("track_%d", track);
+		trackName[3] = Common::String::format("track_%02d", track);
 		Audio::SeekableAudioStream *stream = 0;
 
-		for (int i = 0; !stream && i < 2; ++i)
+		for (int i = 0; !stream && i < ARRAYSIZE(trackName); ++i)
 			stream = Audio::SeekableAudioStream::openStreamFile(trackName[i]);
-
-		// Stop any currently playing emulated track
-		_mixer->stopHandle(_handle);
 
 		if (stream != 0) {
 			Audio::Timestamp start = Audio::Timestamp(0, startFrame, 75);
@@ -68,14 +88,13 @@ void DefaultAudioCDManager::play(int track, int numLoops, int startFrame, int du
 			repetitions. Finally, -1 means infinitely many
 			*/
 			_emulating = true;
-			_mixer->playStream(Audio::Mixer::kMusicSoundType, &_handle,
+			_mixer->playStream(soundType, &_handle,
 			                        Audio::makeLoopingAudioStream(stream, start, end, (numLoops < 1) ? numLoops + 1 : numLoops), -1, _cd.volume, _cd.balance);
-		} else {
-			_emulating = false;
-			if (!only_emulate)
-				playCD(track, numLoops, startFrame, duration);
+			return true;
 		}
 	}
+
+	return false;
 }
 
 void DefaultAudioCDManager::stop() {
@@ -83,52 +102,32 @@ void DefaultAudioCDManager::stop() {
 		// Audio CD emulation
 		_mixer->stopHandle(_handle);
 		_emulating = false;
-	} else {
-		// Real Audio CD
-		stopCD();
 	}
 }
 
 bool DefaultAudioCDManager::isPlaying() const {
-	if (_emulating) {
-		// Audio CD emulation
+	// Audio CD emulation
+	if (_emulating)
 		return _mixer->isSoundHandleActive(_handle);
-	} else {
-		// Real Audio CD
-		return pollCD();
-	}
+
+	// The default class only handles emulation
+	return false;
 }
 
 void DefaultAudioCDManager::setVolume(byte volume) {
 	_cd.volume = volume;
-	if (_emulating) {
-		// Audio CD emulation
-		if (_mixer->isSoundHandleActive(_handle))
-			_mixer->setChannelVolume(_handle, _cd.volume);
-	} else {
-		// Real Audio CD
 
-		// Unfortunately I can't implement this atm
-		// since SDL doesn't seem to offer an interface method for this.
-
-		// g_system->setVolumeCD(_cd.volume);
-	}
+	// Audio CD emulation
+	if (_emulating && isPlaying())
+		_mixer->setChannelVolume(_handle, _cd.volume);
 }
 
 void DefaultAudioCDManager::setBalance(int8 balance) {
 	_cd.balance = balance;
-	if (_emulating) {
-		// Audio CD emulation
-		if (isPlaying())
-			_mixer->setChannelBalance(_handle, _cd.balance);
-	} else {
-		// Real Audio CD
 
-		// Unfortunately I can't implement this atm
-		// since SDL doesn't seem to offer an interface method for this.
-
-		// g_system->setBalanceCD(_cd.balance);
-	}
+	// Audio CD emulation
+	if (_emulating && isPlaying())
+		_mixer->setChannelBalance(_handle, _cd.balance);
 }
 
 void DefaultAudioCDManager::update() {
@@ -142,8 +141,6 @@ void DefaultAudioCDManager::update() {
 			// or not.
 			_emulating = false;
 		}
-	} else {
-		updateCD();
 	}
 }
 
@@ -152,3 +149,21 @@ DefaultAudioCDManager::Status DefaultAudioCDManager::getStatus() const {
 	info.playing = isPlaying();
 	return info;
 }
+
+bool DefaultAudioCDManager::openRealCD() {
+	Common::String cdrom = ConfMan.get("cdrom");
+
+	// Try to parse it as an int
+	char *endPos;
+	int drive = strtol(cdrom.c_str(), &endPos, 0);
+
+	// If not an integer, treat as a drive path
+	if (endPos == cdrom.c_str())
+		return openCD(cdrom);
+
+	if (drive < 0)
+		return false;
+
+	return openCD(drive);
+}
+

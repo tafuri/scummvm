@@ -29,9 +29,20 @@
 #include "engines/wintermute/base/scriptables/script_value.h"
 #include "engines/wintermute/base/scriptables/script.h"
 #include "engines/wintermute/base/base_game.h"
+#include "engines/wintermute/base/base_engine.h"
 #include "engines/wintermute/base/scriptables/script_engine.h"
 #include "engines/wintermute/base/scriptables/script_stack.h"
+#include "engines/wintermute/base/gfx/base_renderer.h"
+#include "engines/wintermute/ext/externals.h"
 #include "common/memstream.h"
+
+#ifdef ENABLE_FOXTAIL
+#include "engines/wintermute/base/scriptables/script_opcodes.h"
+#endif
+
+#if EXTENDED_DEBUGGER_ENABLED
+#include "engines/wintermute/base/scriptables/debuggable/debuggable_script.h"
+#endif
 
 namespace Wintermute {
 
@@ -93,6 +104,10 @@ ScScript::ScScript(BaseGame *inGame, ScEngine *engine) : BaseClass(inGame) {
 	_parentScript = nullptr;
 
 	_tracingMode = false;
+
+#ifdef ENABLE_FOXTAIL
+	initOpcodesType();	
+#endif
 }
 
 
@@ -507,6 +522,39 @@ char *ScScript::getString() {
 	return ret;
 }
 
+#ifdef ENABLE_FOXTAIL
+//////////////////////////////////////////////////////////////////////////
+void ScScript::initOpcodesType() {
+	_opcodesType = BaseEngine::instance().isFoxTail(FOXTAIL_1_2_896, FOXTAIL_1_2_896) ? OPCODES_FOXTAIL_1_2_896 :
+	               BaseEngine::instance().isFoxTail(FOXTAIL_1_2_902, FOXTAIL_LATEST_VERSION) ? OPCODES_FOXTAIL_1_2_902 :
+	               OPCODES_UNCHANGED;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// FoxTail 1.2.896+ is using unusual opcodes tables, let's map them here
+// NOTE: Those opcodes are never used at FoxTail 1.2.896 and 1.2.902:
+//   II_CMP_STRICT_EQ
+//   II_CMP_STRICT_NE
+//   II_DEF_CONST_VAR
+//   II_DBG_LINE
+//   II_PUSH_VAR_THIS
+//////////////////////////////////////////////////////////////////////////
+uint32 ScScript::decodeAltOpcodes(uint32 inst) {
+	if (inst > 46) {
+		return (uint32)(-1);
+	}
+
+	switch (_opcodesType) {
+	case OPCODES_FOXTAIL_1_2_896:
+		return foxtail_1_2_896_mapping[inst];
+	case OPCODES_FOXTAIL_1_2_902:
+		return foxtail_1_2_902_mapping[inst];
+	default:
+		return inst;
+	}
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 bool ScScript::executeInstruction() {
@@ -522,6 +570,15 @@ bool ScScript::executeInstruction() {
 	ScValue *op2;
 
 	uint32 inst = getDWORD();
+
+#ifdef ENABLE_FOXTAIL
+	if (_opcodesType) {
+		inst = decodeAltOpcodes(inst);
+	}
+#endif
+
+	preInstHook(inst);
+
 	switch (inst) {
 
 	case II_DEF_VAR:
@@ -613,8 +670,14 @@ bool ScScript::executeInstruction() {
 						_state = SCRIPT_WAITING_SCRIPT;
 						_waitScript->copyParameters(_stack);
 					}
+#ifdef ENABLE_FOXTAIL
+				} else if (BaseEngine::instance().isFoxTail() && strcmp(methodName, "LoadItems") == 0 && strcmp(_threadEvent,"AfterLoad") == 0) {
+					_stack->correctParams(0);
+					_gameRef->LOG(0, "Method '%s' is called in unbreakable mode of '%s' event and was ignored", methodName, _threadEvent);
+					_stack->pushNULL();
+#endif
 				} else {
-					// can call methods in unbreakable mode
+					// cannot call methods in unbreakable mode
 					_stack->correctParams(0);
 					runtimeError("Cannot call method '%s'. Ignored.", methodName);
 					_stack->pushNULL();
@@ -1087,11 +1150,12 @@ bool ScScript::executeInstruction() {
 
 	}
 	default:
-		_gameRef->LOG(0, "Fatal: Invalid instruction %d ('%s', line %d, IP:0x%x)\n", inst, _filename, _currentLine, _iP - sizeof(uint32));
+		_gameRef->LOG(0, "Fatal: Invalid instruction %d ('%s', line %d, IP:0x%lx)\n", inst, _filename, _currentLine, _iP - sizeof(uint32));
 		_state = SCRIPT_FINISHED;
 		ret = STATUS_FAILED;
 	} // switch(instruction)
 
+	postInstHook(inst);
 	//delete op;
 
 	return ret;
@@ -1230,11 +1294,11 @@ void ScScript::runtimeError(const char *fmt, ...) {
 	va_list va;
 
 	va_start(va, fmt);
-	vsprintf(buff, fmt, va);
+	vsnprintf(buff, 256, fmt, va);
 	va_end(va);
 
-	_gameRef->LOG(0, "Runtime error. Script '%s', line %d", _filename, _currentLine);
-	_gameRef->LOG(0, "  %s", buff);
+	warning("Runtime error. Script '%s', line %d", _filename, _currentLine);
+	warning("  %s", buff);
 
 	if (!_gameRef->_suppressScriptErrors) {
 		_gameRef->quickMessage("Script runtime error. View log for details.");
@@ -1300,6 +1364,9 @@ bool ScScript::persist(BasePersistenceManager *persistMgr) {
 
 	if (!persistMgr->getIsSaving()) {
 		_tracingMode = false;
+#ifdef ENABLE_FOXTAIL
+		initOpcodesType();	
+#endif
 	}
 
 	return STATUS_OK;
@@ -1314,8 +1381,15 @@ ScScript *ScScript::invokeEventHandler(const Common::String &eventName, bool unb
 	if (!pos) {
 		return nullptr;
 	}
-
+#if EXTENDED_DEBUGGER_ENABLED
+	// TODO: Not pretty
+	DebuggableScEngine* debuggableEngine;
+	debuggableEngine = dynamic_cast<DebuggableScEngine*>(_engine);
+	assert(debuggableEngine);
+	ScScript *thread = new DebuggableScript(_gameRef,  debuggableEngine);
+#else
 	ScScript *thread = new ScScript(_gameRef,  _engine);
+#endif
 	if (thread) {
 		bool ret = thread->createThread(this, pos, eventName);
 		if (DID_SUCCEED(ret)) {
@@ -1398,8 +1472,13 @@ ScScript::TExternalFunction *ScScript::getExternal(char *name) {
 
 //////////////////////////////////////////////////////////////////////////
 bool ScScript::externalCall(ScStack *stack, ScStack *thisStack, ScScript::TExternalFunction *function) {
+	//////////////////////////////////////////////////////////////////////////
+	// Externals: emulate external functions used in known games 
+	//////////////////////////////////////////////////////////////////////////
+	if (!DID_FAIL(EmulateExternalCall(_gameRef, stack, thisStack, function))) {
+		return STATUS_OK;
+	}
 
-	_gameRef->LOG(0, "External functions are not supported on this platform.");
 	stack->correctParams(0);
 	stack->pushNULL();
 	return STATUS_FAILED;
@@ -1434,18 +1513,6 @@ bool ScScript::finishThreads() {
 	return STATUS_OK;
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-// IWmeDebugScript interface implementation
-int ScScript::dbgGetLine() {
-	return _currentLine;
-}
-
-//////////////////////////////////////////////////////////////////////////
-const char *ScScript::dbgGetFilename() {
-	return _filename;
-}
-
 //////////////////////////////////////////////////////////////////////////
 void ScScript::afterLoad() {
 	if (_buffer == nullptr) {
@@ -1465,5 +1532,9 @@ void ScScript::afterLoad() {
 		initTables();
 	}
 }
+
+void ScScript::preInstHook(uint32 inst) {}
+
+void ScScript::postInstHook(uint32 inst) {}
 
 } // End of namespace Wintermute

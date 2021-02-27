@@ -23,6 +23,8 @@
 #include "common/config-manager.h"
 #include "common/translation.h"
 
+#include "audio/mixer.h"
+
 #include "gui/saveload.h"
 
 #include "neverhood/menumodule.h"
@@ -93,6 +95,10 @@ void MenuModule::setLoadgameInfo(uint index) {
 	_savegameSlot = (*_savegameList)[index].slotNum;
 }
 
+void MenuModule::setLoadgameSlot(int slot) {
+	_savegameSlot = slot;
+}
+
 void MenuModule::setSavegameInfo(const Common::String &description, uint index, bool newSavegame) {
 	_savegameDescription = description;
 	_savegameSlot = newSavegame ? -1 : (*_savegameList)[index].slotNum;
@@ -125,6 +131,8 @@ void MenuModule::createScene(int sceneNum, int which) {
 		break;
 	case QUERY_OVR_MENU:
 		_childObject = new QueryOverwriteMenu(_vm, this, _savegameDescription);
+		break;
+	default:
 		break;
 	}
 	SetUpdateHandler(&MenuModule::updateScene);
@@ -285,7 +293,7 @@ void MenuModule::loadSavegameList() {
 		if (slotNum >= 0 && slotNum <= 999) {
 			Common::InSaveFile *in = saveFileMan->openForLoading(file->c_str());
 			if (in) {
-				if (Neverhood::NeverhoodEngine::readSaveHeader(in, false, header) == Neverhood::NeverhoodEngine::kRSHENoError) {
+				if (Neverhood::NeverhoodEngine::readSaveHeader(in, header) == Neverhood::NeverhoodEngine::kRSHENoError) {
 					SavegameItem savegameItem;
 					savegameItem.slotNum = slotNum;
 					savegameItem.description = header.description;
@@ -325,6 +333,8 @@ uint32 MenuButton::handleMessage(int messageNum, const MessageParam &param, Enti
 			_countdown = 4;
 		}
 		messageResult = 1;
+		break;
+	default:
 		break;
 	}
 	return messageResult;
@@ -383,6 +393,8 @@ uint32 MainMenu::handleMessage(int messageNum, const MessageParam &param, Entity
 	switch (messageNum) {
 	case NM_ANIMATION_UPDATE:
 		leaveScene(param.asInteger());
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -466,6 +478,8 @@ uint32 CreditsScene::handleMessage(int messageNum, const MessageParam &param, En
 	case NM_MOUSE_SHOW:
 		_ticksTime = _ticksDuration + _vm->_system->getMillis();
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -530,6 +544,8 @@ uint32 Widget::handleMessage(int messageNum, const MessageParam &param, Entity *
 	case 0x1011:
 		onClick();
 		messageResult = 1;
+		break;
+	default:
 		break;
 	}
 	return messageResult;
@@ -605,7 +621,8 @@ void TextEditWidget::onClick() {
 				++newCursorPos;
 			_cursorPos = MIN((int)_entryString.size(), newCursorPos);
 		}
-		_cursorSurface->setVisible(true);
+		if (!_readOnly)
+			_cursorSurface->setVisible(true);
 		refresh();
 	}
 	Widget::onClick();
@@ -755,6 +772,8 @@ uint32 TextEditWidget::handleMessage(int messageNum, const MessageParam &param, 
 	case 0x000B:
 		handleKeyDown((Common::KeyCode)param.asInteger());
 		break;
+	default:
+		break;
 	}
 	return messageResult;
 }
@@ -863,8 +882,6 @@ void SavegameListBox::pageDown() {
 }
 
 int GameStateMenu::scummVMSaveLoadDialog(bool isSave, Common::String &saveDesc) {
-	const EnginePlugin *plugin = NULL;
-	EngineMan.findGame(ConfMan.get("gameid"), &plugin);
 	GUI::SaveLoadChooser *dialog;
 	Common::String desc;
 	int slot;
@@ -872,7 +889,7 @@ int GameStateMenu::scummVMSaveLoadDialog(bool isSave, Common::String &saveDesc) 
 	if (isSave) {
 		dialog = new GUI::SaveLoadChooser(_("Save game:"), _("Save"), true);
 
-		slot = dialog->runModalWithPluginAndTarget(plugin, ConfMan.getActiveDomainName());
+		slot = dialog->runModalWithCurrentTarget();
 		desc = dialog->getResultString();
 
 		if (desc.empty())
@@ -884,7 +901,7 @@ int GameStateMenu::scummVMSaveLoadDialog(bool isSave, Common::String &saveDesc) 
 		saveDesc = desc;
 	} else {
 		dialog = new GUI::SaveLoadChooser(_("Restore game:"), _("Restore"), false);
-		slot = dialog->runModalWithPluginAndTarget(plugin, ConfMan.getActiveDomainName());
+		slot = dialog->runModalWithCurrentTarget();
 	}
 
 	delete dialog;
@@ -912,7 +929,7 @@ GameStateMenu::GameStateMenu(NeverhoodEngine *vm, Module *parentModule, Savegame
 
 		if (slot >= 0) {
 			if (!isSave) {
-				((MenuModule*)_parentModule)->setLoadgameInfo(slot);
+				((MenuModule*)_parentModule)->setLoadgameSlot(slot);
 			} else {
 				((MenuModule*)_parentModule)->setSavegameInfo(saveDesc,
 					slot, slot >= saveCount);
@@ -1023,6 +1040,8 @@ uint32 GameStateMenu::handleMessage(int messageNum, const MessageParam &param, E
 		case 5:
 			_listBox->pageDown();
 			break;
+		default:
+			break;
 		}
 		break;
 	case NM_MOUSE_WHEELUP:
@@ -1030,6 +1049,8 @@ uint32 GameStateMenu::handleMessage(int messageNum, const MessageParam &param, E
 		break;
 	case NM_MOUSE_WHEELDOWN:
 		_listBox->scrollDown();
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -1054,7 +1075,7 @@ static const NRect kSaveGameMenuTextEditRect = { 0, 0, 377, 17 };
 static const NRect kSaveGameMenuMouseRect = { 50, 47, 427, 64 };
 
 SaveGameMenu::SaveGameMenu(NeverhoodEngine *vm, Module *parentModule, SavegameList *savegameList)
-	:  GameStateMenu(vm, parentModule, savegameList, kSaveGameMenuButtonFileHashes, kSaveGameMenuButtonCollisionBounds,
+	: GameStateMenu(vm, parentModule, savegameList, kSaveGameMenuButtonFileHashes, kSaveGameMenuButtonCollisionBounds,
 		0x30084E25, 0x2328121A,
 		0x84E21308, &kSaveGameMenuMouseRect,
 		0x1115A223, 60, 142, kSaveGameMenuListBoxRect,
@@ -1064,9 +1085,11 @@ SaveGameMenu::SaveGameMenu(NeverhoodEngine *vm, Module *parentModule, SavegameLi
 }
 
 void SaveGameMenu::performAction() {
-	((MenuModule*)_parentModule)->setSavegameInfo(_textEditWidget->getString(),
-		_listBox->getCurrIndex(), _textEditWidget->isModified());
-	leaveScene(0);
+	if (!_textEditWidget->getString().empty()) {
+		((MenuModule*)_parentModule)->setSavegameInfo(_textEditWidget->getString(),
+			_listBox->getCurrIndex(), _textEditWidget->isModified());
+		leaveScene(0);
+	}
 }
 
 static const uint32 kLoadGameMenuButtonFileHashes[] = {
@@ -1085,12 +1108,21 @@ static const NRect kLoadGameMenuButtonCollisionBounds[] = {
 
 static const NRect kLoadGameMenuListBoxRect = { 0, 0, 320, 272 };
 static const NRect kLoadGameMenuTextEditRect = { 0, 0, 320, 17 };
+
+#if 0
+// Unlike the original game, the text widget in our load dialog is read-only so
+// don't change the mouse cursor to indicate that you can type the name of the
+// game to load.
+//
+// Since we allow multiple saved games to have the same name, it's probably
+// better this way.
 static const NRect kLoadGameMenuMouseRect = { 263, 48, 583, 65 };
+#endif
 
 LoadGameMenu::LoadGameMenu(NeverhoodEngine *vm, Module *parentModule, SavegameList *savegameList)
 	: GameStateMenu(vm, parentModule, savegameList, kLoadGameMenuButtonFileHashes, kLoadGameMenuButtonCollisionBounds,
 		0x98620234, 0x201C2474,
-		0x2023098E, &kLoadGameMenuMouseRect,
+		0x2023098E, NULL /* &kLoadGameMenuMouseRect */,
 		0x04040409, 263, 142, kLoadGameMenuListBoxRect,
 		0x10924C03, 0, 263, 48, kLoadGameMenuTextEditRect,
 		0x0BC600A3, 0x0F960021) {
@@ -1098,8 +1130,11 @@ LoadGameMenu::LoadGameMenu(NeverhoodEngine *vm, Module *parentModule, SavegameLi
 }
 
 void LoadGameMenu::performAction() {
-	((MenuModule*)_parentModule)->setLoadgameInfo(_listBox->getCurrIndex());
-	leaveScene(0);
+	// TODO: The original would display a message here if nothing was selected.
+	if (!_textEditWidget->getString().empty()) {
+		((MenuModule*)_parentModule)->setLoadgameInfo(_listBox->getCurrIndex());
+		leaveScene(0);
+	}
 }
 
 static const uint32 kDeleteGameMenuButtonFileHashes[] = {
@@ -1130,8 +1165,11 @@ DeleteGameMenu::DeleteGameMenu(NeverhoodEngine *vm, Module *parentModule, Savega
 }
 
 void DeleteGameMenu::performAction() {
-	((MenuModule*)_parentModule)->setDeletegameInfo(_listBox->getCurrIndex());
-	leaveScene(0);
+	// TODO: The original would display a message here if no game was selected.
+	if (!_textEditWidget->getString().empty()) {
+		((MenuModule*)_parentModule)->setDeletegameInfo(_listBox->getCurrIndex());
+		leaveScene(0);
+	}
 }
 
 QueryOverwriteMenu::QueryOverwriteMenu(NeverhoodEngine *vm, Module *parentModule, const Common::String &description)
@@ -1180,6 +1218,8 @@ uint32 QueryOverwriteMenu::handleMessage(int messageNum, const MessageParam &par
 	case NM_ANIMATION_UPDATE:
 		// Handle menu button click
 		leaveScene(param.asInteger());
+		break;
+	default:
 		break;
 	}
 	return 0;

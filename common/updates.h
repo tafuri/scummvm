@@ -20,12 +20,21 @@
  *
  */
 
-#ifndef BACKENDS_UPDATES_ABSTRACT_H
-#define BACKENDS_UPDATES_ABSTRACT_H
+#ifndef COMMON_UPDATES_H
+#define COMMON_UPDATES_H
 
 #if defined(USE_UPDATES)
 
 namespace Common {
+
+/**
+ * @defgroup common_update Update Manager
+ * @ingroup common
+ *
+ * @brief The UpdateManager module allows for automatic update checking.
+ *
+ * @{
+ */
 
 /**
  * The UpdateManager allows configuring of the automatic update checking
@@ -50,7 +59,7 @@ public:
 		kUpdateIntervalNotSupported = 0,
 		kUpdateIntervalOneDay       = 86400,
 		kUpdateIntervalOneWeek      = 604800,
-		kUpdateIntervalOneMonth     = 2628000   // average seconds per month (60*60*24*365)/12
+		kUpdateIntervalOneMonth     = 2628000 // average seconds per month (60*60*24*365)/12
 	};
 
 	UpdateManager() {}
@@ -85,18 +94,52 @@ public:
 	 *
 	 * @param  interval    The interval.
 	 */
-	virtual void setUpdateCheckInterval(UpdateInterval interval) {}
+	virtual void setUpdateCheckInterval(int interval) {}
 
 	/**
 	 * Gets the update check interval.
 	 *
 	 * @return  the update check interval.
 	 */
-	virtual UpdateInterval getUpdateCheckInterval() { return kUpdateIntervalNotSupported; }
+	virtual int getUpdateCheckInterval() { return kUpdateIntervalNotSupported; }
+
+	/**
+	 * Gets last update check time
+	 *
+	 * @param  t    TimeDate struct to fill out
+	 * @return flag indicating success
+	 */
+	virtual bool getLastUpdateCheckTimeAndDate(TimeDate &t) { return false; }
+
+	/**
+	 * Returns list of supported uptate intervals.
+	 * Ending with '-1' which is not acceptable value.
+	 *
+	 * @return  list of integer values representing update intervals in seconds.
+	 */
+	static const int *getUpdateIntervals();
+
+	/**
+	 * Returns string representation of a given interval.
+	 *
+	 * @param  interval    The interval.
+	 * @return Localized string of given interval as a U32String.
+	 */
+	static Common::U32String updateIntervalToString(int interval);
+
+	/**
+	 * Rounds up the given interval to acceptable value.
+	 *
+	 * @param  interval    The interval.
+	 * @return  rounded up interval
+	 */
+	static int normalizeInterval(int interval);
 };
+
+/** @} */
 
 } // End of namespace Common
 
 #endif
 
-#endif // BACKENDS_UPDATES_ABSTRACT_H
+#endif // COMMON_UPDATES_H

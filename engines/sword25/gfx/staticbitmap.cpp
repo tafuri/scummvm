@@ -65,7 +65,7 @@ bool StaticBitmap::initBitmapResource(const Common::String &filename) {
 
 	BitmapResource *bitmapPtr = static_cast<BitmapResource *>(resourcePtr);
 
-	// Den eindeutigen Dateinamen zum späteren Referenzieren speichern
+	// Den eindeutigen Dateinamen zum spÃ¤teren Referenzieren speichern
 	_resourceFilename = bitmapPtr->getFileName();
 
 	// RenderObject Eigenschaften aktualisieren
@@ -124,6 +124,10 @@ uint StaticBitmap::getPixel(int x, int y) const {
 	assert(pResource->getType() == Resource::TYPE_BITMAP);
 	BitmapResource *pBitmapResource = static_cast<BitmapResource *>(pResource);
 	uint result = pBitmapResource->getPixel(x, y);
+	// Convert to LUA-ready format
+	byte a;
+	a = result & 0xff;
+	result = (result >> 8) | (a << 24);
 	pResource->release();
 	return result;
 }

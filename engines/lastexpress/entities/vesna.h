@@ -32,7 +32,7 @@ class LastExpressEngine;
 class Vesna : public Entity {
 public:
 	Vesna(LastExpressEngine *engine);
-	~Vesna() {}
+	~Vesna() override {}
 
 	/**
 	 * Resets the entity
@@ -44,7 +44,7 @@ public:
 	 *
 	 * @param filename The sound filename
 	 */
-	DECLARE_FUNCTION_1(playSound, const char *filename)
+	DECLARE_VFUNCTION_1(playSound, const char *filename)
 
 	/**
 	 * Handles entering/exiting a compartment.
@@ -52,8 +52,7 @@ public:
 	 * @param sequence    The sequence to draw
 	 * @param compartment The compartment
 	 */
-	DECLARE_FUNCTION_2(enterExitCompartment, const char *sequence, ObjectIndex compartment)
-
+	DECLARE_VFUNCTION_2(enterExitCompartment, const char *sequence, ObjectIndex compartment)
 
 	/**
 	 * Draws the entity
@@ -68,7 +67,7 @@ public:
 	 * @param car            The car
 	 * @param entityPosition The entity position
 	 */
-	DECLARE_FUNCTION_2(updateEntity, CarIndex car, EntityPosition entityPosition)
+	DECLARE_VFUNCTION_2(updateEntity, CarIndex car, EntityPosition entityPosition)
 
 	/**
 	 * Updates parameter 2 using time value
@@ -101,69 +100,57 @@ public:
 	 * @param savegameType The type of the savegame
 	 * @param param        The param for the savegame (EventIndex or TimeValue)
 	 */
-	DECLARE_FUNCTION_2(savegame, SavegameType savegameType, uint32 param)
+	DECLARE_VFUNCTION_2(savegame, SavegameType savegameType, uint32 param)
 
-	DECLARE_FUNCTION(function11)
+	DECLARE_FUNCTION(homeAlone)
 
 	/**
 	 * Setup Chapter 1
 	 */
-	DECLARE_FUNCTION(chapter1)
+	DECLARE_VFUNCTION(chapter1)
 
-	/**
-	 * Handle Chapter 1 events
-	 */
-	DECLARE_FUNCTION(chapter1Handler)
-
-	DECLARE_FUNCTION(function14)
+	DECLARE_FUNCTION(withMilos)
+	DECLARE_FUNCTION(homeTogether)
 	DECLARE_FUNCTION(function15)
 
 	/**
 	 * Setup Chapter 2
 	 */
-	DECLARE_FUNCTION(chapter2)
+	DECLARE_VFUNCTION(chapter2)
 
 	/**
 	 * Handle Chapter 2 events
 	 */
 	DECLARE_FUNCTION(chapter2Handler)
 
-	DECLARE_FUNCTION(function18)
+	DECLARE_FUNCTION(checkTrain)
 
 	/**
 	 * Setup Chapter 3
 	 */
-	DECLARE_FUNCTION(chapter3)
+	DECLARE_VFUNCTION(chapter3)
 
-	/**
-	 * Handle Chapter 3 events
-	 */
-	DECLARE_FUNCTION(chapter3Handler)
-
-	DECLARE_FUNCTION(function21)
-	DECLARE_FUNCTION(function22)
-	DECLARE_FUNCTION(function23)
+	DECLARE_FUNCTION(inCompartment)
+	DECLARE_FUNCTION(takeAWalk)
+	DECLARE_FUNCTION(killAnna)
+	DECLARE_FUNCTION(killedAnna)
 
 	/**
 	 * Setup Chapter 4
 	 */
-	DECLARE_FUNCTION(chapter4)
+	DECLARE_VFUNCTION(chapter4)
 
-	DECLARE_FUNCTION(function25)
-	DECLARE_FUNCTION(function26)
+	DECLARE_FUNCTION(exitLocation)
+	DECLARE_FUNCTION(done)
 	DECLARE_FUNCTION(function27)
 
 	/**
 	 * Setup Chapter 5
 	 */
-	DECLARE_FUNCTION(chapter5)
+	DECLARE_VFUNCTION(chapter5)
 
-	/**
-	 * Handle Chapter 5 events
-	 */
-	DECLARE_FUNCTION(chapter5Handler)
-
-	DECLARE_FUNCTION(function30)
+	DECLARE_FUNCTION(guarding)
+	DECLARE_FUNCTION(climbing)
 	DECLARE_NULL_FUNCTION()
 };
 

@@ -25,7 +25,6 @@
 #include "common/textconsole.h"
 #include "common/translation.h"
 
-#include "gui/about.h"
 #include "gui/message.h"
 
 #include "agos/agos.h"
@@ -126,7 +125,7 @@ void AGOSEngine_Feeble::quickLoadOrSave() {
 // was disabled
 void AGOSEngine::quickLoadOrSave() {
 	bool success;
-	Common::String buf;
+	Common::U32String buf;
 
 	// Disable loading and saving when it was not possible in the original:
 	// In overhead maps areas in Simon the Sorcerer 2
@@ -135,8 +134,8 @@ void AGOSEngine::quickLoadOrSave() {
 	if ((getGameType() == GType_SIMON2 && _boxStarHeight == 200) ||
 		(getGameType() == GType_SIMON1 && (getFeatures() & GF_DEMO)) ||
 		_mouseHideCount || _showPreposition) {
-		buf = Common::String::format("Quick load or save game isn't supported in this location");
-		GUI::MessageDialog dialog(buf, "OK");
+		buf = _("Quick load or save game isn't supported in this location");
+		GUI::MessageDialog dialog(buf);
 		dialog.runModal();
 		return;
 	}
@@ -157,7 +156,7 @@ void AGOSEngine::quickLoadOrSave() {
 		Subroutine *sub;
 		success = loadGame(genSaveName(_saveLoadSlot));
 		if (!success) {
-			buf = Common::String::format(_("Failed to load game state from file:\n\n%s"), filename.c_str());
+			buf = Common::U32String::format(_("Failed to load saved game from file:\n\n%s"), filename.c_str());
 		} else if (getGameType() == GType_SIMON1 || getGameType() == GType_SIMON2) {
 			drawIconArray(2, me(), 0, 0);
 			setBitFlag(97, true);
@@ -192,15 +191,15 @@ void AGOSEngine::quickLoadOrSave() {
 	} else {
 		success = saveGame(_saveLoadSlot, _saveLoadName);
 		if (!success)
-			buf = Common::String::format(_("Failed to save game state to file:\n\n%s"), filename.c_str());
+			buf = Common::U32String::format(_("Failed to save game to file:\n\n%s"), filename.c_str());
 	}
 
 	if (!success) {
-		GUI::MessageDialog dialog(buf, "OK");
+		GUI::MessageDialog dialog(buf);
 		dialog.runModal();
 
 	} else if (_saveLoadType == 1) {
-		buf = Common::String::format(_("Successfully saved game state in file:\n\n%s"), filename.c_str());
+		buf = Common::U32String::format(_("Successfully saved game in file:\n\n%s"), filename.c_str());
 		GUI::TimedMessageDialog dialog(buf, 1500);
 		dialog.runModal();
 
@@ -238,6 +237,11 @@ bool AGOSEngine::confirmOverWrite(WindowBlock *window) {
 		message1 = "\rDatei existiert bereits.\r\r";
 		message2 = "   Ueberschreiben ?\r\r";
 		message3 = "     Ja        Nein";
+		break;
+	case Common::JA_JPN:
+		message1 = "\r   ""\x82\xbb\x82\xcc\x83""t""\x83""@""\x83""C""\x83\x8b\x82\xcd\x82\xb7\x82\xc5\x82\xc9\x91\xb6\x8d\xdd\x82\xb5\x82\xdc\x82\xb7""\r\r";
+		message2 = "     ""\x8f\xe3\x8f\x91\x82\xab\x82\xb5\x82\xc4\x82\xe6\x82\xeb\x82\xb5\x82\xa2\x82\xc5\x82\xb7\x82\xa9\x81""H\r\r";
+		message3 = "       ""\x82\xcd\x82\xa2""           ""\x82\xa2\x82\xa2\x82\xa6";
 		break;
 	default:
 		message1 = "\r File already exists.\r\r";
@@ -311,17 +315,22 @@ restart:
 	case Common::DE_DEU:
 		message1 = "\rLege Spielstandsdiskette ein. Dateinamen eingeben:\r\r   ";
 		break;
+	case Common::JA_JPN:
+		message1 = "\r  ""\x83""t""\x83""@""\x83""C""\x83\x8b\x96\xbc\x82\xf0\x93\xfc\x97\xcd\x82\xb5\x82\xc4\x82\xad\x82\xbe\x82\xb3\x82\xa2\x81""F\r\r\r   ";
+		break;
 	default:
 		message1 = "\r Insert savegame data disk & enter filename:\r\r   ";
 		break;
 	}
 
+	clearHiResTextLayer();
 	for (; *message1; message1++)
 		windowPutChar(window, *message1);
 
 	memset(_saveBuf, 0, 10);
 	name = _saveBuf;
 	_saveGameNameLen = 0;
+	_forceAscii = true;
 
 	while (!shouldQuit()) {
 		windowPutChar(window, 128);
@@ -351,6 +360,8 @@ restart:
 		}
 	}
 
+	_forceAscii = false;
+
 	if (_saveGameNameLen != 0) {
 		int16 slot = matchSaveGame(name, numSaveGames);
 		if (!load) {
@@ -374,6 +385,7 @@ restart:
 		printStats();
 	}
 
+	clearHiResTextLayer();
 	restartAnimation();
 	_gameStoppedClock = getTime() - saveTime + _gameStoppedClock;
 }
@@ -495,7 +507,7 @@ void AGOSEngine_Elvira2::userGame(bool load) {
 
 			i = userGameGetKey(&b, 128);
 			if (b) {
-				if (i <= 223) {
+				if (i <= 23) {
 					if (!confirmOverWrite(window)) {
 						listSaveGames();
 						continue;
@@ -943,6 +955,10 @@ void AGOSEngine::fileError(WindowBlock *window, bool saveError) {
 			message1 = "\r  Sicherung erfolglos.";
 			message2 = "\rVersuche eine andere     Diskette.";
 			break;
+		case Common::JA_JPN:
+			message1 = "\r       ""\x83""Z""\x81""[""\x83""u""\x82\xc9\x8e\xb8\x94""s""\x82\xb5\x82\xdc\x82\xb5\x82\xbd";
+			message2 = "\r   ""\x95\xca\x82\xcc\x83""f""\x83""B""\x83""X""\x83""N""\x82\xf0\x8e""g""\x97""p""\x82\xb5\x82\xc4\x82\xad\x82\xbe\x82\xb3\x82\xa2";
+			break;
 		default:
 			message1 = "\r       Save failed.";
 			message2 = "\r       Disk error.";
@@ -978,6 +994,10 @@ void AGOSEngine::fileError(WindowBlock *window, bool saveError) {
 		case Common::DE_DEU:
 			message1 = "\r    Laden erfolglos.";
 			message2 = "\r  Datei nicht gefunden.";
+			break;
+		case Common::JA_JPN:
+			message1 = "\r       ""\x83\x8d\x81""[""\x83""h""\x82\xc9\x8e\xb8\x94""s""\x82\xb5\x82\xdc\x82\xb5\x82\xbd";
+			message2 = "\r     ""\x83""t""\x83""@""\x83""C""\x83\x8b\x82\xaa\x8c\xa9\x82\xc2\x82\xa9\x82\xe8\x82\xdc\x82\xb9\x82\xf1";
 			break;
 		default:
 			message1 = "\r       Load failed.";
@@ -1027,12 +1047,16 @@ bool AGOSEngine::loadGame(const Common::String &filename, bool restartMode) {
 
 	if (restartMode) {
 		// Load restart state
-		Common::File *file = new Common::File();
-		if (!file->open(filename)) {
-			delete file;
-			file = nullptr;
+		if (getPlatform() == Common::kPlatformPC98 && !filename.compareToIgnoreCase("start")) {
+			f = createPak98FileStream("START.PAK");
+		} else {
+			Common::File *file = new Common::File();
+			if (!file->open(filename)) {
+				delete file;
+				file = nullptr;
+			}
+			f = file;
 		}
-		f = file;
 	} else {
 		f = _saveFileMan->openForLoading(filename);
 	}
@@ -1261,7 +1285,6 @@ bool AGOSEngine_Elvira2::loadGame(const Common::String &filename, bool restartMo
 
 		uint16 room = _currentRoom;
 		_currentRoom = f->readUint16BE();
-
 		if (_roomsListPtr) {
 			byte *p = _roomsListPtr;
 			if (room == _currentRoom) {
@@ -1293,8 +1316,7 @@ bool AGOSEngine_Elvira2::loadGame(const Common::String &filename, bool restartMo
 
 					 for (uint16 z = minNum; z <= maxNum; z++) {
 						uint16 itemNum = z + 2;
-						Item *item = derefItem(itemNum);
-						item->parent = 0;
+						_itemArrayPtr[itemNum] = 0;
 					}
 				}
 			}
@@ -1317,6 +1339,9 @@ bool AGOSEngine_Elvira2::loadGame(const Common::String &filename, bool restartMo
 		} else {
 			uint parent = f->readUint16BE();
 			uint next = f->readUint16BE();
+
+			if (getGameType() == GType_WW && getPlatform() == Common::kPlatformDOS && derefItem(item->parent) == NULL)
+				item->parent = 0;
 
 			parent_item = derefItem(parent);
 			setItemParent(item, parent_item);

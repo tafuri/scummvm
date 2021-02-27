@@ -52,6 +52,61 @@ uint hashit_lower(const char *p) {
 	return hash ^ size;
 }
 
+
+template<> void unknownKeyError(::Common::String key) {
+	error("Unknown key \"%s\"", key.c_str());
+}
+
+template<> void unknownKeyError(signed char key) {
+	error("Unknown key \"%hhi\"", key);
+}
+
+template<> void unknownKeyError(unsigned char key) {
+	error("Unknown key \"%hhu\"", key);
+}
+
+template<> void unknownKeyError(short signed key) {
+	error("Unknown key \"%hi\"", key);
+}
+
+template<> void unknownKeyError(short unsigned key) {
+	error("Unknown key \"%hu\"", key);
+}
+
+template<> void unknownKeyError(long signed key) {
+	error("Unknown key \"%li\"", key);
+}
+
+template<> void unknownKeyError(long unsigned key) {
+	error("Unknown key \"%lu\"", key);
+}
+
+template<>
+void unknownKeyError(signed int key) {
+	error("Unknown key \"%i\"", key);
+}
+
+template<>
+void unknownKeyError(unsigned int key) {
+	error("Unknown key \"%u\"", key);
+}
+
+template<> void unknownKeyError(long long signed key) {
+	error("Unknown key \"%lli\"", key);
+}
+
+template<> void unknownKeyError(long long unsigned key) {
+	error("Unknown key \"%llu\"", key);
+}
+
+template<> void unknownKeyError(void *key) {
+	error("Unknown key \"%p\"", key);
+}
+
+template<> void unknownKeyError(const char *key) {
+	error("Unknown key \"%s\"", key);
+}
+
 #ifdef DEBUG_HASH_COLLISIONS
 static double
 	g_collisions = 0,
@@ -95,10 +150,10 @@ void updateHashCollisionStats(int collisions, int dummyHits, int lookups, int ar
 		g_size / g_totalHashmaps, g_max_size,
 		g_capacity / g_totalHashmaps, g_max_capacity);
 	debug("  %d less than %d; %d less than %d; %d less than %d; %d less than %d",
-			g_stats[0], 2*8/3,
-			g_stats[1],2*16/3,
-			g_stats[2],2*32/3,
-			g_stats[3],2*64/3);
+		g_stats[0], 2 *  8 / 3,
+		g_stats[1], 2 * 16 / 3,
+		g_stats[2], 2 * 32 / 3,
+		g_stats[3], 2 * 64 / 3);
 
 	// TODO:
 	// * Should record the maximal size of the map during its lifetime, not that at its death

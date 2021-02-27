@@ -21,11 +21,8 @@
  */
 
 #include "engines/advancedDetector.h"
-#include "common/system.h"
 
 #include "base/plugins.h"
-
-#include "testbed/testbed.h"
 
 static const PlainGameDescriptor testbed_setting[] = {
 	{ "testbed", "Testbed: The Backend Testing Framework" },
@@ -40,36 +37,28 @@ static const ADGameDescription testbedDescriptions[] = {
 		Common::EN_ANY,
 		Common::kPlatformDOS,
 		ADGF_NO_FLAGS,
-		GUIO0()
+		GUIO1(GUIO_NOLAUNCHLOAD)
 	},
 	AD_TABLE_END_MARKER
 };
 
-class TestbedMetaEngine : public AdvancedMetaEngine {
+class TestbedMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	TestbedMetaEngine() : AdvancedMetaEngine(testbedDescriptions, sizeof(ADGameDescription), testbed_setting) {
+	TestbedMetaEngineDetection() : AdvancedMetaEngineDetection(testbedDescriptions, sizeof(ADGameDescription), testbed_setting) {
 		_md5Bytes = 512;
-		_singleid = "testbed";
 	}
 
-	virtual const char *getName() const {
+	const char *getEngineId() const override {
+		return "testbed";
+	}
+
+	const char *getName() const override {
 		return "TestBed: The Backend Testing Framework";
 	}
 
-	virtual const char *getOriginalCopyright() const {
+	const char *getOriginalCopyright() const override {
 		return "Copyright (C) ScummVM";
 	}
-
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription * /* desc */) const {
-		// Instantiate Engine even if the game data is not found.
-		*engine = new Testbed::TestbedEngine(syst);
-		return true;
-	}
-
 };
 
-#if PLUGIN_ENABLED_DYNAMIC(TESTBED)
-	REGISTER_PLUGIN_DYNAMIC(TESTBED, PLUGIN_TYPE_ENGINE, TestbedMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(TESTBED, PLUGIN_TYPE_ENGINE, TestbedMetaEngine);
-#endif
+REGISTER_PLUGIN_STATIC(TESTBED_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, TestbedMetaEngineDetection);

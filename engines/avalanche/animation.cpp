@@ -27,6 +27,7 @@
 
 /* TRIP5	Trippancy V - the sprite animation subsystem */
 
+#include "common/system.h"
 #include "avalanche/avalanche.h"
 #include "avalanche/animation.h"
 
@@ -258,6 +259,9 @@ void AnimationType::walk() {
 				break;
 			case kMagicOpenDoor:
 				_anim->_vm->openDoor((Room)(magic->_data >> 8), magic->_data & 0xff, magicColor);
+				break;
+			case kMagicNothing:
+			default:
 				break;
 			}
 		}
@@ -494,6 +498,8 @@ void Animation::catacombMove(byte ped) {
 		_sprites[0]->_moveY = 1;
 		_sprites[0]->_moveX = 0;
 		return;
+	default:
+		break;
 	}
 
 	if (!_vm->_enterCatacombsFromLustiesRoom)
@@ -563,6 +569,8 @@ void Animation::catacombMove(byte ped) {
 		_vm->_magics[1]._operation = kMagicNothing; // Sloping wall.
 		_vm->_magics[2]._operation = kMagicSpecial; // Straight wall.
 		break;
+	default:
+		break;
 	}
 
 	/*  ---- */
@@ -616,6 +624,8 @@ void Animation::catacombMove(byte ped) {
 		_vm->_magics[5]._operation = kMagicSpecial; // Straight wall.
 		_vm->_portals[6]._operation = kMagicNothing; // Door.
 		break;
+	default:
+		break;
 	}
 
 	switch ((here & 0xf00) >> 8) { // South
@@ -646,6 +656,8 @@ void Animation::catacombMove(byte ped) {
 		_vm->_magics[11]._operation = kMagicSpecial; // Left exit south.
 		_vm->_magics[6]._operation = kMagicBounce;
 		_vm->_magics[12]._operation = kMagicBounce;
+		break;
+	default:
 		break;
 	}
 
@@ -723,6 +735,8 @@ void Animation::catacombMove(byte ped) {
 		_vm->_background->draw(-1, -1, 0);
 		_vm->_portals[3]._operation = kMagicSpecial; // Door.
 		break;
+	default:
+		break;
 	}
 
 	switch (xy) {
@@ -755,6 +769,8 @@ void Animation::catacombMove(byte ped) {
 		_vm->_background->draw(-1, -1, 11);
 		_vm->_background->draw(-1, -1, 12);
 		break; // [1,1] : the other two.
+	default:
+		break;
 	}
 
 	if (_vm->_geidaFollows && (ped > 0)) {
@@ -933,6 +949,8 @@ void Animation::callSpecial(uint16 which) {
 			return;
 		appearPed(0, 2);
 		dawnDelay();
+		break;
+	default:
 		break;
 	}
 }

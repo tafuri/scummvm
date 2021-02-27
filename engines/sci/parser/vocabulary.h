@@ -30,6 +30,7 @@
 
 #include "sci/sci.h"
 #include "sci/engine/vm_types.h"
+#include "sci/util.h"
 
 namespace Common {
 
@@ -156,7 +157,7 @@ typedef Common::Array<synonym_t> SynonymList;
 struct AltInput {
 	const char *_input;
 	const char *_replacement;
-	unsigned int _inputLength;
+	uint32 _inputLength;
 	bool _prefix;
 };
 
@@ -207,6 +208,41 @@ public:
 	 */
 	void lookupWord(ResultWordList &retval, const char *word, int word_len);
 
+	/**
+	 * Looks up a single word in the words list, taking into account suffixes, and updating parent_retval if a matching prefix is found
+	 * Note: there is no equivalent in Sierra SCI, added to support specific languages translations
+	 * For other languages, it does nothing
+	 * @param parent_retval     parent's function list of matches
+	 * @param retval            the list of matches
+	 * @param word              pointer to the word to look up
+	 * @param word_len          length of the word to look up
+	 */
+	void lookupWordPrefix(ResultWordListList &parent_retval, ResultWordList &retval, const char *word, int word_len);
+
+	/**
+	 * Helper function for lookupWordPrefix, checking specific prefix for match
+	 * Intended for nouns and prepositions, and the prefix has meaning as another word
+	 * @param parent_retval     lookupWordPrefix's parent's function list of matches
+	 * @param retval            lookupWordPrefix's list of matches
+	 * @param word              pointer to the word to look up
+	 * @param word_len          length of the word to look up
+	 * @param prefix            the prefix to look for in the word
+	 * @param meaning           the meaning of that prefix
+	 * @return true on prefix match, false on prefix not matching
+	 */
+	bool lookupSpecificPrefixWithMeaning(ResultWordListList &parent_retval, ResultWordList &retval, const char *word, int word_len, unsigned char prefix, const char *meaning);
+
+	/**
+	 * Helper function for lookupWordPrefix, checking specific prefix for match
+	 * Intended for verbs, and the prefix doesn't have any meaning
+	 * @param parent_retval     lookupWordPrefix's parent's function list of matches
+	 * @param retval            lookupWordPrefix's list of matches
+	 * @param word              pointer to the word to look up
+	 * @param word_len          length of the word to look up
+	 * @param prefix            the prefix to look for in the word
+	 * @return true on prefix match, false on prefix not matching
+	 */
+	bool lookupVerbPrefix(ResultWordListList &parent_retval, ResultWordList &retval, Common::String word, int word_len, Common::String prefix);
 
 	/**
 	 * Tokenizes a string and compiles it into word_ts.
@@ -233,6 +269,16 @@ public:
 	int parseGNF(const ResultWordListList &words, bool verbose = false);
 
 	/**
+	 * Find and store reference for future pronouns
+	 */
+	bool storePronounReference();
+
+	/**
+	 * Replace pronouns by stored reference
+	 */
+	void replacePronouns(ResultWordListList &words);
+
+	/**
 	 * Constructs the Greibach Normal Form of the grammar supplied in 'branches'.
 	 * @param verbose	Set to true for debugging. If true, the list is
 	 *					freed before the function ends
@@ -250,7 +296,7 @@ public:
 	 * For debugging only.
 	 * @param pos	pointer to the data to dump
 	 */
-	void debugDecipherSaidBlock(const byte *pos);
+	void debugDecipherSaidBlock(const SciSpan<const byte> &data);
 
 	/**
 	 * Prints the parser suffixes to the debug console.
@@ -359,6 +405,13 @@ private:
 	WordMap _parserWords;
 	SynonymList _synonyms; /**< The list of synonyms */
 	Common::Array<Common::List<AltInput> > _altInputs;
+
+	struct PrefixMeaning {
+		unsigned char prefix;
+		const char *meaning;
+	};
+
+	int _pronounReference;
 
 public:
 	// Accessed by said()

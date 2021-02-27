@@ -23,9 +23,8 @@
 #include "common/config-manager.h"
 #include "common/events.h"
 #include "common/system.h"
-
-#include "gui/message.h"
-#include "gui/gui-manager.h"
+#include "common/translation.h"
+#include "audio/mixer.h"
 
 #include "scumm/debugger.h"
 #include "scumm/dialogs.h"
@@ -42,9 +41,6 @@
 #include "scumm/sound.h"
 
 
-#ifdef _WIN32_WCE
-#define		KEY_ALL_SKIP	3457
-#endif
 
 namespace Scumm {
 
@@ -124,11 +120,16 @@ void ScummEngine::parseEvent(Common::Event event) {
 			_fastMode ^= 1;
 		} else if (event.kbd.hasFlags(Common::KBD_CTRL) && event.kbd.keycode == Common::KEYCODE_g) {
 			_fastMode ^= 2;
-		} else if ((event.kbd.hasFlags(Common::KBD_CTRL) && event.kbd.keycode == Common::KEYCODE_d)
-		        || event.kbd.ascii == '~' || event.kbd.ascii == '#') {
-			_debugger->attach();
 		} else if (event.kbd.hasFlags(Common::KBD_CTRL) && event.kbd.keycode == Common::KEYCODE_s) {
 			_res->resourceStats();
+		} else if (event.kbd.hasFlags(Common::KBD_ALT) && event.kbd.keycode == Common::KEYCODE_x) {
+			// TODO: Some SCUMM games quit when Alt-x is pressed. However, not
+			// all of them seem to exhibit this behavior. LordHoto found that
+			// the Loom manual does not mention this hotkey. On the other hand
+			// the Sam&Max manual mentions that Alt-x does so on "most"
+			// platforms. We should really check which games exhibit this
+			// behavior and only use it for them.
+			quitGame();
 		} else {
 			// Normal key press, pass on to the game.
 			_keyPressed = event.kbd;
@@ -343,17 +344,6 @@ void ScummEngine::processInput() {
 	_leftBtnPressed &= ~msClicked;
 	_rightBtnPressed &= ~msClicked;
 
-#ifdef _WIN32_WCE
-	if (lastKeyHit.ascii == KEY_ALL_SKIP) {
-		// Skip talk
-		if (VAR_TALKSTOP_KEY != 0xFF && _talkDelay > 0) {
-			lastKeyHit = Common::KeyState(Common::KEYCODE_PERIOD);
-		} else {
-			lastKeyHit = Common::KeyState(Common::KEYCODE_ESCAPE);
-		}
-	}
-#endif
-
 	if (!lastKeyHit.ascii)
 		return;
 
@@ -401,7 +391,19 @@ void ScummEngine_v7::processKeyboard(Common::KeyState lastKeyHit) {
 				_insane->escapeKeyHandler();
 			else
 				_smushVideoShouldFinish = true;
-			_skipVideo = true;
+
+			// WORKAROUND bug #12022: For some reason, skipping the cutscene in which Ben fires up
+			// his bike (after retrieving the keys from the bartender), will outright skip the first
+			// bike fight sequence. Because of this, the script which handles playing ambient and wind SFX
+			// outside the bar is never stopped, so those SFX are unintentionally played throughout the
+			// rest of the game.
+			// This fix produces the intended behaviour from the original interpreter.
+			if (_game.id == GID_FT && _currentRoom == 6
+				&& (vm.slot[_currentScript].number == 65 || vm.slot[_currentScript].number == 64)) {
+				_skipVideo = false;
+			} else {
+				_skipVideo = true;
+			}
 		} else {
 			abortCutscene();
 		}
@@ -432,6 +434,8 @@ void ScummEngine_v6::processKeyboard(Common::KeyState lastKeyHit) {
 		case 2:
 			ConfMan.setBool("speech_mute", true);
 			ConfMan.setBool("subtitles", true);
+			break;
+		default:
 			break;
 		}
 
@@ -553,7 +557,7 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 	} else if (pauseKeyEnabled && (lastKeyHit.keycode == Common::KEYCODE_SPACE && lastKeyHit.hasFlags(0))) {
 		pauseGame();
 
-	} else if (talkstopKeyEnabled && (lastKeyHit.keycode == Common::KEYCODE_PERIOD && lastKeyHit.hasFlags(0))) {
+	} else if (talkstopKeyEnabled && lastKeyHit.ascii == '.') {
 		_talkDelay = 0;
 		if (_sound->_sfxMode & 2)
 			stopTalk();
@@ -568,9 +572,9 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 		lastKeyHit.hasFlags(Common::KBD_CTRL)) {
 		_snapScroll ^= 1;
 		if (_snapScroll) {
-			messageDialog("Snap scroll on");
+			messageDialog(_("Snap scroll on"));
 		} else {
-			messageDialog("Snap scroll off");
+			messageDialog(_("Snap scroll off"));
 		}
 
 		if (VAR_CAMERA_FAST_X != 0xFF)
@@ -583,7 +587,7 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 			vol--;
 
 		// Display the music volume
-		ValueDisplayDialog dlg("Music volume: ", 0, 16, vol, ']', '[');
+		ValueDisplayDialog dlg(_("Music volume: "), 0, 16, vol, ']', '[');
 		vol = runDialog(dlg);
 
 		vol *= 16;
@@ -600,7 +604,7 @@ void ScummEngine::processKeyboard(Common::KeyState lastKeyHit) {
 			_defaultTalkDelay++;
 
 		// Display the talk speed
-		ValueDisplayDialog dlg("Subtitle speed: ", 0, 9, 9 - _defaultTalkDelay, '+', '-');
+		ValueDisplayDialog dlg(_("Subtitle speed: "), 0, 9, 9 - _defaultTalkDelay, '+', '-');
 		_defaultTalkDelay = 9 - runDialog(dlg);
 
 		// Save the new talkspeed value to ConfMan

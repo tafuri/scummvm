@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -39,17 +39,17 @@ namespace Pegasus {
 class MapChip : public BiochipItem {
 public:
 	MapChip(const ItemID, const NeighborhoodID, const RoomID, const DirectionConstant);
-	virtual ~MapChip();
+	~MapChip() override;
 
-	void select();
-	void deselect();
-	void takeSharedArea();
-	void giveUpSharedArea();
+	void select() override;
+	void deselect() override;
+	void takeSharedArea() override;
+	void giveUpSharedArea() override;
 
 	void moveToMapLocation(const NeighborhoodID, const RoomID, const DirectionConstant);
 
-	void writeToStream(Common::WriteStream *);
-	void readFromStream(Common::ReadStream *);
+	void writeToStream(Common::WriteStream *) override;
+	void readFromStream(Common::ReadStream *) override;
 
 	bool beenToMaze() { return _image.anyFlagSet(); }
 

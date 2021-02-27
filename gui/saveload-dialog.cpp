@@ -21,6 +21,13 @@
  */
 
 #include "gui/saveload-dialog.h"
+
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+#include "backends/cloud/cloudmanager.h"
+#include "backends/cloud/savessyncrequest.h"
+#include "backends/networking/curl/connectionmanager.h"
+#endif
+
 #include "common/translation.h"
 #include "common/config-manager.h"
 
@@ -30,8 +37,70 @@
 #include "gui/widgets/edittext.h"
 
 #include "graphics/scaler.h"
+#include "common/savefile.h"
 
 namespace GUI {
+
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+
+enum {
+	kCancelSyncCmd = 'PDCS',
+	kBackgroundSyncCmd = 'PDBS'
+};
+
+SaveLoadCloudSyncProgressDialog::SaveLoadCloudSyncProgressDialog(bool canRunInBackground): Dialog("SaveLoadCloudSyncProgress"), _close(false) {
+	_label = new StaticTextWidget(this, "SaveLoadCloudSyncProgress.TitleText", _("Downloading saves..."));
+	uint32 progress = (uint32)(100 * CloudMan.getSyncDownloadingProgress());
+	_progressBar = new SliderWidget(this, "SaveLoadCloudSyncProgress.ProgressBar");
+	_progressBar->setMinValue(0);
+	_progressBar->setMaxValue(100);
+	_progressBar->setValue(progress);
+	_progressBar->setEnabled(false);
+	_percentLabel = new StaticTextWidget(this, "SaveLoadCloudSyncProgress.PercentText", Common::String::format("%u %%", progress));
+	new ButtonWidget(this, "SaveLoadCloudSyncProgress.Cancel", _("Cancel"), Common::U32String(), kCancelSyncCmd, Common::ASCII_ESCAPE);	// Cancel dialog
+	ButtonWidget *backgroundButton = new ButtonWidget(this, "SaveLoadCloudSyncProgress.Background", _("Run in background"), Common::U32String(), kBackgroundSyncCmd, Common::ASCII_RETURN);	// Confirm dialog
+	backgroundButton->setEnabled(canRunInBackground);
+	g_gui.scheduleTopDialogRedraw();
+}
+
+SaveLoadCloudSyncProgressDialog::~SaveLoadCloudSyncProgressDialog() {
+	CloudMan.setSyncTarget(nullptr); //not that dialog, at least
+}
+
+void SaveLoadCloudSyncProgressDialog::handleCommand(CommandSender *sender, uint32 cmd, uint32 data) {
+	switch(cmd) {
+	case kSavesSyncProgressCmd:
+		_percentLabel->setLabel(Common::String::format("%u%%", data));
+		_progressBar->setValue(data);
+		_progressBar->markAsDirty();
+		break;
+
+	case kCancelSyncCmd:
+		setResult(kCancelSyncCmd);
+		close();
+		break;
+
+	case kSavesSyncEndedCmd:
+	case kBackgroundSyncCmd:
+		_close = true;
+		break;
+
+	default:
+		break;
+	}
+
+	Dialog::handleCommand(sender, cmd, data);
+}
+
+void SaveLoadCloudSyncProgressDialog::handleTickle() {
+	if (_close) {
+		setResult(kBackgroundSyncCmd);
+		close();
+	}
+
+	Dialog::handleTickle();
+}
+#endif
 
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
 SaveLoadChooserType getRequestedSaveLoadDialog(const MetaEngine &metaEngine) {
@@ -45,9 +114,9 @@ SaveLoadChooserType getRequestedSaveLoadDialog(const MetaEngine &metaEngine) {
 	g_gui.checkScreenChange();
 
 	if (g_gui.getWidth() >= 640 && g_gui.getHeight() >= 400
-	    && metaEngine.hasFeature(MetaEngine::kSavesSupportMetaInfo)
-	    && metaEngine.hasFeature(MetaEngine::kSavesSupportThumbnail)
-	    && userConfig.equalsIgnoreCase("grid")) {
+		&& metaEngine.hasFeature(MetaEngine::kSavesSupportMetaInfo)
+		&& metaEngine.hasFeature(MetaEngine::kSavesSupportThumbnail)
+		&& userConfig.equalsIgnoreCase("grid")) {
 		// In case we are 640x400 or higher, this dialog is not in save mode,
 		// the user requested the grid dialog and the engines supports it we
 		// try to set it up.
@@ -65,10 +134,11 @@ enum {
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 
 SaveLoadChooserDialog::SaveLoadChooserDialog(const Common::String &dialogName, const bool saveMode)
-	: Dialog(dialogName), _metaEngine(0), _delSupport(false), _metaInfoSupport(false),
-	_thumbnailSupport(false), _saveDateSupport(false), _playTimeSupport(false), _saveMode(saveMode)
+	: Dialog(dialogName), _metaEngine(nullptr), _delSupport(false), _metaInfoSupport(false),
+	_thumbnailSupport(false), _saveDateSupport(false), _playTimeSupport(false), _saveMode(saveMode),
+	_dialogWasShown(false)
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
-	, _listButton(0), _gridButton(0)
+	, _listButton(nullptr), _gridButton(nullptr)
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 	{
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
@@ -77,15 +147,22 @@ SaveLoadChooserDialog::SaveLoadChooserDialog(const Common::String &dialogName, c
 }
 
 SaveLoadChooserDialog::SaveLoadChooserDialog(int x, int y, int w, int h, const bool saveMode)
-	: Dialog(x, y, w, h), _metaEngine(0), _delSupport(false), _metaInfoSupport(false),
-	_thumbnailSupport(false), _saveDateSupport(false), _playTimeSupport(false), _saveMode(saveMode)
+	: Dialog(x, y, w, h), _metaEngine(nullptr), _delSupport(false), _metaInfoSupport(false),
+	_thumbnailSupport(false), _saveDateSupport(false), _playTimeSupport(false), _saveMode(saveMode),
+	_dialogWasShown(false)
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
-	, _listButton(0), _gridButton(0)
+	, _listButton(nullptr), _gridButton(nullptr)
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 	{
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
 	addChooserButtons();
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
+}
+
+SaveLoadChooserDialog::~SaveLoadChooserDialog() {
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	CloudMan.setSyncTarget(nullptr); //not that dialog, at least
+#endif
 }
 
 void SaveLoadChooserDialog::open() {
@@ -94,6 +171,15 @@ void SaveLoadChooserDialog::open() {
 	// So that quitting ScummVM will not cause the dialog result to say a
 	// saved game was selected.
 	setResult(-1);
+
+	_dialogWasShown = false;
+}
+
+void SaveLoadChooserDialog::close() {
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	CloudMan.setSyncTarget(nullptr); //not that dialog, at least
+#endif
+	Dialog::close();
 }
 
 int SaveLoadChooserDialog::run(const Common::String &target, const MetaEngine *metaEngine) {
@@ -132,15 +218,65 @@ void SaveLoadChooserDialog::handleCommand(CommandSender *sender, uint32 cmd, uin
 	}
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	if (cmd == kSavesSyncProgressCmd || cmd == kSavesSyncEndedCmd) {
+		//this dialog only gets these commands if the progress dialog was shown and user clicked "run in background"
+		return updateSaveList();
+	}
+#endif
+
 	return Dialog::handleCommand(sender, cmd, data);
+}
+
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+void SaveLoadChooserDialog::runSaveSync(bool hasSavepathOverride) {
+	if (!CloudMan.isSyncing()) {
+		if (hasSavepathOverride) {
+			CloudMan.showCloudDisabledIcon();
+		} else {
+			Cloud::SavesSyncRequest *request = CloudMan.syncSaves();
+			if (request)
+				request->setTarget(this);
+		}
+	}
+}
+#endif
+
+void SaveLoadChooserDialog::handleTickle() {
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	if (!_dialogWasShown && CloudMan.isSyncing()) {
+		Common::Array<Common::String> files = CloudMan.getSyncingFiles();
+		if (!files.empty()) {
+			{
+				SaveLoadCloudSyncProgressDialog dialog(_metaEngine ? _metaEngine->hasFeature(MetaEngine::kSimpleSavesNames) : false);
+				CloudMan.setSyncTarget(&dialog);
+				int result = dialog.runModal();
+				if (result == kCancelSyncCmd) {
+					CloudMan.cancelSync();
+				}
+			}
+			//dialog changes syncTarget to nullptr after that }
+			CloudMan.setSyncTarget(this);
+			_dialogWasShown = true;
+			updateSaveList();
+		}
+	}
+#endif
+	Dialog::handleTickle();
 }
 
 void SaveLoadChooserDialog::reflowLayout() {
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
-	addChooserButtons();
-
 	const SaveLoadChooserType currentType = getType();
 	const SaveLoadChooserType requestedType = getRequestedSaveLoadDialog(*_metaEngine);
+
+	addChooserButtons();
+	if (currentType == kSaveLoadDialogList) {
+		_listButton->setEnabled(false);
+	}
+	if (currentType == kSaveLoadDialogGrid) {
+		_gridButton->setEnabled(false);
+	}
 
 	// Change the dialog type if there is any need for it.
 	if (requestedType != currentType) {
@@ -150,6 +286,46 @@ void SaveLoadChooserDialog::reflowLayout() {
 #endif // !DISABLE_SAVELOADCHOOSER_GRID
 
 	Dialog::reflowLayout();
+}
+
+void SaveLoadChooserDialog::updateSaveList() {
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	Common::Array<Common::String> files = CloudMan.getSyncingFiles(); //returns empty array if not syncing
+	g_system->getSavefileManager()->updateSavefilesList(files);
+#endif
+	listSaves();
+}
+
+void SaveLoadChooserDialog::listSaves() {
+	if (!_metaEngine) return; //very strange
+	_saveList = _metaEngine->listSaves(_target.c_str(), _saveMode);
+
+#if defined(USE_CLOUD) && defined(USE_LIBCURL)
+	//if there is Cloud support, add currently synced files as "locked" saves in the list
+	if (_metaEngine->hasFeature(MetaEngine::kSimpleSavesNames)) {
+		Common::String pattern = _target + ".###";
+		Common::Array<Common::String> files = CloudMan.getSyncingFiles(); //returns empty array if not syncing
+		for (uint32 i = 0; i < files.size(); ++i) {
+			if (!files[i].matchString(pattern, true))
+				continue;
+
+			//make up some slot number
+			int slotNum = 0;
+			for (uint32 j = (files[i].size() > 3 ? files[i].size() - 3 : 0); j < files[i].size(); ++j) { //3 last chars
+				char c = files[i][j];
+				if (c < '0' || c > '9')
+					continue;
+				slotNum = slotNum * 10 + (c - '0');
+			}
+
+			SaveStateDescriptor slot(slotNum, files[i]);
+			slot.setLocked(true);
+			_saveList.push_back(slot);
+		}
+
+		Common::sort(_saveList.begin(), _saveList.end(), SaveStateDescriptorSlotComparator());
+	}
+#endif
 }
 
 #ifndef DISABLE_SAVELOADCHOOSER_GRID
@@ -164,15 +340,15 @@ void SaveLoadChooserDialog::addChooserButtons() {
 		delete _gridButton;
 	}
 
-	_listButton = createSwitchButton("SaveLoadChooser.ListSwitch", "L", _("List view"), ThemeEngine::kImageList, kListSwitchCmd);
-	_gridButton = createSwitchButton("SaveLoadChooser.GridSwitch", "G", _("Grid view"), ThemeEngine::kImageGrid, kGridSwitchCmd);
+	_listButton = createSwitchButton("SaveLoadChooser.ListSwitch", Common::U32String("L"), _("List view"), ThemeEngine::kImageList, kListSwitchCmd);
+	_gridButton = createSwitchButton("SaveLoadChooser.GridSwitch", Common::U32String("G"), _("Grid view"), ThemeEngine::kImageGrid, kGridSwitchCmd);
 	if (!_metaInfoSupport || !_thumbnailSupport || !(g_gui.getWidth() >= 640 && g_gui.getHeight() >= 400)) {
 		_gridButton->setEnabled(false);
 		_listButton->setEnabled(false);
 	}
 }
 
-ButtonWidget *SaveLoadChooserDialog::createSwitchButton(const Common::String &name, const char *desc, const char *tooltip, const char *image, uint32 cmd) {
+ButtonWidget *SaveLoadChooserDialog::createSwitchButton(const Common::String &name, const Common::U32String &desc, const Common::U32String &tooltip, const char *image, uint32 cmd) {
 	ButtonWidget *button;
 
 #ifndef DISABLE_FANCY_THEMES
@@ -195,11 +371,12 @@ enum {
 	kDelCmd = 'DEL '
 };
 
-SaveLoadChooserSimple::SaveLoadChooserSimple(const String &title, const String &buttonLabel, bool saveMode)
-	: SaveLoadChooserDialog("SaveLoadChooser", saveMode), _list(0), _chooseButton(0), _deleteButton(0), _gfxWidget(0)  {
+SaveLoadChooserSimple::SaveLoadChooserSimple(const U32String &title, const U32String &buttonLabel, bool saveMode)
+	: SaveLoadChooserDialog("SaveLoadChooser", saveMode), _list(nullptr), _chooseButton(nullptr), _deleteButton(nullptr), _gfxWidget(nullptr),
+	_container(nullptr) {
 	_backgroundType = ThemeEngine::kDialogBackgroundSpecial;
 
-	new StaticTextWidget(this, "SaveLoadChooser.Title", title);
+	_pageTitle = new StaticTextWidget(this, "SaveLoadChooser.Title", title);
 
 	// Add choice list
 	_list = new ListWidget(this, "SaveLoadChooser.List");
@@ -213,22 +390,32 @@ SaveLoadChooserSimple::SaveLoadChooserSimple(const String &title, const String &
 	_playtime = new StaticTextWidget(this, 0, 0, 10, 10, _("No playtime saved"), Graphics::kTextAlignCenter);
 
 	// Buttons
-	new ButtonWidget(this, "SaveLoadChooser.Cancel", _("Cancel"), 0, kCloseCmd);
-	_chooseButton = new ButtonWidget(this, "SaveLoadChooser.Choose", buttonLabel, 0, kChooseCmd);
+	new ButtonWidget(this, "SaveLoadChooser.Cancel", _("Cancel"), Common::U32String(), kCloseCmd);
+	_chooseButton = new ButtonWidget(this, "SaveLoadChooser.Choose", buttonLabel, Common::U32String(), kChooseCmd);
 	_chooseButton->setEnabled(false);
 
-	_deleteButton = new ButtonWidget(this, "SaveLoadChooser.Delete", _("Delete"), 0, kDelCmd);
+	_deleteButton = new ButtonWidget(this, "SaveLoadChooser.Delete", _("Delete"), Common::U32String(), kDelCmd);
 	_deleteButton->setEnabled(false);
 
 	_delSupport = _metaInfoSupport = _thumbnailSupport = false;
 
-	_container = new ContainerWidget(this, 0, 0, 10, 10);
-//	_container->setHints(THEME_HINT_USE_SHADOW);
+	addThumbnailContainer();
+}
+
+void SaveLoadChooserSimple::addThumbnailContainer() {
+	// When switching layouts, create / remove the thumbnail container as needed
+	if (g_gui.xmlEval()->getVar("Globals.SaveLoadChooser.ExtInfo.Visible") == 1 && !_container) {
+		_container = new ContainerWidget(this, "SaveLoadChooser.Thumbnail");
+	} else if (g_gui.xmlEval()->getVar("Globals.SaveLoadChooser.ExtInfo.Visible") == 0 && _container) {
+		removeWidget(_container);
+		delete _container;
+		_container = nullptr;
+	}
 }
 
 int SaveLoadChooserSimple::runIntern() {
 	if (_gfxWidget)
-		_gfxWidget->setGfx(0);
+		_gfxWidget->setGfx(nullptr);
 
 	_resultString.clear();
 	reflowLayout();
@@ -237,7 +424,7 @@ int SaveLoadChooserSimple::runIntern() {
 	return Dialog::runModal();
 }
 
-const Common::String &SaveLoadChooserSimple::getResultString() const {
+const Common::U32String &SaveLoadChooserSimple::getResultString() const {
 	int selItem = _list->getSelected();
 	return (selItem >= 0) ? _list->getSelectedString() : _resultString;
 }
@@ -261,11 +448,13 @@ void SaveLoadChooserSimple::handleCommand(CommandSender *sender, uint32 cmd, uin
 		break;
 	case kChooseCmd:
 		_list->endEditMode();
-		if (!_saveList.empty()) {
-			setResult(_saveList[selItem].getSaveSlot());
-			_resultString = _list->getSelectedString();
+		if (selItem >= 0) {
+			if (!_saveList.empty()) {
+				setResult(_saveList[selItem].getSaveSlot());
+				_resultString = _list->getSelectedString();
+			}
+			close();
 		}
-		close();
 		break;
 	case kListSelectionChangedCmd:
 		updateSelection(true);
@@ -278,7 +467,9 @@ void SaveLoadChooserSimple::handleCommand(CommandSender *sender, uint32 cmd, uin
 				_metaEngine->removeSaveState(_target.c_str(), _saveList[selItem].getSaveSlot());
 
 				setResult(-1);
-				_list->setSelected(-1);
+				int scrollPos = _list->getCurrentScrollPos();
+				_list->setSelected(-1); // resets scroll pos
+				_list->scrollTo(scrollPos);
 
 				updateSaveList();
 				updateSelection(true);
@@ -294,57 +485,74 @@ void SaveLoadChooserSimple::handleCommand(CommandSender *sender, uint32 cmd, uin
 }
 
 void SaveLoadChooserSimple::reflowLayout() {
-	if (g_gui.xmlEval()->getVar("Globals.SaveLoadChooser.ExtInfo.Visible") == 1 && _thumbnailSupport) {
+	addThumbnailContainer();
+
+	SaveLoadChooserDialog::reflowLayout();
+
+	if (g_gui.xmlEval()->getVar("Globals.SaveLoadChooser.ExtInfo.Visible") == 1 && (_thumbnailSupport || _saveDateSupport || _playTimeSupport)) {
 		int16 x, y;
-		uint16 w, h;
+		int16 w, h;
 
 		if (!g_gui.xmlEval()->getWidgetData("SaveLoadChooser.Thumbnail", x, y, w, h))
 			error("Error when loading position data for Save/Load Thumbnails");
 
+		// Even if there is no thumbnail support, getWidgetData() will provide default thumbnail values
 		int thumbW = kThumbnailWidth;
 		int thumbH = kThumbnailHeight2;
 		int thumbX = x + (w >> 1) - (thumbW >> 1);
 		int thumbY = y + kLineHeight;
 
 		int textLines = 0;
-		if (!_saveDateSupport)
+		if (_saveDateSupport)
+			textLines += 2;
+		if (_playTimeSupport)
 			textLines++;
-		if (!_playTimeSupport)
-			textLines++;
+		if (textLines > 0)
+			textLines++; // add a line of padding at the bottom
 
-		_container->resize(x, y, w, h - (kLineHeight * textLines));
-		_gfxWidget->resize(thumbX, thumbY, thumbW, thumbH);
+		if (_thumbnailSupport) {
+			_gfxWidget->resize(thumbX, thumbY, thumbW, thumbH);
+			_gfxWidget->setVisible(true);
+		} else {
+			// choose sensible values for displaying playtime and date/time when a thumbnail is not being used
+			thumbH = 0;
+			thumbY = y;
+			h = kLineHeight;
+			_gfxWidget->setVisible(false);
+		}
 
 		int height = thumbY + thumbH + kLineHeight;
 
 		if (_saveDateSupport) {
-			_date->resize(thumbX, height, kThumbnailWidth, kLineHeight);
+			_date->resize(thumbX, height, thumbW, kLineHeight);
 			height += kLineHeight;
-			_time->resize(thumbX, height, kThumbnailWidth, kLineHeight);
+			_time->resize(thumbX, height, thumbW, kLineHeight);
 			height += kLineHeight;
+			_date->setVisible(_saveDateSupport);
+			_time->setVisible(_saveDateSupport);
+		} else {
+			_date->setVisible(false);
+			_time->setVisible(false);
 		}
 
-		if (_playTimeSupport)
-			_playtime->resize(thumbX, height, kThumbnailWidth, kLineHeight);
+		if (_playTimeSupport) {
+			_playtime->resize(thumbX, height, thumbW, kLineHeight);
+			_playtime->setVisible(_playTimeSupport);
+		} else {
+			_playtime->setVisible(false);
+		}
 
+		_container->resize(x, y, w, h + (kLineHeight * textLines));
 		_container->setVisible(true);
-		_gfxWidget->setVisible(true);
-
-		_date->setVisible(_saveDateSupport);
-		_time->setVisible(_saveDateSupport);
-
-		_playtime->setVisible(_playTimeSupport);
 
 		updateSelection(false);
 	} else {
-		_container->setVisible(false);
+		if (_container) _container->setVisible(false);
 		_gfxWidget->setVisible(false);
 		_date->setVisible(false);
 		_time->setVisible(false);
 		_playtime->setVisible(false);
 	}
-
-	SaveLoadChooserDialog::reflowLayout();
 }
 
 void SaveLoadChooserSimple::updateSelection(bool redraw) {
@@ -353,6 +561,7 @@ void SaveLoadChooserSimple::updateSelection(bool redraw) {
 	bool isDeletable = _delSupport;
 	bool isWriteProtected = false;
 	bool startEditMode = _list->isEditable();
+	bool isLocked = false;
 
 	// We used to support letting the themes specify the fill color with our
 	// initial theme based GUI. But this support was dropped.
@@ -362,10 +571,12 @@ void SaveLoadChooserSimple::updateSelection(bool redraw) {
 	_playtime->setLabel(_("No playtime saved"));
 
 	if (selItem >= 0 && _metaInfoSupport) {
-		SaveStateDescriptor desc = _metaEngine->querySaveMetaInfos(_target.c_str(), _saveList[selItem].getSaveSlot());
+		SaveStateDescriptor desc = (_saveList[selItem].getLocked() ? _saveList[selItem] : _metaEngine->querySaveMetaInfos(_target.c_str(), _saveList[selItem].getSaveSlot()));
 
 		isDeletable = desc.getDeletableFlag() && _delSupport;
-		isWriteProtected = desc.getWriteProtectedFlag();
+		isWriteProtected = desc.getWriteProtectedFlag() ||
+			_saveList[selItem].getWriteProtectedFlag();
+		isLocked = desc.getLocked();
 
 		// Don't allow the user to change the description of write protected games
 		if (isWriteProtected)
@@ -380,17 +591,17 @@ void SaveLoadChooserSimple::updateSelection(bool redraw) {
 		}
 
 		if (_saveDateSupport) {
-			const Common::String &saveDate = desc.getSaveDate();
+			const Common::U32String &saveDate = desc.getSaveDate();
 			if (!saveDate.empty())
 				_date->setLabel(_("Date: ") + saveDate);
 
-			const Common::String &saveTime = desc.getSaveTime();
+			const Common::U32String &saveTime = desc.getSaveTime();
 			if (!saveTime.empty())
 				_time->setLabel(_("Time: ") + saveTime);
 		}
 
 		if (_playTimeSupport) {
-			const Common::String &playTime = desc.getPlayTime();
+			const Common::U32String &playTime = desc.getPlayTime();
 			if (!playTime.empty())
 				_playtime->setLabel(_("Playtime: ") + playTime);
 		}
@@ -398,37 +609,37 @@ void SaveLoadChooserSimple::updateSelection(bool redraw) {
 
 
 	if (_list->isEditable()) {
-		// Disable the save button if nothing is selected, or if the selected
-		// game is write protected
-		_chooseButton->setEnabled(selItem >= 0 && !isWriteProtected);
+		// Disable the save button if slot is locked, nothing is selected,
+		// or if the selected game is write protected
+		_chooseButton->setEnabled(!isLocked && selItem >= 0 && !isWriteProtected);
 
 		if (startEditMode) {
 			_list->startEditMode();
 
-			if (_chooseButton->isEnabled() && _list->getSelectedString() == _("Untitled savestate") &&
+			if (_chooseButton->isEnabled() && _list->getSelectedString() == _("Untitled saved game") &&
 					_list->getSelectionColor() == ThemeEngine::kFontColorAlternate) {
-				_list->setEditString("");
+				_list->setEditString(Common::U32String());
 				_list->setEditColor(ThemeEngine::kFontColorNormal);
 			}
 		}
 	} else {
-		// Disable the load button if nothing is selected, or if an empty
-		// list item is selected.
-		_chooseButton->setEnabled(selItem >= 0 && !_list->getSelectedString().empty());
+		// Disable the load button if slot is locked, nothing is selected,
+		// or if an empty list item is selected.
+		_chooseButton->setEnabled(!isLocked && selItem >= 0 && !_list->getSelectedString().empty());
 	}
 
 	// Delete will always be disabled if the engine doesn't support it.
-	_deleteButton->setEnabled(isDeletable && (selItem >= 0) && (!_list->getSelectedString().empty()));
+	_deleteButton->setEnabled(isDeletable && !isLocked && (selItem >= 0) && (!_list->getSelectedString().empty()));
 
 	if (redraw) {
-		_gfxWidget->draw();
-		_date->draw();
-		_time->draw();
-		_playtime->draw();
-		_chooseButton->draw();
-		_deleteButton->draw();
+		_gfxWidget->markAsDirty();
+		_date->markAsDirty();
+		_time->markAsDirty();
+		_playtime->markAsDirty();
+		_chooseButton->markAsDirty();
+		_deleteButton->markAsDirty();
 
-		draw();
+		g_gui.scheduleTopDialogRedraw();
 	}
 }
 
@@ -454,20 +665,20 @@ void SaveLoadChooserSimple::close() {
 		ConfMan.setInt("gui_saveload_last_pos", _list->getCurrentScrollPos());
 	}
 
-	_metaEngine = 0;
+	_metaEngine = nullptr;
 	_target.clear();
 	_saveList.clear();
-	_list->setList(StringArray());
+	_list->setList(U32StringArray());
 
 	SaveLoadChooserDialog::close();
 }
 
 void SaveLoadChooserSimple::updateSaveList() {
-	_saveList = _metaEngine->listSaves(_target.c_str());
+	SaveLoadChooserDialog::updateSaveList();
 
 	int curSlot = 0;
 	int saveSlot = 0;
-	StringArray saveNames;
+	U32StringArray saveNames;
 	ListWidget::ColorList colors;
 	for (SaveStateList::const_iterator x = _saveList.begin(); x != _saveList.end(); ++x) {
 		// Handle gaps in the list of save games
@@ -488,15 +699,15 @@ void SaveLoadChooserSimple::updateSaveList() {
 			}
 		}
 
-		// Show "Untitled savestate" for empty/whitespace saved game descriptions
-		Common::String description = x->getDescription();
-		Common::String trimmedDescription = description;
+		// Show "Untitled saved game" for empty/whitespace saved game descriptions
+		Common::U32String description = x->getDescription();
+		Common::U32String trimmedDescription = description;
 		trimmedDescription.trim();
 		if (trimmedDescription.empty()) {
-			description = _("Untitled savestate");
+			description = _("Untitled saved game");
 			colors.push_back(ThemeEngine::kFontColorAlternate);
 		} else {
-			colors.push_back(ThemeEngine::kFontColorNormal);
+			colors.push_back((x->getLocked() ? ThemeEngine::kFontColorAlternate : ThemeEngine::kFontColorNormal));
 		}
 
 		saveNames.push_back(description);
@@ -523,7 +734,14 @@ void SaveLoadChooserSimple::updateSaveList() {
 		colors.push_back(ThemeEngine::kFontColorNormal);
 	}
 
+	int selected = _list->getSelected();
 	_list->setList(saveNames, &colors);
+	if (selected >= 0 && selected < (int)saveNames.size())
+		_list->setSelected(selected);
+	else
+		_chooseButton->setEnabled(false);
+
+	g_gui.scheduleTopDialogRedraw();
 }
 
 // SaveLoadChooserGrid implementation
@@ -536,32 +754,39 @@ enum {
 	kNewSaveCmd = 'SAVE'
 };
 
-SaveLoadChooserGrid::SaveLoadChooserGrid(const Common::String &title, bool saveMode)
+SaveLoadChooserGrid::SaveLoadChooserGrid(const Common::U32String &title, bool saveMode)
 	: SaveLoadChooserDialog("SaveLoadChooser", saveMode), _lines(0), _columns(0), _entriesPerPage(0),
-	_curPage(0), _newSaveContainer(0), _nextFreeSaveSlot(0), _buttons() {
+	_curPage(0), _newSaveContainer(nullptr), _nextFreeSaveSlot(0), _buttons() {
 	_backgroundType = ThemeEngine::kDialogBackgroundSpecial;
 
-	new StaticTextWidget(this, "SaveLoadChooser.Title", title);
+	_pageTitle = new StaticTextWidget(this, "SaveLoadChooser.Title", title);
+
+	// The list widget needs to be bound so it takes space in the layout
+	ContainerWidget *list = new ContainerWidget(this, "SaveLoadChooser.List");
+	list->setBackgroundType(ThemeEngine::kWidgetBackgroundNo);
 
 	// Buttons
-	new ButtonWidget(this, "SaveLoadChooser.Delete", _("Cancel"), 0, kCloseCmd);
-	_nextButton = new ButtonWidget(this, "SaveLoadChooser.Choose", _("Next"), 0, kNextCmd);
+	new ButtonWidget(this, "SaveLoadChooser.Delete", _("Cancel"), Common::U32String(), kCloseCmd);
+	_nextButton = new ButtonWidget(this, "SaveLoadChooser.Choose", _("Next"), Common::U32String(), kNextCmd);
 	_nextButton->setEnabled(false);
 
-	_prevButton = new ButtonWidget(this, "SaveLoadChooser.Cancel", _("Prev"), 0, kPrevCmd);
+	_prevButton = new ButtonWidget(this, "SaveLoadChooser.Cancel", _("Prev"), Common::U32String(), kPrevCmd);
 	_prevButton->setEnabled(false);
 
 	// Page display
-	_pageDisplay = new StaticTextWidget(this, "SaveLoadChooser.PageDisplay", Common::String());
-	_pageDisplay->setAlign(Graphics::kTextAlignRight);
+	_pageDisplay = new StaticTextWidget(this, "SaveLoadChooser.PageDisplay", Common::U32String());
+	_pageDisplay->setAlign(Graphics::kTextAlignEnd);
 }
 
 SaveLoadChooserGrid::~SaveLoadChooserGrid() {
+	removeWidget(_pageTitle);
+	delete _pageTitle;
+
 	removeWidget(_pageDisplay);
 	delete _pageDisplay;
 }
 
-const Common::String &SaveLoadChooserGrid::getResultString() const {
+const Common::U32String &SaveLoadChooserGrid::getResultString() const {
 	return _resultString;
 }
 
@@ -581,13 +806,13 @@ void SaveLoadChooserGrid::handleCommand(CommandSender *sender, uint32 cmd, uint3
 	case kNextCmd:
 		++_curPage;
 		updateSaves();
-		draw();
+		g_gui.scheduleTopDialogRedraw();
 		break;
 
 	case kPrevCmd:
 		--_curPage;
 		updateSaves();
-		draw();
+		g_gui.scheduleTopDialogRedraw();
 		break;
 
 	case kNewSaveCmd:
@@ -608,21 +833,27 @@ void SaveLoadChooserGrid::handleMouseWheel(int x, int y, int direction) {
 		if (_nextButton->isEnabled()) {
 			++_curPage;
 			updateSaves();
-			draw();
+			g_gui.scheduleTopDialogRedraw();
 		}
 	} else {
 		if (_prevButton->isEnabled()) {
 			--_curPage;
 			updateSaves();
-			draw();
+			g_gui.scheduleTopDialogRedraw();
 		}
 	}
+}
+
+void SaveLoadChooserGrid::updateSaveList() {
+	SaveLoadChooserDialog::updateSaveList();
+	updateSaves();
+	g_gui.scheduleTopDialogRedraw();
 }
 
 void SaveLoadChooserGrid::open() {
 	SaveLoadChooserDialog::open();
 
-	_saveList = _metaEngine->listSaves(_target.c_str());
+	listSaves();
 	_resultString.clear();
 
 	// Load information to restore the last page the user had open.
@@ -693,11 +924,12 @@ void SaveLoadChooserGrid::reflowLayout() {
 	// HACK: The whole code below really works around the fact, that we have
 	// no easy way to dynamically layout widgets.
 	const uint16 availableWidth = getWidth() - 20;
-	uint16 availableHeight;
+	int16 availableHeight;
 
 	int16 x, y;
-	uint16 w;
-	g_gui.xmlEval()->getWidgetData("SaveLoadChooser.List", x, y, w, availableHeight);
+	int16 w;
+	if (!g_gui.xmlEval()->getWidgetData("SaveLoadChooser.List", x, y, w, availableHeight))
+		error("Could not load widget position for 'SaveLoadChooser.List'");
 
 	const int16 buttonWidth = kThumbnailWidth + 6;
 	const int16 buttonHeight = kThumbnailHeight2 + 6;
@@ -745,7 +977,7 @@ void SaveLoadChooserGrid::reflowLayout() {
 			// In the save mode we will always create a new save button as the first button.
 			if (_saveMode && curLine == 0 && curColumn == 0) {
 				_newSaveContainer = new ContainerWidget(this, curX, y, containerWidth, containerHeight);
-				ButtonWidget *newSave = new ButtonWidget(_newSaveContainer, dstX, dstY, buttonWidth, buttonHeight, _("New Save"), _("Create a new save game"), kNewSaveCmd);
+				ButtonWidget *newSave = new ButtonWidget(_newSaveContainer, dstX, dstY, buttonWidth, buttonHeight, _("New Save"), _("Create a new saved game"), kNewSaveCmd);
 				// In case no more slots are free, we will disable the new save button
 				if (_nextFreeSaveSlot == -1) {
 					newSave->setEnabled(false);
@@ -764,10 +996,10 @@ void SaveLoadChooserGrid::reflowLayout() {
 				buttonCmd += 1;
 			}
 
-			PicButtonWidget *button = new PicButtonWidget(container, dstX, dstY, buttonWidth, buttonHeight, 0, buttonCmd);
+			PicButtonWidget *button = new PicButtonWidget(container, dstX, dstY, buttonWidth, buttonHeight, Common::U32String(), buttonCmd);
 			dstY += buttonHeight;
 
-			StaticTextWidget *description = new StaticTextWidget(container, dstX, dstY, buttonWidth, kLineHeight, Common::String(), Graphics::kTextAlignLeft);
+			StaticTextWidget *description = new StaticTextWidget(container, dstX, dstY, buttonWidth, kLineHeight, Common::String(), Graphics::kTextAlignStart);
 
 			_buttons.push_back(SlotButton(container, button, description));
 		}
@@ -839,7 +1071,7 @@ void SaveLoadChooserGrid::destroyButtons() {
 	if (_newSaveContainer) {
 		removeWidget(_newSaveContainer);
 		delete _newSaveContainer;
-		_newSaveContainer = 0;
+		_newSaveContainer = nullptr;
 	}
 
 	for (ButtonArray::iterator i = _buttons.begin(), end = _buttons.end(); i != end; ++i) {
@@ -852,7 +1084,7 @@ void SaveLoadChooserGrid::destroyButtons() {
 
 void SaveLoadChooserGrid::hideButtons() {
 	for (ButtonArray::iterator i = _buttons.begin(), end = _buttons.end(); i != end; ++i) {
-		i->button->setGfx(0);
+		i->button->setGfx(nullptr);
 		i->setVisible(false);
 	}
 }
@@ -863,7 +1095,7 @@ void SaveLoadChooserGrid::updateSaves() {
 	for (uint i = _curPage * _entriesPerPage, curNum = 0; i < _saveList.size() && curNum < _entriesPerPage; ++i, ++curNum) {
 		const uint saveSlot = _saveList[i].getSaveSlot();
 
-		SaveStateDescriptor desc = _metaEngine->querySaveMetaInfos(_target.c_str(), saveSlot);
+		SaveStateDescriptor desc =  (_saveList[i].getLocked() ? _saveList[i] : _metaEngine->querySaveMetaInfos(_target.c_str(), saveSlot));
 		SlotButton &curButton = _buttons[curNum];
 		curButton.setVisible(true);
 		const Graphics::Surface *thumbnail = desc.getThumbnail();
@@ -872,29 +1104,29 @@ void SaveLoadChooserGrid::updateSaves() {
 		} else {
 			curButton.button->setGfx(kThumbnailWidth, kThumbnailHeight2, 0, 0, 0);
 		}
-		curButton.description->setLabel(Common::String::format("%d. %s", saveSlot, desc.getDescription().c_str()));
+		curButton.description->setLabel(Common::U32String(Common::String::format("%d. ", saveSlot)) + desc.getDescription());
 
-		Common::String tooltip(_("Name: "));
+		Common::U32String tooltip(_("Name: "));
 		tooltip += desc.getDescription();
 
 		if (_saveDateSupport) {
-			const Common::String &saveDate = desc.getSaveDate();
+			const Common::U32String &saveDate = desc.getSaveDate();
 			if (!saveDate.empty()) {
-				tooltip += "\n";
+				tooltip += Common::U32String("\n");
 				tooltip +=  _("Date: ") + saveDate;
 			}
 
-			const Common::String &saveTime = desc.getSaveTime();
+			const Common::U32String &saveTime = desc.getSaveTime();
 			if (!saveTime.empty()) {
-				tooltip += "\n";
+				tooltip += Common::U32String("\n");
 				tooltip += _("Time: ") + saveTime;
 			}
 		}
 
 		if (_playTimeSupport) {
-			const Common::String &playTime = desc.getPlayTime();
+			const Common::U32String &playTime = desc.getPlayTime();
 			if (!playTime.empty()) {
-				tooltip += "\n";
+				tooltip += Common::U32String("\n");
 				tooltip += _("Playtime: ") + playTime;
 			}
 		}
@@ -903,11 +1135,13 @@ void SaveLoadChooserGrid::updateSaves() {
 
 		// In save mode we disable the button, when it's write protected.
 		// TODO: Maybe we should not display it at all then?
-		if (_saveMode && desc.getWriteProtectedFlag()) {
+		// We also disable and description the button if slot is locked
+		if ((_saveMode && desc.getWriteProtectedFlag()) || desc.getLocked()) {
 			curButton.button->setEnabled(false);
 		} else {
 			curButton.button->setEnabled(true);
 		}
+		curButton.description->setEnabled(!desc.getLocked());
 	}
 
 	const uint numPages = (_entriesPerPage != 0 && !_saveList.empty()) ? ((_saveList.size() + _entriesPerPage - 1) / _entriesPerPage) : 1;
@@ -928,17 +1162,19 @@ SavenameDialog::SavenameDialog()
 	: Dialog("SavenameDialog") {
 	_title = new StaticTextWidget(this, "SavenameDialog.DescriptionText", Common::String());
 
-	new ButtonWidget(this, "SavenameDialog.Cancel", _("Cancel"), 0, kCloseCmd);
-	new ButtonWidget(this, "SavenameDialog.Ok", _("OK"), 0, kOKCmd);
+	new ButtonWidget(this, "SavenameDialog.Cancel", _("Cancel"), Common::U32String(), kCloseCmd);
+	new ButtonWidget(this, "SavenameDialog.Ok", _("OK"), Common::U32String(), kOKCmd);
 
-	_description = new EditTextWidget(this, "SavenameDialog.Description", Common::String(), 0, 0, kOKCmd);
+	_description = new EditTextWidget(this, "SavenameDialog.Description", Common::U32String(), Common::U32String(), 0, kOKCmd);
+
+	_targetSlot = 0;
 }
 
-void SavenameDialog::setDescription(const Common::String &desc) {
+void SavenameDialog::setDescription(const Common::U32String &desc) {
 	_description->setEditString(desc);
 }
 
-const Common::String &SavenameDialog::getDescription() {
+const Common::U32String &SavenameDialog::getDescription() {
 	return _description->getEditString();
 }
 
@@ -946,7 +1182,7 @@ void SavenameDialog::open() {
 	Dialog::open();
 	setResult(-1);
 
-	_title->setLabel(Common::String::format(_("Enter a description for slot %d:"), _targetSlot));
+	_title->setLabel(Common::U32String::format(_("Enter a description for slot %d:"), _targetSlot));
 }
 
 void SavenameDialog::handleCommand(CommandSender *sender, uint32 cmd, uint32 data) {

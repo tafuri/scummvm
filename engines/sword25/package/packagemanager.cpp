@@ -56,7 +56,9 @@ static Common::String normalizePath(const Common::String &path, const Common::St
 
 PackageManager::PackageManager(Kernel *pKernel) : Service(pKernel),
 	_currentDirectory(PATH_SEPARATOR),
-	_rootFolder(ConfMan.get("path")) {
+	_rootFolder(ConfMan.get("path")),
+	_useEnglishSpeech(ConfMan.getBool("english_speech")),
+	_extractedFiles(false) {
 	if (!registerScriptBindings())
 		error("Script bindings could not be registered.");
 	else
@@ -71,14 +73,34 @@ PackageManager::~PackageManager() {
 
 }
 
+Common::String PackageManager::ensureSpeechLang(const Common::String &fileName) {
+	if (!_useEnglishSpeech || fileName.size() < 9 || !fileName.hasPrefix("/speech/"))
+		return fileName;
+
+	// Always keep German speech as a fallback in case the English speech pack is not present.
+	// However this means we cannot play with German text and English voice.
+	if (fileName.hasPrefix("/speech/de"))
+		return fileName;
+
+	Common::String newFileName = "/speech/en";
+	uint fileIdx = 9;
+	while (fileIdx < fileName.size() && fileName[fileIdx] != '/')
+		++fileIdx;
+	if (fileIdx < fileName.size())
+		newFileName += fileName.c_str() + fileIdx;
+
+	return newFileName;
+}
+
 /**
  * Scans through the archive list for a specified file
  */
 Common::ArchiveMemberPtr PackageManager::getArchiveMember(const Common::String &fileName) {
+	Common::String fileName2 = ensureSpeechLang(fileName);
 	// Loop through checking each archive
 	Common::List<ArchiveEntry *>::iterator i;
 	for (i = _archiveList.begin(); i != _archiveList.end(); ++i) {
-		if (!fileName.hasPrefix((*i)->_mountPath)) {
+		if (!fileName2.hasPrefix((*i)->_mountPath)) {
 			// The mount path is in different subtree. Skipping
 			continue;
 		}
@@ -87,7 +109,7 @@ Common::ArchiveMemberPtr PackageManager::getArchiveMember(const Common::String &
 		Common::Archive *archiveFolder = (*i)->archive;
 
 		// Construct relative path
-		Common::String resPath(&fileName.c_str()[(*i)->_mountPath.size()]);
+		Common::String resPath(&fileName2.c_str()[(*i)->_mountPath.size()]);
 
 		if (archiveFolder->hasFile(resPath)) {
 			return archiveFolder->getMember(resPath);
@@ -121,7 +143,7 @@ bool PackageManager::loadPackage(const Common::String &fileName, const Common::S
 
 bool PackageManager::loadDirectoryAsPackage(const Common::String &directoryName, const Common::String &mountPosition) {
 	Common::FSNode directory(directoryName);
-	Common::Archive *folderArchive = new Common::FSDirectory(directory, 6);
+	Common::Archive *folderArchive = new Common::FSDirectory(directory, 6, false, false, true);
 	if (!directory.exists() || (folderArchive == NULL)) {
 		error("Unable to mount directory \"%s\" to \"%s\".", directoryName.c_str(), mountPosition.c_str());
 		return false;
@@ -203,27 +225,35 @@ bool PackageManager::changeDirectory(const Common::String &directory) {
 }
 
 Common::String PackageManager::getAbsolutePath(const Common::String &fileName) {
-	return normalizePath(fileName, _currentDirectory);
+	return normalizePath(ensureSpeechLang(fileName), _currentDirectory);
 }
 
 bool PackageManager::fileExists(const Common::String &fileName) {
 	// FIXME: The current Zip implementation doesn't support getting a folder entry, which is needed for detecting
-	// the English voick pack
-	if (fileName == "/speech/en") {
+	// the English voice pack
+	Common::String fileName2 = ensureSpeechLang(fileName);
+	if (fileName2 == "/speech/en") {
 		// To get around this, change to detecting one of the files in the folder
-		return getArchiveMember(normalizePath(fileName + "/APO0001.ogg", _currentDirectory));
+		bool exists = getArchiveMember(normalizePath(fileName2 + "/APO0001.ogg", _currentDirectory));
+		if (!exists && _useEnglishSpeech) {
+			_useEnglishSpeech = false;
+			warning("English speech not found");
+		}
+		return exists;
 	}
 
-	Common::ArchiveMemberPtr fileNode = getArchiveMember(normalizePath(fileName, _currentDirectory));
+	Common::ArchiveMemberPtr fileNode = getArchiveMember(normalizePath(fileName2, _currentDirectory));
 	return fileNode;
 }
 
 int PackageManager::doSearch(Common::ArchiveMemberList &list, const Common::String &filter, const Common::String &path, uint typeFilter) {
-	Common::String normalizedFilter = normalizePath(filter, _currentDirectory);
+	Common::String normalizedFilter = normalizePath(ensureSpeechLang(filter), _currentDirectory);
 	int num = 0;
 
 	if (path.size() > 0)
 		warning("STUB: PackageManager::doSearch(<%s>, <%s>, %d)", filter.c_str(), path.c_str(), typeFilter);
+
+	debug(9, "PackageManager::doSearch(..., \"%s\", \"%s\", %d)", filter.c_str(), path.c_str(), typeFilter);
 
 	// Loop through checking each archive
 	Common::List<ArchiveEntry *>::iterator i;
@@ -243,20 +273,45 @@ int PackageManager::doSearch(Common::ArchiveMemberList &list, const Common::Stri
 
 		// Create a list of the matching names
 		for (Common::ArchiveMemberList::iterator it = memberList.begin(); it != memberList.end(); ++it) {
-			if (((typeFilter & PackageManager::FT_DIRECTORY) && (*it)->getName().hasSuffix("/")) ||
-				((typeFilter & PackageManager::FT_FILE) && !(*it)->getName().hasSuffix("/"))) {
+			Common::String name;
+			bool matchType;
+
+			// FSNode->getName() returns only name of the file, without the directory
+			// getPath() returns full path in the FS. Thus, we're getting it and
+			// removing the root from it.
+			if (_extractedFiles) {
+				Common::FSNode *node = (Common::FSNode *)(it->get());
+
+				name = node->getPath().substr(_directoryName.size());
+
+				for (uint c = 0; c < name.size(); c++) {
+					if (name[c] == '\\')
+						name.replace(c, 1, "/");
+				}
+
+				matchType = (((typeFilter & PackageManager::FT_DIRECTORY) && node->isDirectory()) ||
+					((typeFilter & PackageManager::FT_FILE) && !node->isDirectory()));
+			} else {
+				name = (*it)->getName();
+				matchType = ((typeFilter & PackageManager::FT_DIRECTORY) && name.hasSuffix("/")) ||
+				((typeFilter & PackageManager::FT_FILE) && !name.hasSuffix("/"));
+			}
+
+			if (matchType) {
 
 				// Do not add duplicate files
 				bool found = false;
 				for (Common::ArchiveMemberList::iterator it1 = list.begin(); it1 != list.end(); ++it1) {
-					if ((*it1)->getName() == (*it)->getName()) {
+					if ((*it1)->getName() == name) {
 						found = true;
 						break;
 					}
 				}
 
-				if (!found)
-					list.push_back(*it);
+				if (!found) {
+					list.push_back(Common::ArchiveMemberList::value_type(new Common::GenericArchiveMember(name, (*i)->archive)));
+					debug(9, "> %s", name.c_str());
+				}
 				num++;
 			}
 		}

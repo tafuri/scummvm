@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -181,6 +181,9 @@ void Mult_v1::loadMult(int16 resId) {
 
 		case 5:
 			_vm->_game->_script->skip(_multData->sndKeys[i].freq * 2);
+			break;
+
+		default:
 			break;
 		}
 	}
@@ -437,6 +440,9 @@ void Mult_v1::newCycleAnim(Mult_Object &animObj) {
 	case 6:
 		animData.frame--;
 		animData.isPaused = 1;
+		break;
+
+	default:
 		break;
 	}
 	animData.newCycle = 1;

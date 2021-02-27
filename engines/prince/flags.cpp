@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -21,32 +21,13 @@
  */
 
 #include "prince/flags.h"
-#include "prince/script.h"
 
 namespace Prince {
 
-const char *Flags::getFlagName(uint16 flagId) {
-	FlagDebug *flagd = nullptr;
-	flagd = (FlagDebug *)bsearch(&flagId, _flagNames, kFlagDebugAmount, sizeof(FlagDebug), Flags::compareFlagDebug);
-	if (flagd != nullptr) {
-		return flagd->flagName;
-	} else {
-		return "unknown_flag";
-	}
-}
-
-int Flags::compareFlagDebug(const void *a, const void *b) {
-	const uint32 *flagId = (const uint32 *)a;
-	const FlagDebug *entry = (const FlagDebug *)b;
-	if (*flagId < (uint32)entry->id) {
-		return -1;
-	} else if (*flagId > (uint32)entry->id) {
-		return 1;
-	}
-	return 0;
-}
-
-const Flags::FlagDebug Flags::_flagNames[Flags::kFlagDebugAmount] = {
+struct FlagDebug {
+	uint id;
+	char flagName[30];
+} static const flagNames[] = {
 	{ Flags::FLAGA1, "FLAGA1" },
 	{ Flags::FLAGA2, "FLAGA2" },
 	{ Flags::FLAGA3, "FLAGA3" },
@@ -416,5 +397,19 @@ const Flags::FlagDebug Flags::_flagNames[Flags::kFlagDebugAmount] = {
 	{ Flags::NOCLSTEXT, "NOCLSTEXT" },
 	{ Flags::ESCAPED2, "ESCAPED2" },
 };
+
+
+Flags::Flags() {
+	for (uint i = 0; i < ARRAYSIZE(flagNames); i++) {
+		_flagMap[flagNames[i].id] = flagNames[i].flagName;
+	}
+}
+
+const char *Flags::getFlagName(uint16 flagId) {
+	if (_flagMap.contains(flagId))
+		return _flagMap[flagId];
+
+	return "unknown_flag";
+}
 
 } // End of namespace Prince

@@ -162,7 +162,7 @@ bool Cursor::increaseXY(int32 incX, int32 incY) {
 
 	int32 oldX = _x, oldY = _y;
 
-	// adjust for differences in X and Y
+	// adjust for screen resolution
 	adjustXYForScreenSize(incX, incY);
 
 	_x += incX;
@@ -204,39 +204,21 @@ void Cursor::setLimits(uint32 width, uint32 height) {
 inline void Cursor::adjustXYForScreenSize(int32 &x, int32 &y) {
 	DEBUG_ENTER_FUNC();
 	// We have our speed calibrated for the y axis at 480x272. The idea is to adjust this for other
-	// resolutions and for x, which is wider.
+	// resolutions
 	int32 newX = x, newY = y;
 
-	// adjust width movement to match height (usually around 1.5)
-	if (_mouseLimitWidth >= _mouseLimitHeight + (_mouseLimitHeight >> 1))
-		newX = newX + (newX >> 1);
-
 	if (_mouseLimitWidth >= 600) {	// multiply by 2
-		newX <<= 1;
-		newY <<= 1;
+		newX *= 2;
+		newY *= 2;
 	} else if (_mouseLimitWidth >= 480) {	// multiply by 1.5
-		newX = newX + (newX >> 1);
-		newY = newY + (newY >> 1);
-	}
-
-	// Divide all movements by 8
-	newX >>= 3;
-	newY >>= 3;
-
-	// Make sure we didn't destroy minimum movement
-	if (!((x && !newX) || (y && !newY))) {
-		x = newX;
-		y = newY;
+		newX = newX + (newX / 2);
+		newY = newY + (newY / 2);
 	}
 }
 
 // This is only called when we have a new screen
 void Cursor::setScreenPaletteScummvmPixelFormat(const Graphics::PixelFormat *format) {
 	DEBUG_ENTER_FUNC();
-
-	uint32 oldPaletteSize = 0;
-	if (_screenPalette.isAllocated())
-		oldPaletteSize = _screenPalette.getSizeInBytes();
 
 	PSPPixelFormat::Type bufferType = PSPPixelFormat::Type_Unknown;
 	PSPPixelFormat::Type paletteType = PSPPixelFormat::Type_Unknown;
@@ -261,13 +243,10 @@ void Cursor::setSizeAndScummvmPixelFormat(uint32 width, uint32 height, const Gra
 
 	PSP_DEBUG_PRINT("useCursorPalette[%s]\n", _useCursorPalette ? "true" : "false");
 
-	uint32 oldBufferSize = 0, oldPaletteSize = 0;
+	uint32 oldBufferSize = 0;
 
 	if (_buffer.isAllocated())
 		oldBufferSize = _buffer.getSizeInBytes();
-
-	if (_palette.isAllocated())
-		oldPaletteSize = _palette.getSizeInBytes();
 
 	setSize(width, height);
 
@@ -293,7 +272,13 @@ void Cursor::setSizeAndScummvmPixelFormat(uint32 width, uint32 height, const Gra
 	PSP_DEBUG_PRINT("palette pixel format[%u]\n", paletteType);
 
 	if (paletteType == PSPPixelFormat::Type_None) {
-		setRendererModePalettized(false);	// use palettized mechanism
+		setRendererModePalettized(false);	// use non-palettized mechanism
+		if (format) {
+			if (format->aBits() == 0)
+				_fakeAlpha = true;		// we are treating e.g. 555 as 5551
+			else
+				_fakeAlpha = false;		// we have a genuine alpha channel
+		}
 	} else {	// We have a palette
 		_palette.setPixelFormats(paletteType, bufferType);
 		setRendererModePalettized(true);	// use palettized mechanism
@@ -333,9 +318,9 @@ inline void Cursor::setRendererModePalettized(bool palettized) {
 		_renderer.setAlphaBlending(true);
 
 		// Pixel formats without alpha (5650) are considered to have their alpha set.
-		// Since pixel formats with alpha don't have their alpha bits set, we reverse
+		// Since pixel formats like 555 are treated as 5551 on PSP, we reverse
 		// the alpha format for them so that 0 alpha is 1.
-		if (_buffer.getPixelFormat() != PSPPixelFormat::Type_5650)
+		if (_buffer.getPixelFormat() != PSPPixelFormat::Type_5650 && _fakeAlpha)
 			_renderer.setAlphaReverse(true);
 		else
 			_renderer.setAlphaReverse(false);

@@ -60,13 +60,13 @@ Parallaction::Parallaction(OSystem *syst, const PARALLACTIONGameDescription *gam
 	DebugMan.addDebugChannel(kDebugMenu, "menu", "Menu debug level");
 	DebugMan.addDebugChannel(kDebugInventory, "inventory", "Inventory debug level");
 
+	_screenWidth = 0;
 	_screenHeight = 0;
 	_screenSize = 0;
 	_gameType = 0;
 	_gfx = 0;
 	_disk = 0;
 	_input = 0;
-	_debugger = 0;
 	_saveLoad = 0;
 	_menuHelper = 0;
 	_soundMan = 0;
@@ -86,10 +86,10 @@ Parallaction::Parallaction(OSystem *syst, const PARALLACTIONGameDescription *gam
 	_inventory = 0;
 	_currentLocationIndex = 0;
 	_numLocations = 0;
+	_language = 0;
 }
 
 Parallaction::~Parallaction() {
-	delete _debugger;
 	delete _globalFlagsNames;
 	delete _callableNames;
 	delete _cmdExec;
@@ -106,10 +106,10 @@ Parallaction::~Parallaction() {
 
 	delete _localFlagNames;
 	_char._ani.reset();
+	delete _input;
 	delete _gfx;
 	delete _soundMan;
 	delete _disk;
-	delete _input;
 }
 
 Common::Error Parallaction::init() {
@@ -139,7 +139,7 @@ Common::Error Parallaction::init() {
 
 	_gfx = new Gfx(this);
 
-	_debugger = new Debugger(this);
+	setDebugger(new Debugger(this));
 
 	_menuHelper = 0;
 
@@ -150,10 +150,6 @@ void Parallaction::pauseEngineIntern(bool pause) {
 	if (_soundMan) {
 		_soundMan->execute(SC_PAUSE, (int)pause);
 	}
-}
-
-GUI::Debugger *Parallaction::getDebugger() {
-	return _debugger;
 }
 
 void Parallaction::updateView() {
@@ -208,7 +204,7 @@ void Parallaction::allocateLocationSlot(const char *name) {
 		error("No more location slots available. Please report this immediately to ScummVM team");
 
 	if (_currentLocationIndex  == -1) {
-		strcpy(_locationNames[_numLocations], name);
+		Common::strlcpy(_locationNames[_numLocations], name, 10);
 		_currentLocationIndex = _numLocations;
 
 		_numLocations++;
@@ -319,6 +315,9 @@ void Parallaction::runGame() {
 	case Input::kInputModeGame:
 		runGameFrame(event);
 		break;
+
+	default:
+		break;
 	}
 
 	if (shouldQuit())
@@ -420,6 +419,9 @@ void Parallaction::drawAnimation(AnimationPtr anim) {
 		if (anim->_flags & (kFlagsScaled | kFlagsCharacter)) {
 			scale = _location.getScale(anim->getZ());
 		}
+		break;
+
+	default:
 		break;
 	}
 
@@ -597,6 +599,9 @@ void Parallaction::runZone(ZonePtr z) {
 			enterDialogueMode(z);
 			return;
 		}
+		break;
+
+	default:
 		break;
 	}
 
@@ -848,6 +853,9 @@ void Location::freeZones(bool removeAll) {
 	case GType_BRA:
 		freeList(_zones, removeAll, Common::mem_fun(&Location::keepZone_br));
 		freeList(_animations, removeAll, Common::mem_fun(&Location::keepAnimation_br));
+		break;
+
+	default:
 		break;
 	}
 }

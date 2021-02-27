@@ -32,10 +32,12 @@
 #include "agos/intern.h"
 #include "agos/agos.h"
 #include "agos/midi.h"
+#include "agos/sound.h"
 
 #include "backends/audiocd/audiocd.h"
 
 #include "graphics/surface.h"
+#include "graphics/sjis.h"
 
 #include "audio/mididrv.h"
 
@@ -139,7 +141,23 @@ AGOSEngine_Elvira2::AGOSEngine_Elvira2(OSystem *system, const AGOSGameDescriptio
 }
 
 AGOSEngine_Elvira1::AGOSEngine_Elvira1(OSystem *system, const AGOSGameDescription *gd)
-	: AGOSEngine(system, gd) {
+	: AGOSEngine(system, gd), _sjisCurChar(0), _sjisFont(0) {
+}
+
+AGOSEngine_Elvira1::~AGOSEngine_Elvira1() {
+	delete _sjisFont;
+}
+
+Common::Error AGOSEngine_Elvira1::init() {
+	Common::Error ret = AGOSEngine::init();
+	if (ret.getCode() == Common::kNoError && getPlatform() == Common::kPlatformPC98) {
+		_sjisFont = Graphics::FontSJIS::createFont(Common::kPlatformPC98);
+		if (_sjisFont)
+			_sjisFont->toggleFatPrint(true);
+		else
+			error("AGOSEngine_Elvira1::init(): Failed to load SJIS font.");
+	}
+	return ret;
 }
 
 AGOSEngine::AGOSEngine(OSystem *system, const AGOSGameDescription *gd)
@@ -156,8 +174,6 @@ AGOSEngine::AGOSEngine(OSystem *system, const AGOSGameDescription *gd)
 	_vcPtr = 0;
 	_vcGetOutOfCode = 0;
 	_gameOffsetsPtr = 0;
-
-	_debugger = 0;
 
 	_gameFile = 0;
 	_opcode = 0;
@@ -498,6 +514,8 @@ AGOSEngine::AGOSEngine(OSystem *system, const AGOSGameDescription *gd)
 	memset(_lettersToPrintBuf, 0, sizeof(_lettersToPrintBuf));
 
 	_planarBuf = 0;
+	_pak98Buf = 0;
+	_paletteModNext = 16;
 
 	_midiEnabled = false;
 
@@ -541,10 +559,11 @@ AGOSEngine::AGOSEngine(OSystem *system, const AGOSGameDescription *gd)
 	_moveXMax = 0;
 	_moveYMax = 0;
 
+	_forceAscii = false;
+
 	_vc10BasePtrOld = 0;
 	memcpy (_hebrewCharWidths,
 		"\x5\x5\x4\x6\x5\x3\x4\x5\x6\x3\x5\x5\x4\x6\x5\x3\x4\x6\x5\x6\x6\x6\x5\x5\x5\x6\x5\x6\x6\x6\x6\x6", 32);
-
 
 	const Common::FSNode gameDataDir(ConfMan.get("path"));
 
@@ -576,16 +595,24 @@ Common::Error AGOSEngine::init() {
 		_screenHeight = 200;
 	}
 
-	initGraphics(_screenWidth, _screenHeight, getGameType() == GType_FF || getGameType() == GType_PP);
+	_internalWidth = _screenWidth;
+	_internalHeight = _screenHeight;
+
+	if (getPlatform() == Common::kPlatformPC98) {
+		_internalWidth <<= 1;
+		_internalHeight <<= 1;
+	}
+
+	initGraphics(_internalWidth, _internalHeight);
 
 	_midi = new MidiPlayer();
 
 	if ((getGameType() == GType_SIMON2 && getPlatform() == Common::kPlatformWindows) ||
 		(getGameType() == GType_SIMON1 && getPlatform() == Common::kPlatformWindows) ||
 		((getFeatures() & GF_TALKIE) && getPlatform() == Common::kPlatformAcorn) ||
-		(getPlatform() == Common::kPlatformDOS)) {
+		(getPlatform() == Common::kPlatformDOS || getPlatform() == Common::kPlatformPC98)) {
 
-		int ret = _midi->open(getGameType());
+		int ret = _midi->open(getGameType(), getPlatform(), (getFeatures() & GF_DEMO));
 		if (ret)
 			warning("MIDI Player init failed: \"%s\"", MidiDriver::getErrorName(ret));
 
@@ -601,11 +628,11 @@ Common::Error AGOSEngine::init() {
 	_backGroundBuf = new Graphics::Surface();
 	_backGroundBuf->create(_screenWidth, _screenHeight, Graphics::PixelFormat::createFormatCLUT8());
 
-	if (getGameType() == GType_FF || getGameType() == GType_PP) {
+	if (getGameType() == GType_FF || getGameType() == GType_PP || (getGameType() == GType_ELVIRA1 && getPlatform() == Common::kPlatformPC98)) {
 		_backBuf = new Graphics::Surface();
 		_backBuf->create(_screenWidth, _screenHeight, Graphics::PixelFormat::createFormatCLUT8());
 		_scaleBuf = new Graphics::Surface();
-		_scaleBuf->create(_screenWidth, _screenHeight, Graphics::PixelFormat::createFormatCLUT8());
+		_scaleBuf->create(_internalWidth, _internalHeight, Graphics::PixelFormat::createFormatCLUT8());
 	}
 
 	if (getGameType() == GType_SIMON2) {
@@ -630,7 +657,7 @@ Common::Error AGOSEngine::init() {
 
 	setupGame();
 
-	_debugger = new Debugger(this);
+	setDebugger(new Debugger(this));
 	_sound = new Sound(this, gss, _mixer);
 
 	if (ConfMan.hasKey("music_mute") && ConfMan.getBool("music_mute") == 1) {
@@ -944,6 +971,7 @@ AGOSEngine::~AGOSEngine() {
 		_backBuf->free();
 	delete _backBuf;
 	free(_planarBuf);
+	delete[] _pak98Buf;
 	if (_scaleBuf)
 		_scaleBuf->free();
 	delete _scaleBuf;
@@ -971,13 +999,8 @@ AGOSEngine::~AGOSEngine() {
 	delete _dummyWindow;
 	delete[] _windowList;
 
-	delete _debugger;
 	delete _sound;
 	delete _gameFile;
-}
-
-GUI::Debugger *AGOSEngine::getDebugger() {
-	return _debugger;
 }
 
 void AGOSEngine::pauseEngineIntern(bool pauseIt) {
@@ -996,12 +1019,12 @@ void AGOSEngine::pauseEngineIntern(bool pauseIt) {
 }
 
 void AGOSEngine::pause() {
-	pauseEngine(true);
+	PauseToken pt = pauseEngine();
 
 	while (_pause && !shouldQuit()) {
 		delay(1);
 		if (_keyPressed.keycode == Common::KEYCODE_PAUSE) {
-			pauseEngine(false);
+			pt.clear();
 			_keyPressed.reset();
 		}
 	}

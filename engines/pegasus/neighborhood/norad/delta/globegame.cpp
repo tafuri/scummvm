@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -42,6 +42,9 @@ GlobeTracker::GlobeTracker(Movie *globeMovie, Picture *leftHighlight, Picture *r
 	_rightHighlight = rightHighlight;
 	_upHighlight = upHighlight;
 	_downHighlight = downHighlight;
+	_trackSpot = nullptr;
+	_trackTime = -1;
+	_trackDirection = kTrackDown;
 }
 
 void GlobeTracker::setTrackParameters(const Hotspot *trackSpot, GlobeTrackDirection direction) {
@@ -103,6 +106,8 @@ void GlobeTracker::setTrackParameters(const Hotspot *trackSpot, GlobeTrackDirect
 	case kTrackDown:
 		_globeMovie->setSegment(0, _globeMovie->getDuration());
 		_globeMovie->setFlags(0);
+		break;
+	default:
 		break;
 	}
 }
@@ -180,6 +185,8 @@ void GlobeTracker::trackGlobeMovie() {
 
 		_downHighlight->show();
 		break;
+	default:
+		break;
 	}
 }
 
@@ -200,6 +207,8 @@ void GlobeTracker::stopGlobeMovie() {
 	case kTrackDown:
 		_downHighlight->hide();
 		_trackTime = tickCount() - kVerticalDuration;
+		break;
+	default:
 		break;
 	}
 }
@@ -722,7 +731,11 @@ void GlobeGame::receiveNotification(Notification *notification, const Notificati
 				_owner->requestSpotSound(kFiftySecondsIn, kFiftySecondsOut,
 						kFilterNoInput, kSpotSoundCompletedFlag);
 				break;
+			default:
+				break;
 			}
+			// fall through
+			// FIXME: fall through intentional?
 		case kPlayingTime:
 			_gameState = kPlayingInstructions;
 			_globeMovie.show();

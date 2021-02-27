@@ -28,6 +28,15 @@
 namespace Engines {
 
 /**
+ * @defgroup engines_obsolete Obsolete game IDs
+ * @ingroup engines
+ *
+ * @brief API for managing obsolete game IDs and updating the config file.
+ *
+ * @{
+ */
+
+/**
  * Structure for autoupgrading targets using an obsolete gameid
  * to the correct new gameid.
  */
@@ -66,13 +75,12 @@ void upgradeTargetIfNecessary(const ObsoleteGameID *obsoleteList);
  * Optionally can take a list of obsolete game ids into account in order
  * to support obsolete gameids.
  */
-GameDescriptor findGameID(
+PlainGameDescriptor findGameID(
 	const char *gameid,
 	const PlainGameDescriptor *gameids,
-	const ObsoleteGameID *obsoleteList = 0
-	);
+	const ObsoleteGameID *obsoleteList = 0);
 
-
+/** @} */
 } // End of namespace Engines
 
 #endif

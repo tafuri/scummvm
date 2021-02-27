@@ -422,6 +422,87 @@ const char *ITEinterfaceTextStrings[][53] = {
 		NULL,
 		NULL,
 		"Cardango una partida guardada"
+	},
+	// Russian IHNM
+	{
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, NULL,
+		NULL, NULL, NULL, NULL, "\xC2\xFB\xE9\xF2\xE8 \xE8\xE7 \xE8\xE3\xF0\xFB?",
+		"Load Successful!",
+		"\xC2\xE2\xE5\xE4\xE8\xF2\xE5 \xE8\xEC\xFF \xE7\xE0\xEF\xE8\xF1\xE8",
+		"\xC4\xE0\xF2\xFC %s >> %s",
+		"\xC8\xF1\xEF\xEE\xEB\xFC\xE7\xEE\xE2\xE0\xF2\xFC %s >> %s",
+		"[\xCD\xEE\xE2\xE0\xFF \xE7\xE0\xEF\xE8\xF1\xFC]",
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"       \xC7\xE0\xE3\xF0\xF3\xE7\xEA\xE0     "
+	},
+	// French fan translation : ACTIONS
+	{
+		"Aller vers", "Examiner", "Prendre", "Parler \205", "Ouvrir",
+		"Fermer", "Utiliser", "Donner", "Options", "Test",
+		"Demo", "Aide", "Quitter le Jeu", "Vite", "Lent",
+		"On", "Off", "Continuer \205 jouer", "Charger", "Sauver",
+		"Options du Jeu", "Vitesse texte", "Musique", "Son", "Annuler",
+		"Quitter", "OK", "Mid", "Click", "10%",
+		"20%", "30%", "40%", "50%", "60%",
+		"70%", "80%", "90%", "Max", "Quitter le jeu?",
+		"Chargement OK!", "Nommer la sauvegarde", "Donner %s \205 %s", "Utiliser %s avec %s",
+		"[Nouvelle sauvegarde]",
+		"Je ne peux pas prendre ça.",
+		"Je ne vois rien de sp\202cial.",
+		"Il n'y a pas la place pour l'ouvrir.",
+		"Il n'y a pas d'ouverture \205 fermer.",
+		"Je ne sais pas comment l'utiliser.",
+		"Sous-titre",
+		"Que r\202pond Rif?",
+		"Charger une sauvegarde"
+	},
+	// Japanese
+	{
+		// "歩　く", "見　る", "拾　う", "話　す", "開ける",
+		"\x95\xE0\x81@\x82\xAD", "\x8C\xA9\x81@\x82\xE9", "\x8F\x45\x81@\x82\xA4", "\x98\x62\x81@\x82\xB7", "\x8AJ\x82\xAF\x82\xE9",
+		// "閉める", "使　う", "与える", "Options", "Test",
+		"\x95\xC2\x82\xDF\x82\xE9", "\x8Eg\x81@\x82\xA4", "\x97^\x82\xA6\x82\xE9", "Options", "Test",
+		// "Demo", "Help", "ゲーム終了", "速い", "遅い",
+		"Demo", "Help", "\x83Q\x81[\x83\x80\x8FI\x97\xB9", "\x91\xAC\x82\xA2", "\x92x\x82\xA2",
+		// "オン", "オフ", "ゲーム再開", "ロード", "セーブ",
+		"\x83I\x83\x93", "\x83I\x83t", "\x83Q\x81[\x83\x80\x8D\xC4\x8AJ", "\x83\x8D\x81[\x83h", "\x83Z\x81[\x83u",
+		// "ゲームオプション", "表示速度", "音楽", "効果音", "無効",
+		"\x83Q\x81[\x83\x80\x83I\x83v\x83V\x83\x87\x83\x93", "\x95""\\""\x8e\xa6\x91\xac\x93""x", "\x89\xB9\x8Ay", "\x8C\xF8\x89\xCA\x89\xB9", "\x96\xB3\x8C\xF8",
+		// "終了", "ＯＫ", "普通", "クリック", "１０％",
+		"\x8FI\x97\xB9", "\x82n\x82j", "\x95\x81\x92\xCA", "\x83N\x83\x8A\x83\x62\x83N", "\x82P\x82O\x81\x93",
+		// "２０％", "３０％", "４０％", "５０％", "６０％",
+		"\x82Q\x82O\x81\x93", "\x82R\x82O\x81\x93", "\x82S\x82O\x81\x93", "\x82T\x82O\x81\x93", "\x82U\x82O\x81\x93",
+		// "７０％", "８０％", "９０％", "最大", "ゲームを中断しますか？",
+		"\x82V\x82O\x81\x93", "\x82W\x82O\x81\x93", "\x82X\x82O\x81\x93", "\x8D\xC5\x91\xE5", "\x83Q\x81[\x83\x80\x82\xF0\x92\x86\x92\x66\x82\xB5\x82\xDC\x82\xB7\x82\xA9\x81H",
+		// "?", "ゲーム名は？", "%sに%sを与える", "%sを%sに使う",
+		"?", "\x83Q\x81[\x83\x80\x96\xBC\x82\xCD\x81H", "%s\x82\xC9%s\x82\xF0\x97^\x82\xA6\x82\xE9", "%s\x82\xF0%s\x82\xC9\x8Eg\x82\xA4",
+		"[New Save Game]",
+		// "拾えないね。",
+		"\x8F\x45\x82\xA6\x82\xC8\x82\xA2\x82\xCB\x81\x42",
+		// "変わったものはないね。",
+		"\x95\xCF\x82\xED\x82\xC1\x82\xBD\x82\xE0\x82\xCC\x82\xCD\x82\xC8\x82\xA2\x82\xCB\x81\x42",
+		// "どこも開きそうにないよ。",
+		"\x82\xC7\x82\xB1\x82\xE0\x8AJ\x82\xAB\x82\xBB\x82\xA4\x82\xC9\x82\xC8\x82\xA2\x82\xE6\x81\x42",
+		// "どこも閉められない。",
+		"\x82\xC7\x82\xB1\x82\xE0\x95\xC2\x82\xDF\x82\xE7\x82\xEA\x82\xC8\x82\xA2\x81\x42",
+		// "どうすればいいか分からないね。",
+		"\x82\xC7\x82\xA4\x82\xB7\x82\xEA\x82\xCE\x82\xA2\x82\xA2\x82\xA9\x95\xAA\x82\xA9\x82\xE7\x82\xC8\x82\xA2\x82\xCB\x81\x42",
+		"?",
+		// "リフの返事は？",
+		"\x83\x8A\x83t\x82\xCC\x95\xD4\x8E\x96\x82\xCD\x81H",
+		"?"
 	}
 };
 
@@ -443,6 +524,7 @@ const RawPoint pieceOrigins[PUZZLE_PIECES] = {
 	{ 271, 103 }
 };
 
+// Objects
 const char *pieceNames[][PUZZLE_PIECES] = {
 	{
 		"screwdriver", "pliers", "c-clamp", "wood clamp", "level",
@@ -458,9 +540,23 @@ const char *pieceNames[][PUZZLE_PIECES] = {
 		"cacciavite", "pinze", "morsa", "morsa da legno", "livella",
 		"spago", "pialla", "martello", "metro a nastro", "accetta",
 		"cesoie", "righello", "sega", "mazza", "pennello"
+	},
+	{
+		"tournevis", "pince", "\202tau \205 vis", "pince \205 bois", "niveau",
+		"ficelle", "rabot \205 bois", "marteau", "m\212tre ruban", "hachette",
+		"ciseaux", "r\212gle", "scie", "maillet", "pinceau"
+	},
+	{
+		// "ドライバー", "釘抜き", "Ｃ形クランプ", "木のクランプ", "レベル",
+		"\x83h\x83\x89\x83\x43\x83o\x81[", "\x93\x42\x94\xB2\x82\xAB", "\x82\x62\x8C`\x83N\x83\x89\x83\x93\x83v", "\x96\xD8\x82\xCC\x83N\x83\x89\x83\x93\x83v", "\x83\x8C\x83x\x83\x8B",
+		// "麻ヒモ", "かんな", "金づち", "巻尺", "斧",
+		"\x96\x83\x83q\x83\x82", "\x82\xA9\x82\xF1\x82\xC8", "\x8B\xE0\x82\xC3\x82\xBF", "\x8A\xAA\x8E\xDA", "\x95\x80",
+		// "ハサミ", "曲尺", "のこぎり", "木づち", "ペンキブラシ"
+		"\x83n\x83T\x83~", "\x8B\xC8\x8E\xDA", "\x82\xCC\x82\xB1\x82\xAC\x82\xE8", "\x96\xD8\x82\xC3\x82\xBF", "\x83y\x83\x93\x83L\x83u\x83\x89\x83V"
 	}
 };
 
+// hints
 const char *hintStr[][4] = {
 	{
 		"Check which pieces could fit in each corner first.",
@@ -479,6 +575,22 @@ const char *hintStr[][4] = {
 		"Controlla quale angolo ha il minor numero di pezzi che combaciano, e parti da quello.",
 		"Controlla ogni nuovo angolo e lato per ogni pezzo che combacia.",
 		"Non vedo nulla fuori posto."
+	},
+	{
+		"Trouve d'abord les pi\212ces qui correspondent aux coins.",
+		"V\202rifie quel coin a le moins de pi\212ces qui correspondent et part de l\205.",
+		"Evalue chaque coin et bord pour voir les pi\212ces qui collent.",
+		"Je ne vois rien de mal plac\202."
+	},
+	{
+		// "まず、四隅に合うピースを\n捜してごらん。",
+		"\x82\xDC\x82\xB8\x81\x41\x8El\x8B\xF7\x82\xC9\x8D\x87\x82\xA4\x83s\x81[\x83X\x82\xF0\n\x91{\x82\xB5\x82\xC4\x82\xB2\x82\xE7\x82\xF1\x81\x42",
+		// "辺同士が合いそうなピースを\n捜してごらん。",
+		"\x95\xD3\x93\xAF\x8Em\x82\xAA\x8D\x87\x82\xA2\x82\xBB\x82\xA4\x82\xC8\x83s\x81[\x83X\x82\xF0\n\x91{\x82\xB5\x82\xC4\x82\xB2\x82\xE7\x82\xF1\x81\x42",
+		// "新しくできた空間と形が合う\nピースを捜してごらん。",
+		"\x90V\x82\xB5\x82\xAD\x82\xC5\x82\xAB\x82\xBD\x8B\xF3\x8A\xD4\x82\xC6\x8C`\x82\xAA\x8D\x87\x82\xA4\n\x83s\x81[\x83X\x82\xF0\x91{\x82\xB5\x82\xC4\x82\xB2\x82\xE7\x82\xF1\x81\x42",
+		// "置いたピースの位置は\nどれも合ってるよ。"
+		"\x92u\x82\xA2\x82\xBD\x83s\x81[\x83X\x82\xCC\x88\xCA\x92u\x82\xCD\n\x82\xC7\x82\xEA\x82\xE0\x8D\x87\x82\xC1\x82\xC4\x82\xE9\x82\xE6\x81\x42"
 	}
 };
 
@@ -503,6 +615,25 @@ const char *solicitStr[][NUM_SOLICIT_REPLIES] = {
 		"Umm...Umm...",
 		"Psst! Serve un aiutino?",
 		"Io, sai, l'avrei fatto diversamente."
+	},
+	{
+		"H\202, Renard! Tu veux un coup de pouce?",
+		"T'as besoin d'aide?",
+		"Umm...Umm...",
+		"Psst! Un indice?",
+		"Tu sais, j'aurais fait ça autrement."
+	},
+	{
+		// "ねぇ君！\nヒント欲しい？",
+		"\x82\xCB\x82\xA5\x8CN\x81I\n\x83q\x83\x93\x83g\x97~\x82\xB5\x82\xA2\x81H",
+		// "手助けしようか？",
+		"\x8E\xE8\x8F\x95\x82\xAF\x82\xB5\x82\xE6\x82\xA4\x82\xA9\x81H",
+		// "フム・・・",
+		"\x83t\x83\x80\x81\x45\x81\x45\x81\x45",
+		// "ちょっと！\nヒント欲しい？",
+		"\x82\xBF\x82\xE5\x82\xC1\x82\xC6\x81I\n\x83q\x83\x93\x83g\x97~\x82\xB5\x82\xA2\x81H",
+		// "私なら違う方法で\nやってるだろうな。"
+		"\x8E\x84\x82\xC8\x82\xE7\x88\xE1\x82\xA4\x95\xFB\x96@\x82\xC5\n\x82\xE2\x82\xC1\x82\xC4\x82\xE9\x82\xBE\x82\xEB\x82\xA4\x82\xC8\x81\x42"
 	}
 };
 
@@ -521,6 +652,19 @@ const char *sakkaStr[][NUM_SAKKA] = {
 		"Hey, non si dovrebbero aiutare i candidati!",
 		"Ragazzi! Questo dovrebbe essere un test!",
 		"Forza ragazzi, non si pu\225!"
+	},
+	{
+		"H\202, vous n'\210tes pas suppos\202s aider les concurrents!",
+		"Les gars! C'est suppos\202 être un test!",
+		"Allez les gars, c'est pas dans les r\212gles!"
+	},
+	{
+		// "ねぇ、どう？",
+		"\x82\xCB\x82\xA5\x81\x41\x82\xC7\x82\xA4\x81H",
+		// "なかなかね！",
+		"\x82\xC8\x82\xA9\x82\xC8\x82\xA9\x82\xCB\x81I",
+		// "どうしたの！"
+		"\x82\xC7\x82\xA4\x82\xB5\x82\xBD\x82\xCC\x81I"
 	}
 };
 
@@ -545,6 +689,25 @@ const char *whineStr[][NUM_WHINES] = {
 		"Sigh...",
 		"Credo che questa faccenda ti abbia dato alla testa, Sakka!",
 		"Beh, non ricordo regole specifiche contro i suggerimenti."
+	},
+	{
+		"Rohh, allez Sakka!",
+		"Un indice ne peut pas faire de mal.",
+		"Pfff...",
+		"Je crois que ton carnet te monte \205 la t\210te, Sakka!",
+		"Bon, je ne me souviens d'aucune r\212gle concernant les indices."
+	},
+	{
+		// "アゥ、\nちょっと、サッカ！",
+		"\x83\x41\x83\x44\x81\x41\n\x82\xBF\x82\xE5\x82\xC1\x82\xC6\x81\x41\x83T\x83\x62\x83J\x81I",
+		// "ヒントの一つ位\nいいかい？",
+		"\x83q\x83\x93\x83g\x82\xCC\x88\xEA\x82\xC2\x88\xCA\n\x82\xA2\x82\xA2\x82\xA9\x82\xA2\x81H",
+		// "フー・・・",
+		"\x83t\x81[\x81\x45\x81\x45\x81\x45",
+		// "サッカの頭の中では\nもう完成してるんだ！",
+		"\x83T\x83\x62\x83J\x82\xCC\x93\xAA\x82\xCC\x92\x86\x82\xC5\x82\xCD\n\x82\xE0\x82\xA4\x8A\xAE\x90\xAC\x82\xB5\x82\xC4\x82\xE9\x82\xF1\x82\xBE\x81I",
+		// "ああ、ヒントに対抗できる\nルールが思い出せない。"
+		"\x82\xA0\x82\xA0\x81\x41\x83q\x83\x93\x83g\x82\xC9\x91\xCE\x8DR\x82\xC5\x82\xAB\x82\xE9\n\x83\x8B\x81[\x83\x8B\x82\xAA\x8Ev\x82\xA2\x8Fo\x82\xB9\x82\xC8\x82\xA2\x81\x42"
 	}
 };
 
@@ -566,6 +729,22 @@ const char *optionsStr[][4] = {
 		"\"Si, grazie. Ne avrei bisogno.\"",
 		"\"No, grazie, voglio provare a risolverlo da solo.\"",
 		"Penso che la tessera %s sia nel posto sbagliato."
+	},
+	{
+		"\"Je r\202soudrai cette \202nigme plus tard.\"",
+		"\"Oui, j'aimerais un indice s'il vous plait.\"",
+		"\"Non merci, je voudrais r\202soudre cela par moi m\210me.\"",
+		"Je crois que t'as mal plac\202 l'%s."
+	},
+	{
+		// "「後でやろうかな。」",
+		"\x81u\x8C\xE3\x82\xC5\x82\xE2\x82\xEB\x82\xA4\x82\xA9\x82\xC8\x81\x42\x81v",
+		// "「はい、ヒントをお願いします。」",
+		"\x81u\x82\xCD\x82\xA2\x81\x41\x83q\x83\x93\x83g\x82\xF0\x82\xA8\x8A\xE8\x82\xA2\x82\xB5\x82\xDC\x82\xB7\x81\x42\x81v",
+		// "「いいえ、自分で解きたいんです。」",
+		"\x81u\x82\xA2\x82\xA2\x82\xA6\x81\x41\x8E\xA9\x95\xAA\x82\xC5\x89\xF0\x82\xAB\x82\xBD\x82\xA2\x82\xF1\x82\xC5\x82\xB7\x81\x42\x81v",
+		// "%sの位置が違うんじゃないかな。"
+		"%s\x82\xCC\x88\xCA\x92u\x82\xAA\x88\xE1\x82\xA4\x82\xF1\x82\xB6\x82\xE1\x82\xC8\x82\xA2\x82\xA9\x82\xC8\x81\x42"
 	}
 };
 
@@ -633,6 +812,56 @@ const IntroDialogue introDialogueCave1[][4] = {
 		"Conoscevano il Segreto del Volo, il Segreto della "
 		"Felicit\205, ed altri segreti oltre ogni nostra "
 		"immaginazione."
+	} },
+	// -----------------------------------------------------
+	{ { // French fan translation
+		0,		// cave voice 0
+		"Nous voyons le ciel, nous voyons les terres, "
+		"nous voyons la mer et nous nous demandons: "
+		"Sommes-nous vraiment seuls?"
+	},
+	{
+		1,		// cave voice 1
+		"Bien avant notre av\212nement, les humains "
+		"r\202gnaient sur Terre."
+	},
+	{
+		2,		// cave voice 2
+		"Ils firent des choses merveilleuses, et "
+		"d\202plac\212rent des montagnes."
+	},
+	{
+		3,		// cave voice 3
+		"Ils savaient comment Voler, poss\202daient le "
+		"secret du Bonheur et d'autres secrets au "
+		"del\205 de notre imagination."
+	} },
+	// -----------------------------------------------------
+	{ { // Japanese PC-98 version
+		0,		// cave voice 0
+		// "私達は空を眺め、地上を眺め、海を眺め、こう思います："
+		"\x8E\x84\x92\x42\x82\xCD\x8B\xF3\x82\xF0\x92\xAD\x82\xDF\x81\x41\x92n\x8F\xE3\x82\xF0\x92\xAD\x82\xDF\x81\x41\x8A\x43\x82\xF0\x92\xAD\x82\xDF\x81\x41\x82\xB1\x82\xA4\x8Ev\x82\xA2\x82\xDC\x82\xB7\x81\x46"
+		// "この世に存在しているのは私達だけなのだろうか？"
+		"\x82\xB1\x82\xCC\x90\xA2\x82\xC9\x91\xB6\x8D\xDD\x82\xB5\x82\xC4\x82\xA2\x82\xE9\x82\xCC\x82\xCD\x8E\x84\x92\x42\x82\xBE\x82\xAF\x82\xC8\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H"
+	},
+	{
+		1,		// cave voice 1
+		// "私達が存在する以前のはるか昔、"
+		"\x8E\x84\x92\x42\x82\xAA\x91\xB6\x8D\xDD\x82\xB7\x82\xE9\x88\xC8\x91O\x82\xCC\x82\xCD\x82\xE9\x82\xA9\x90\xCC\x81\x41"
+		// "人間達が地球を支配していました。"
+		"\x90l\x8A\xD4\x92\x42\x82\xAA\x92n\x8B\x85\x82\xF0\x8Ex\x94z\x82\xB5\x82\xC4\x82\xA2\x82\xDC\x82\xB5\x82\xBD\x81\x42"
+	},
+	{
+		2,		// cave voice 2
+		// "彼らはあらゆる努力を払い、驚異的な物を創造しました。"
+		"\x94\xDE\x82\xE7\x82\xCD\x82\xA0\x82\xE7\x82\xE4\x82\xE9\x93w\x97\xCD\x82\xF0\x95\xA5\x82\xA2\x81\x41\x8B\xC1\x88\xD9\x93I\x82\xC8\x95\xA8\x82\xF0\x91n\x91\xA2\x82\xB5\x82\xDC\x82\xB5\x82\xBD\x81\x42"
+	},
+	{
+		3,		// cave voice 3
+		// "彼らは、飛行の秘密や、幸福の秘密、他にも、"
+		"\x94\xDE\x82\xE7\x82\xCD\x81\x41\x94\xF2\x8Ds\x82\xCC\x94\xE9\x96\xA7\x82\xE2\x81\x41\x8DK\x95\x9F\x82\xCC\x94\xE9\x96\xA7\x81\x41\x91\xBC\x82\xC9\x82\xE0\x81\x41"
+		// "我々の想像を越えた多くの秘密を知っていたのです。"
+		"\x89\xE4\x81X\x82\xCC\x91z\x91\x9C\x82\xF0\x89z\x82\xA6\x82\xBD\x91\xBD\x82\xAD\x82\xCC\x94\xE9\x96\xA7\x82\xF0\x92m\x82\xC1\x82\xC4\x82\xA2\x82\xBD\x82\xCC\x82\xC5\x82\xB7\x81\x42"
 	} }
 };
 
@@ -682,6 +911,41 @@ const IntroDialogue introDialogueCave2[][3] = {
 	{
 		6,		// cave voice 6
 		"Siamo i loro figli."
+	} },
+	{ { // Fench fan translation
+		4,		// cave voice 4
+		"Les humains connaissaient aussi le secret de "
+		"la Vie, et l'utilis\212rent pour nous offrir "
+		"Quatres Dons:"
+	},
+	{
+		5,		// cave voice 5
+		"La Pens\202e, les Sentiments, la Parole et, "
+		"l'Habilet\202 manuelle."
+	},
+	{
+		6,		// cave voice 6
+		"Nous sommes leurs enfants."
+	} },
+	// -----------------------------------------------------
+	{ { // Japanese PC-98 version
+		4,		// cave voice 4
+		// "人間達は生活の秘密も知っていました。　"
+		"\x90l\x8A\xD4\x92\x42\x82\xCD\x90\xB6\x8A\x88\x82\xCC\x94\xE9\x96\xA7\x82\xE0\x92m\x82\xC1\x82\xC4\x82\xA2\x82\xDC\x82\xB5\x82\xBD\x81\x42\x81@"
+		// "彼らはそれを使って、私達に４つの偉大な贈り物・・・"
+		"\x94\xDE\x82\xE7\x82\xCD\x82\xBB\x82\xEA\x82\xF0\x8Eg\x82\xC1\x82\xC4\x81\x41\x8E\x84\x92\x42\x82\xC9\x82S\x82\xC2\x82\xCC\x88\xCC\x91\xE5\x82\xC8\x91\xA1\x82\xE8\x95\xA8\x81\x45\x81\x45\x81\x45"
+	},
+	{
+		5,		// cave voice 5
+		// "「考える心や、感じる心、言葉を言う口や、"
+		"\x81u\x8Dl\x82\xA6\x82\xE9\x90S\x82\xE2\x81\x41\x8A\xB4\x82\xB6\x82\xE9\x90S\x81\x41\x8C\xBE\x97t\x82\xF0\x8C\xBE\x82\xA4\x8C\xFB\x82\xE2\x81\x41"
+		// "物をつかむ手」を授けました。"
+		"\x95\xA8\x82\xF0\x82\xC2\x82\xA9\x82\xDE\x8E\xE8\x81v\x82\xF0\x8E\xF6\x82\xAF\x82\xDC\x82\xB5\x82\xBD\x81\x42"
+	},
+	{
+		6,		// cave voice 6
+		// "私達は彼らの子供なのです。"
+		"\x8E\x84\x92\x42\x82\xCD\x94\xDE\x82\xE7\x82\xCC\x8Eq\x8B\x9F\x82\xC8\x82\xCC\x82\xC5\x82\xB7\x81\x42"
 	} }
 };
 
@@ -732,7 +996,43 @@ const IntroDialogue introDialogueCave3[][3] = {
 		"Ci amarono, ed una volta pronti, ci avrebbero "
 		"sicuramente svelato il Segreto della Felicit\205."
 
-	} }
+	} },
+	{ { // French fan translation
+		7,		// cave voice 7
+		"Ils nous apprirent \205 utiliser nos mains, et \205 "
+		"parler."
+	},
+	{
+		8,		// cave voice 8
+		"Ils nous apprirent les joies de la pens\202e."
+	},
+	{
+		9,		// cave voice 9
+		"Ils nous aim\212rent, et le moment venu, ils "
+		"nous auraient s\223rement livr\202 le Secret du "
+		"Bonheur."
+	} },
+	// -----------------------------------------------------
+	{ { // Japanese PC-98 version
+		7,		// cave voice 7
+		// "彼らは手の使い方や、話の仕方を教えてくれました。"
+		"\x94\xDE\x82\xE7\x82\xCD\x8E\xE8\x82\xCC\x8Eg\x82\xA2\x95\xFB\x82\xE2\x81\x41\x98\x62\x82\xCC\x8E\x64\x95\xFB\x82\xF0\x8B\xB3\x82\xA6\x82\xC4\x82\xAD\x82\xEA\x82\xDC\x82\xB5\x82\xBD\x81\x42"
+	},
+	{
+		8,		// cave voice 8
+		// "心で喜ぶことを教えてくれました。"
+		"\x90S\x82\xC5\x8A\xEC\x82\xD4\x82\xB1\x82\xC6\x82\xF0\x8B\xB3\x82\xA6\x82\xC4\x82\xAD\x82\xEA\x82\xDC\x82\xB5\x82\xBD\x81\x42"
+	},
+	{
+		9,		// cave voice 9
+		// "彼らは私達を可愛がりました。　"
+		"\x94\xDE\x82\xE7\x82\xCD\x8E\x84\x92\x42\x82\xF0\x89\xC2\x88\xA4\x82\xAA\x82\xE8\x82\xDC\x82\xB5\x82\xBD\x81\x42\x81@"
+		// "私達さえその気があったら、"
+		"\x8E\x84\x92\x42\x82\xB3\x82\xA6\x82\xBB\x82\xCC\x8B\x43\x82\xAA\x82\xA0\x82\xC1\x82\xBD\x82\xE7\x81\x41"
+		// "幸福の秘密も教えてくれていたことでしょう。"
+		"\x8DK\x95\x9F\x82\xCC\x94\xE9\x96\xA7\x82\xE0\x8B\xB3\x82\xA6\x82\xC4\x82\xAD\x82\xEA\x82\xC4\x82\xA2\x82\xBD\x82\xB1\x82\xC6\x82\xC5\x82\xB5\x82\xE5\x82\xA4\x81\x42"
+	}
+	}
 };
 
 const IntroDialogue introDialogueCave4[][4] = {
@@ -795,22 +1095,78 @@ const IntroDialogue introDialogueCave4[][4] = {
 		13,		// cave voice 13
 		"E un giorno, condivideremo anche noi lo stesso "
 		"destino?"
-	} }
+	} },
+	{ { // French fan translation
+		10,		// cave voice 10
+		"Aujourd'hui nous voyons le ciel, les terres, et "
+		"l'eau dont nous sommes les h\202ritiers, Et "
+		"nous nous demandons: pourquoi sont-ils partis?" // Partis \205 la ligne ?????
+	},
+	{
+		11,		// cave voice 11
+		"Vivent-ils encore, dans les \202toiles? dans les "
+		"profondeurs des oc\202ans? dans le vent?"
+	},
+	{
+		12,		// cave voice 12
+		"Nous nous demandons: leur destin f\223t-il bon "
+		"ou mauvais?"
+	},
+	{
+		13,		// cave voice 13
+		"Et aurons-nous un jour un sort identique?"
+	} },
+	// -----------------------------------------------------
+	{ { // Japanese PC-98 version
+		10,		// cave voice 10
+		// "今こうして、自分達に受け継がれた空を眺め、地上を眺め、"
+		"\x8D\xA1\x82\xB1\x82\xA4\x82\xB5\x82\xC4\x81\x41\x8E\xA9\x95\xAA\x92\x42\x82\xC9\x8E\xF3\x82\xAF\x8Cp\x82\xAA\x82\xEA\x82\xBD\x8B\xF3\x82\xF0\x92\xAD\x82\xDF\x81\x41\x92n\x8F\xE3\x82\xF0\x92\xAD\x82\xDF\x81\x41"
+		// "海を眺めながら、こう思うのです："
+		"\x8A\x43\x82\xF0\x92\xAD\x82\xDF\x82\xC8\x82\xAA\x82\xE7\x81\x41\x82\xB1\x82\xA4\x8Ev\x82\xA4\x82\xCC\x82\xC5\x82\xB7\x81\x46"
+		// "彼らはなぜ去ってしまったのだろうか？"
+		"\x94\xDE\x82\xE7\x82\xCD\x82\xC8\x82\xBA\x8B\x8E\x82\xC1\x82\xC4\x82\xB5\x82\xDC\x82\xC1\x82\xBD\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H"
+	},
+	{
+		11,		// cave voice 11
+		// "まだ生きているのだろうか？　星達の中で？　"
+		"\x82\xDC\x82\xBE\x90\xB6\x82\xAB\x82\xC4\x82\xA2\x82\xE9\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H\x81@\x90\xAF\x92\x42\x82\xCC\x92\x86\x82\xC5\x81H\x81@"
+		// "大海の底で？　風の中で？"
+		"\x91\xE5\x8A\x43\x82\xCC\x92\xEA\x82\xC5\x81H\x81@\x95\x97\x82\xCC\x92\x86\x82\xC5\x81H"
+	},
+	{
+		12,		// cave voice 12
+		// "彼らは幸運に導かれたのだろうか？"
+		"\x94\xDE\x82\xE7\x82\xCD\x8DK\x89^\x82\xC9\x93\xB1\x82\xA9\x82\xEA\x82\xBD\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H"
+	},
+	{
+		13,		// cave voice 13
+		// "それとも悲運に導かれたのだろうか？　そして私達も、"
+		"\x82\xBB\x82\xEA\x82\xC6\x82\xE0\x94\xDF\x89^\x82\xC9\x93\xB1\x82\xA9\x82\xEA\x82\xBD\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H\x81@\x82\xBB\x82\xB5\x82\xC4\x8E\x84\x92\x42\x82\xE0\x81\x41"
+		// "ある日同じ運命に導かれるのだろうか？"
+		"\x82\xA0\x82\xE9\x93\xFA\x93\xAF\x82\xB6\x89^\x96\xBD\x82\xC9\x93\xB1\x82\xA9\x82\xEA\x82\xE9\x82\xCC\x82\xBE\x82\xEB\x82\xA4\x82\xA9\x81H"
+	}
+	}
 };
 
 const IntroCredit creditsValley[] = {
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Producer"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Produzent"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Produttore"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Producteur"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Producer"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Walter Hochbrueckner"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Executive Producer"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Ausf\201hrender Produzent"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Produttore Esecutivo"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Producteur Executif"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Executive Producer"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Robert McNally"},
 	{Common::UNK_LANG, kITECreditsWyrmKeep, kITECreditsHeader, "2nd Executive Producer"},
 	{Common::EN_ANY, kITECreditsNotWyrmKeep, kITECreditsHeader, "Publisher"},
 	{Common::DE_DEU, kITECreditsNotWyrmKeep, kITECreditsHeader, "Herausgeber"},
 	{Common::IT_ITA, kITECreditsNotWyrmKeep, kITECreditsHeader, "Editore"},
+	{Common::FR_FRA, kITECreditsNotWyrmKeep, kITECreditsHeader, "Editeur"},
+	{Common::JA_JPN, kITECreditsNotWyrmKeep, kITECreditsHeader, "Publisher"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Jon Van Caneghem"}
 };
 
@@ -818,16 +1174,25 @@ const IntroCredit creditsTreeHouse1[] = {
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Game Design"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Spielentwurf"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Progetto"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Conception"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Game Design"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Talin, Joe Pearce, Robert McNally"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsText, "and Carolly Hauksdottir"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsText, "und Carolly Hauksdottir"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsText, "e Carolly Hauksdottir"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsText, "et Carolly Hauksdottir"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "and Carolly Hauksdottir"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Screenplay and Dialog"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein, and Bill Rotsler"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Geschichte und Dialoge"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein und Bill Rotsler"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Sceneggiatura e Dialoghi"},
-	{Common::IT_ITA, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein e Bill Rotsler"}
+	{Common::IT_ITA, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein e Bill Rotsler"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Sc\202nario et Dialogues"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein et Bill Rotsler"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Screenplay and Dialog"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "Robert Leh, Len Wein"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "and Bill Rotsler"}
 };
 
 const IntroCredit creditsTreeHouse2[] = {
@@ -836,19 +1201,32 @@ const IntroCredit creditsTreeHouse2[] = {
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Art"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Grafiken"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Grafica"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Graphismes"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Art"},
 	{Common::UNK_LANG, kITECreditsWyrmKeep, kITECreditsText, "Ed Lacabanne, Glenn Price, April Lee,"},
-	{Common::UNK_LANG, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price, April Lee,"},
+	{Common::EN_ANY, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price, April Lee,"},
+	{Common::DE_DEU, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price, April Lee,"},
+	{Common::IT_ITA, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price, April Lee,"},
+	{Common::FR_FRA, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price, April Lee,"},
+	{Common::JA_JPN, kITECreditsNotWyrmKeep, kITECreditsText, "Edward Lacabanne, Glenn Price,"},
 	{Common::UNK_LANG, kITECreditsWyrmKeep, kITECreditsText, "Lisa Sample, Brian Dowrick, Reed Waller,"},
 	{Common::EN_ANY, kITECreditsWyrmKeep, kITECreditsText, "Allison Hershey and Talin"},
 	{Common::DE_DEU, kITECreditsWyrmKeep, kITECreditsText, "Allison Hershey und Talin"},
 	{Common::IT_ITA, kITECreditsWyrmKeep, kITECreditsText, "Allison Hershey e Talin"},
+	{Common::FR_FRA, kITECreditsWyrmKeep, kITECreditsText, "Allison Hershey et Talin"},
 	{Common::EN_ANY, kITECreditsNotWyrmKeep, kITECreditsText, "Lisa Iennaco, Brian Dowrick, Reed"},
 	{Common::EN_ANY, kITECreditsNotWyrmKeep, kITECreditsText, "Waller, Allison Hershey and Talin"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsText, "Waller, Allison Hershey und Talin"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsText, "Waller, Allison Hershey e Talin"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsText, "Waller, Allison Hershey et Talin"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "April Lee, Lisa Iennaco,"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "Brian Dowrick, Reed Waller,"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "Allison Hershey and Talin"},
 	{Common::EN_ANY, kITECreditsNotWyrmKeep, kITECreditsHeader, "Art Direction"},
 	{Common::DE_DEU, kITECreditsNotWyrmKeep, kITECreditsHeader, "Grafische Leitung"},
 	{Common::IT_ITA, kITECreditsNotWyrmKeep, kITECreditsHeader, "Direzione Grafica"},
+	{Common::FR_FRA, kITECreditsNotWyrmKeep, kITECreditsHeader, "Directeur Artistique"},
+	{Common::JA_JPN, kITECreditsNotWyrmKeep, kITECreditsHeader, "Art Direction"},
 	{Common::UNK_LANG, kITECreditsNotWyrmKeep, kITECreditsText, "Allison Hershey"}
 };
 
@@ -856,17 +1234,25 @@ const IntroCredit creditsFairePath1[] = {
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Programming"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Programmiert von"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Programmazione"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Programmeurs"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Programming (original)"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Talin, Walter Hochbrueckner,"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsText, "Joe Burks and Robert Wiggins"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsText, "Joe Burks und Robert Wiggins"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsText, "Joe Burks e Robert Wiggins"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsText, "Joe Burks et Robert Wiggins"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsText, "Joe Burks and Robert Wiggins"},
 	{Common::EN_ANY, kITECreditsPCCD | kITECreditsWyrmKeep, kITECreditsHeader, "Additional Programming"},
+	{Common::FR_FRA, kITECreditsPCCD | kITECreditsWyrmKeep, kITECreditsHeader, "Programmeur Additionnel"},
 	{Common::EN_ANY, kITECreditsPCCD | kITECreditsWyrmKeep, kITECreditsText, "John Bolton"},
+	{Common::FR_FRA, kITECreditsPCCD | kITECreditsWyrmKeep, kITECreditsText, "John Bolton"},
 	{Common::UNK_LANG, kITECreditsMac, kITECreditsHeader, "Macintosh Version"},
 	{Common::UNK_LANG, kITECreditsMac, kITECreditsText, "Michael McNally and Robert McNally"},
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Music and Sound"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Musik und Sound"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Musica e Sonoro"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Musique et Sons"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Music and Sound (original)"},
 	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Matt Nathan"}
 };
 
@@ -874,7 +1260,20 @@ const IntroCredit creditsFairePath2[] = {
 	{Common::EN_ANY, kITECreditsAny, kITECreditsHeader, "Directed by"},
 	{Common::DE_DEU, kITECreditsAny, kITECreditsHeader, "Regie"},
 	{Common::IT_ITA, kITECreditsAny, kITECreditsHeader, "Regia"},
-	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Talin"}
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Dirig\202 par"},
+	{Common::JA_JPN, kITECreditsAny, kITECreditsHeader, "Directed by"},
+	{Common::UNK_LANG, kITECreditsAny, kITECreditsText, "Talin"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsHeader, "Traduction Francaise"},
+	{Common::FR_FRA, kITECreditsAny, kITECreditsText, "Ryfatwork, Momo le Yetty et Darknior"}
+};
+
+const IntroCredit creditsTent[6] = {
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsHeader, "NEC PC-9821 version by"},
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsText, "STARCRAFT,Inc."},
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsHeader, "Programming"},
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsText, "Toshio Sato"},
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsHeader, "Music and Sound"},
+	{Common::JA_JPN, kITECreditsPC98, kITECreditsText, "Takeshi Abo"}
 };
 
 } // End of namespace Saga

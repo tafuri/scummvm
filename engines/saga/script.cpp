@@ -140,6 +140,8 @@ SAGA1Script::SAGA1Script(SagaEngine *vm) : Script(vm) {
 			setupIHNMScriptFuncList();
 			break;
 #endif
+		default:
+			break;
 	}
 }
 
@@ -977,19 +979,16 @@ void Script::opSpeak(SCRIPTOP_PARAMS) {
 
 	// now data contains last string index
 
-#if 0
-	if (_vm->getFeatures() & GF_OLD_ITE_DOS) { // special ITE dos
+	if (_vm->getFeatures() & GF_ITE_DOS_DEMO || _vm->getPlatform() == Common::kPlatformPC98) {
+		int offset = (_vm->getPlatform() == Common::kPlatformPC98) ? 295 : 288;
 		if ((_vm->_scene->currentSceneNumber() == ITE_DEFAULT_SCENE) &&
-			(iparam1 >= 288) && (iparam1 <= (RID_SCENE1_VOICE_END - RID_SCENE1_VOICE_START + 288))) {
-			sampleResourceId = RID_SCENE1_VOICE_START + iparam1 - 288;
+			(iparam1 >= offset) && (iparam1 <= (RID_SCENE1_VOICE_END - RID_SCENE1_VOICE_START + offset))) {
+			sampleResourceId = RID_SCENE1_VOICE_START + iparam1 - offset;
 		}
 	} else {
-#endif
 		if (thread->_voiceLUT->size() > uint16(first))
 			sampleResourceId = (*thread->_voiceLUT)[uint16(first)];
-#if 0
 	}
-#endif
 
 	if (sampleResourceId < 0 || sampleResourceId > 4000)
 		sampleResourceId = -1;
@@ -1242,6 +1241,8 @@ int Script::getVerbType(VerbTypes verbType) {
 			return kVerbITELookOnly;
 		case kVerbOptions:
 			return kVerbITEOptions;
+		default:
+			break;
 		}
 #ifdef ENABLE_IHNM
 	} else if (_vm->getGameId() == GID_IHNM) {
@@ -1272,6 +1273,8 @@ int Script::getVerbType(VerbTypes verbType) {
 			return kVerbIHNMLookOnly;
 		case kVerbOptions:
 			return kVerbIHNMOptions;
+		default:
+			break;
 		}
 #endif
 	}
@@ -1713,15 +1716,16 @@ void Script::whichObject(const Point& mousePoint) {
 					if (_vm->getGameId() == GID_IHNM && objectId == 8199)
 						newRightButtonVerb = getVerbType(kVerbLookAt);
 
-					if ((_currentVerb == getVerbType(kVerbPickUp)) ||
-						(_currentVerb == getVerbType(kVerbOpen)) ||
-						(_currentVerb == getVerbType(kVerbClose)) ||
-						((_currentVerb == getVerbType(kVerbGive)) && !_firstObjectSet) ||
-						((_currentVerb == getVerbType(kVerbUse)) && !(actor->_flags & kFollower))) {
-							if (_vm->getGameId() == GID_ITE) {
-								objectId = ID_NOTHING;
-								newObjectId = ID_NOTHING;
-							}
+					bool actorIsFollower = (actor->_flags & kFollower);
+					bool actorCanBeUsed = (actor->_flags & kUsable);
+
+					if ( _currentVerb == getVerbType(kVerbPickUp) ||
+						 _currentVerb == getVerbType(kVerbOpen) ||
+						 _currentVerb == getVerbType(kVerbClose) ||
+						(_currentVerb == getVerbType(kVerbGive) && !_firstObjectSet) ||
+						(_currentVerb == getVerbType(kVerbUse) && !_firstObjectSet && !(actorIsFollower || actorCanBeUsed))) {
+							objectId = ID_NOTHING;
+							newObjectId = ID_NOTHING;
 						}
 				}
 			}

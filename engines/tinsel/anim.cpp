@@ -39,11 +39,11 @@ namespace Tinsel {
  */
 SCRIPTSTATE DoNextFrame(ANIM *pAnim) {
 	// get a pointer to the script
-	const ANI_SCRIPT *pAni = (const ANI_SCRIPT *)LockMem(pAnim->hScript);
+	const ANI_SCRIPT *pAni = (const ANI_SCRIPT *)_vm->_handle->LockMem(pAnim->hScript);
 
 	while (1) {	// repeat until a real image
 		debugC(DEBUG_DETAILED, kTinselDebugAnimations,
-		"DoNextFrame %ph index=%d, op=%xh", (byte *)pAnim, pAnim->scriptIndex,
+		"DoNextFrame %ph index=%d, op=%xh", (const void *)pAnim, pAnim->scriptIndex,
 		FROM_32(pAni[pAnim->scriptIndex].op));
 
 		switch ((int32)FROM_32(pAni[pAnim->scriptIndex].op)) {
@@ -217,7 +217,7 @@ void InitStepAnimScript(ANIM *pAnim, OBJECT *pAniObj, SCNHANDLE hNewScript, int 
 		"InitStepAnimScript Object=(%d,%d,%xh) script=%xh aniSpeed=%d rec=%ph",
 		!pAniObj ? 0 : fracToInt(pAniObj->xPos),
 		!pAniObj ? 0 : fracToInt(pAniObj->yPos),
-		!pAniObj ? 0 : pAniObj->hImg, hNewScript, aniSpeed, (byte *)pAnim);
+		!pAniObj ? 0 : pAniObj->hImg, hNewScript, aniSpeed, (void *)pAnim);
 
 	pAnim->aniDelta = 1;		// will animate on next call to NextAnimRate
 	pAnim->pObject = pAniObj;	// set object to animate
@@ -265,7 +265,7 @@ SCRIPTSTATE StepAnimScript(ANIM *pAnim) {
  */
 void SkipFrames(ANIM *pAnim, int numFrames) {
 	// get a pointer to the script
-	const ANI_SCRIPT *pAni = (const ANI_SCRIPT *)LockMem(pAnim->hScript);
+	const ANI_SCRIPT *pAni = (const ANI_SCRIPT *)_vm->_handle->LockMem(pAnim->hScript);
 
 	if (!TinselV2 && (numFrames <= 0))
 		// do nothing
@@ -409,7 +409,7 @@ void SkipFrames(ANIM *pAnim, int numFrames) {
 bool AboutToJumpOrEnd(PANIM pAnim) {
 	if (pAnim->aniDelta == 1) {
 		// get a pointer to the script
-		ANI_SCRIPT *pAni = (ANI_SCRIPT *)LockMem(pAnim->hScript);
+		ANI_SCRIPT *pAni = (ANI_SCRIPT *)_vm->_handle->LockMem(pAnim->hScript);
 		int	zzz = pAnim->scriptIndex;
 
 		for (;;) {

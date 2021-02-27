@@ -24,33 +24,36 @@
 #define SKY_MUSIC_ADLIBMUSIC_H
 
 #include "sky/music/musicbase.h"
-#include "audio/audiostream.h"
-#include "audio/fmopl.h"
+
+namespace Audio {
+class Mixer;
+}
+
+namespace OPL {
+class OPL;
+}
 
 namespace Sky {
 
-class AdLibMusic : public Audio::AudioStream, public MusicBase {
+class AdLibMusic : public MusicBase {
 public:
 	AdLibMusic(Audio::Mixer *pMixer, Disk *pDisk);
-	~AdLibMusic();
+	~AdLibMusic() override;
 
 	// AudioStream API
-	int readBuffer(int16 *buffer, const int numSamples);
-	bool isStereo() const;
-	bool endOfData() const;
-	int getRate() const;
-	virtual void setVolume(uint16 param);
+	void setVolume(uint16 param) override;
 
 private:
-	FM_OPL *_opl;
-	Audio::SoundHandle _soundHandle;
+	OPL::OPL *_opl;
 	uint8 *_initSequence;
-	uint32 _sampleRate, _nextMusicPoll;
-	virtual void setupPointers();
-	virtual void setupChannels(uint8 *channelData);
-	virtual void startDriver();
+	uint32 _sampleRate;
+	void setupPointers() override;
+	void setupChannels(uint8 *channelData) override;
+	void startDriver() override;
 
 	void premixerCall(int16 *buf, uint len);
+
+	void onTimer();
 };
 
 } // End of namespace Sky

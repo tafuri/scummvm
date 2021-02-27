@@ -40,20 +40,21 @@ public:
 	void stopAndClear();
 
 	// MidiDriver_BASE interface implementation
-	virtual void send(uint32 b);
+	void send(uint32 b) override;
 
 protected:
 	bool _isGM;
 
 private:
 	byte *_buffer;
+	bool _milesAudioMode;
 };
 
 class Music : public MusicPlayer {
 public:
 
 	Music(ArchiveReader *arc);
-	~Music() {}
+	~Music() override {}
 
 	void playSequence(int16 sequenceResIndex);
 	void stopSequence();

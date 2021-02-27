@@ -28,6 +28,14 @@
 namespace Common {
 
 /**
+ * @defgroup common_memory Memory
+ * @ingroup common
+ *
+ * @brief Functions for managing the memory.
+ * @{
+ */
+
+/**
  * Copies data from the range [first, last) to [dst, dst + (last - first)).
  * It requires the range [dst, dst + (last - first)) to be valid and
  * uninitialized.
@@ -55,11 +63,13 @@ void uninitialized_fill(Type *first, Type *last, const Value &x) {
  * It requires the range [dst, dst + n) to be valid and
  * uninitialized.
  */
-/*template<class Type, class Value>
+template<class Type, class Value>
 void uninitialized_fill_n(Type *dst, size_t n, const Value &x) {
 	while (n--)
 		new ((void *)dst++) Type(x);
-}*/
+}
+
+/** @} */
 
 } // End of namespace Common
 

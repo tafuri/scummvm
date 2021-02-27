@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef RING_RESOURCES_H
-#define RING_RESOURCES_H
+#ifndef TSAGE_RESOURCES_H
+#define TSAGE_RESOURCES_H
 
 #include "common/scummsys.h"
 #include "common/array.h"
@@ -144,7 +144,7 @@ private:
 	Common::StringArray _resStrings;
 	MemoryManager &_memoryManager;
 private:
-	Common::File _file;
+	Common::SeekableReadStream *_file;
 	Common::String _filename;
 	ResourceList _resources;
 	SectionList _sections;
@@ -181,7 +181,7 @@ public:
 	TLib &first() { return **_libList.begin(); }
 
 	static bool scanIndex(Common::File &f, ResourceType resType, int rlbNum, int resNum, ResourceEntry &resEntry);
-	static void loadSection(Common::File &f, ResourceList &resources);
+	static void loadSection(Common::SeekableReadStream *f, ResourceList &resources);
 };
 
 

@@ -40,37 +40,38 @@ public:
 
 	void setup(Dialog *parent, Widget *widget, int x, int y);
 
-	void drawDialog();
+	void drawDialog(DrawLayer layerToDraw) override;
+
+	void receivedFocus(int x = -1, int y = -1) override {}
 protected:
-	virtual void handleMouseDown(int x, int y, int button, int clickCount) {
+	void handleMouseDown(int x, int y, int button, int clickCount) override {
 		close();
 		_parent->handleMouseDown(x + (getAbsX() - _parent->getAbsX()), y + (getAbsY() - _parent->getAbsY()), button, clickCount);
 	}
-	virtual void handleMouseUp(int x, int y, int button, int clickCount) {
+	void handleMouseUp(int x, int y, int button, int clickCount) override {
 		close();
 		_parent->handleMouseUp(x + (getAbsX() - _parent->getAbsX()), y + (getAbsY() - _parent->getAbsY()), button, clickCount);
 	}
-	virtual void handleMouseWheel(int x, int y, int direction) {
+	void handleMouseWheel(int x, int y, int direction) override {
 		close();
 		_parent->handleMouseWheel(x + (getAbsX() - _parent->getAbsX()), y + (getAbsX() - _parent->getAbsX()), direction);
 	}
-	virtual void handleKeyDown(Common::KeyState state) {
+	void handleKeyDown(Common::KeyState state) override {
 		close();
 		_parent->handleKeyDown(state);
 	}
-	virtual void handleKeyUp(Common::KeyState state) {
+	void handleKeyUp(Common::KeyState state) override {
 		close();
 		_parent->handleKeyUp(state);
 	}
-	virtual void handleMouseMoved(int x, int y, int button) {
+	void handleMouseMoved(int x, int y, int button) override {
 		close();
-		_parent->handleMouseMoved(x + (getAbsX() - _parent->getAbsX()), y + (getAbsY() - _parent->getAbsY()), button);
 	}
 
 	int _maxWidth;
 	int _xdelta, _ydelta;
 
-	Common::StringArray _wrappedLines;
+	Common::U32StringArray _wrappedLines;
 };
 
 } // End of namespace GUI

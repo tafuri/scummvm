@@ -22,7 +22,7 @@
 
 /*
  * This code is based on original Soltys source code
- * Copyright (c) 1994-1995 Janus B. Wisniewski and L.K. Avalon
+ * Copyright (c) 1994-1995 Janusz B. Wisniewski and L.K. Avalon
  */
 
 #include "cge/sound.h"
@@ -30,8 +30,10 @@
 #include "cge/cge_main.h"
 #include "common/config-manager.h"
 #include "common/memstream.h"
-#include "audio/decoders/raw.h"
 #include "audio/audiostream.h"
+#include "audio/decoders/wave.h"
+#include "audio/mididrv.h"
+#include "audio/midiparser.h"
 
 namespace CGE {
 

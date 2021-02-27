@@ -13,7 +13,6 @@ MODULE_OBJS := \
 	costume.o \
 	cursor.o \
 	debugger.o \
-	detection.o \
 	dialogs.o \
 	file.o \
 	file_nes.o \
@@ -28,16 +27,21 @@ MODULE_OBJS := \
 	imuse/imuse_part.o \
 	imuse/imuse_player.o \
 	imuse/instrument.o \
-	imuse/mac_m68k.o \
-	imuse/pcspk.o \
 	imuse/sysex_samnmax.o \
 	imuse/sysex_scumm.o \
+	imuse/drivers/amiga.o \
+	imuse/drivers/fmtowns.o \
+	imuse/drivers/mac_m68k.o \
+	imuse/drivers/pcspk.o \
 	input.o \
+	ks_check.o \
+	metaengine.o \
 	midiparser_ro.o \
 	object.o \
 	palette.o \
 	players/player_ad.o \
 	players/player_apple2.o \
+	players/player_he.o \
 	players/player_mac.o \
 	players/player_mod.o \
 	players/player_nes.o \
@@ -98,6 +102,7 @@ MODULE_OBJS += \
 	insane/insane_iact.o \
 	smush/channel.o \
 	smush/codec1.o \
+	smush/codec20.o \
 	smush/codec37.o \
 	smush/codec47.o \
 	smush/imuse_channel.o \
@@ -132,13 +137,30 @@ MODULE_OBJS += \
 	he/script_v100he.o \
 	he/sprite_he.o \
 	he/wiz_he.o \
+	he/localizer.o \
 	he/logic/baseball2001.o \
 	he/logic/basketball.o \
 	he/logic/football.o \
 	he/logic/funshop.o \
-	he/logic/moonbase.o \
+	he/logic/moonbase_logic.o \
 	he/logic/puttrace.o \
-	he/logic/soccer.o
+	he/logic/soccer.o \
+	he/moonbase/ai_defenseunit.o \
+	he/moonbase/ai_main.o \
+	he/moonbase/ai_node.o \
+	he/moonbase/ai_targetacquisition.o \
+	he/moonbase/ai_traveller.o \
+	he/moonbase/ai_tree.o \
+	he/moonbase/ai_types.o \
+	he/moonbase/ai_weapon.o \
+	he/moonbase/distortion.o \
+	he/moonbase/moonbase.o \
+	he/moonbase/moonbase_fow.o
+
+ifdef USE_LIBCURL
+MODULE_OBJS += \
+	he/moonbase/net_main.o
+endif
 endif
 
 # This module can be built as a plugin
@@ -148,3 +170,13 @@ endif
 
 # Include common rules
 include $(srcdir)/rules.mk
+
+# Detection objects
+DETECT_OBJS += $(MODULE)/detection.o
+
+# Skip building the following objects if a static
+# module is enabled, because it already has the contents.
+ifneq ($(ENABLE_SCUMM), STATIC_PLUGIN)
+DETECT_OBJS += $(MODULE)/file.o
+DETECT_OBJS += $(MODULE)/file_nes.o
+endif

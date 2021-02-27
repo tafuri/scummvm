@@ -354,6 +354,35 @@ void Surface::move(int dx, int dy, int height) {
 	}
 }
 
+void Surface::flipVertical(const Common::Rect &r) {
+	const int width = r.width() * format.bytesPerPixel;
+	byte *temp = new byte[width];
+	for (int y = r.top; y < r.bottom / 2; y++) {
+		byte *row1 = (byte *)getBasePtr(r.left, y);
+		byte *row2 = (byte *)getBasePtr(r.left, r.bottom - y - 1);
+
+		memcpy(temp, row1, width);
+		memcpy(row1, row2, width);
+		memcpy(row2, temp, width);
+	}
+	delete[] temp;
+}
+
+Graphics::Surface *Surface::scale(uint16 newWidth, uint16 newHeight, bool filtering) const {
+
+	Graphics::Surface *target = new Graphics::Surface();
+
+	target->create(newWidth, newHeight, format);
+
+	if (filtering) {
+		scaleBlitBilinear((byte *)target->getPixels(), (const byte *)getPixels(), target->pitch, pitch, target->w, target->h, w, h, format);
+	} else {
+		scaleBlit((byte *)target->getPixels(), (const byte *)getPixels(), target->pitch, pitch, target->w, target->h, w, h, format);
+	}
+
+	return target;
+}
+
 void Surface::convertToInPlace(const PixelFormat &dstFormat, const byte *palette) {
 	// Do not convert to the same format and ignore empty surfaces.
 	if (format == dstFormat || pixels == 0) {
@@ -434,8 +463,8 @@ Graphics::Surface *Surface::convertTo(const PixelFormat &dstFormat, const byte *
 	if (format.bytesPerPixel == 0 || format.bytesPerPixel > 4)
 		error("Surface::convertTo(): Can only convert from 1Bpp, 2Bpp, 3Bpp, and 4Bpp");
 
-	if (dstFormat.bytesPerPixel != 2 && dstFormat.bytesPerPixel != 4)
-		error("Surface::convertTo(): Can only convert to 2Bpp and 4Bpp");
+	if (dstFormat.bytesPerPixel < 2 || dstFormat.bytesPerPixel > 4)
+		error("Surface::convertTo(): Can only convert to 2Bpp, 3Bpp and 4Bpp");
 
 	surface->create(w, h, dstFormat);
 
@@ -457,6 +486,8 @@ Graphics::Surface *Surface::convertTo(const PixelFormat &dstFormat, const byte *
 
 				if (dstFormat.bytesPerPixel == 2)
 					*((uint16 *)dstRow) = color;
+				else if (dstFormat.bytesPerPixel == 3)
+					WRITE_UINT24(dstRow, color);
 				else
 					*((uint32 *)dstRow) = color;
 
@@ -487,6 +518,8 @@ Graphics::Surface *Surface::convertTo(const PixelFormat &dstFormat, const byte *
 
 				if (dstFormat.bytesPerPixel == 2)
 					*((uint16 *)dstRow) = color;
+				else if (dstFormat.bytesPerPixel == 3)
+					WRITE_UINT24(dstRow, color);
 				else
 					*((uint32 *)dstRow) = color;
 
@@ -496,6 +529,113 @@ Graphics::Surface *Surface::convertTo(const PixelFormat &dstFormat, const byte *
 	}
 
 	return surface;
+}
+
+FloodFill::FloodFill(Graphics::Surface *surface, uint32 oldColor, uint32 fillColor, bool maskMode) {
+	_surface = surface;
+	_oldColor = oldColor;
+	_fillColor = fillColor;
+	_w = surface->w;
+	_h = surface->h;
+
+	_mask = nullptr;
+	_maskMode = maskMode;
+
+	if (_maskMode) {
+		_mask = new Graphics::Surface();
+		_mask->create(_w, _h, surface->format); // Uses calloc()
+	}
+
+	_visited = (byte *)calloc(_w * _h, 1);
+}
+
+FloodFill::~FloodFill() {
+	while(!_queue.empty()) {
+		Common::Point *p = _queue.front();
+
+		delete p;
+		_queue.pop_front();
+	}
+
+	free(_visited);
+
+	if (_mask) {
+		_mask->free();
+		delete _mask;
+	}
+}
+
+void FloodFill::addSeed(int x, int y) {
+	if (x >= 0 && x < _w && y >= 0 && y < _h) {
+		if (!_visited[y * _w + x]) {
+			_visited[y * _w + x] = 1;
+			void *src = _surface->getBasePtr(x, y);
+			void *dst;
+			bool changed = false;
+
+			if (_maskMode)
+				dst = _mask->getBasePtr(x, y);
+			else
+				dst = src;
+
+			if (_surface->format.bytesPerPixel == 1) {
+				if (*((byte *)src) == _oldColor) {
+					*((byte *)dst) = _maskMode ? 255 : _fillColor;
+					changed = true;
+				}
+			} else if (_surface->format.bytesPerPixel == 2) {
+				if (READ_UINT16(src) == _oldColor) {
+					if (!_maskMode)
+						WRITE_UINT16(src, _fillColor);
+					else
+						*((uint16 *)dst) = 0xffff;
+
+					changed = true;
+				}
+			} else if (_surface->format.bytesPerPixel == 4) {
+				if (READ_UINT32(src) == _oldColor) {
+					if (!_maskMode)
+						WRITE_UINT32(src, _fillColor);
+					else
+						*((uint32 *)dst) = 0xffffffff;
+
+					changed = true;
+				}
+			} else {
+				error("Unsupported bpp in FloodFill");
+			}
+
+			if (changed) {
+				Common::Point *pt = new Common::Point(x, y);
+
+				_queue.push_back(pt);
+			}
+		}
+	}
+}
+
+void FloodFill::fill() {
+	while (!_queue.empty()) {
+		Common::Point *p = _queue.front();
+		_queue.pop_front();
+		addSeed(p->x    , p->y - 1);
+		addSeed(p->x - 1, p->y    );
+		addSeed(p->x    , p->y + 1);
+		addSeed(p->x + 1, p->y    );
+
+		delete p;
+	}
+}
+
+void FloodFill::fillMask() {
+	_maskMode = true;
+
+	if (!_mask) {
+		_mask = new Graphics::Surface();
+		_mask->create(_w, _h, _surface->format); // Uses calloc()
+	}
+
+	fill();
 }
 
 } // End of namespace Graphics

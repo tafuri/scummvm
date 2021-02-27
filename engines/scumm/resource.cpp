@@ -232,7 +232,7 @@ void ScummEngine::askForDisk(const char *filename, int disknum) {
 #endif
 	} else {
 		sprintf(buf, "Cannot find file: '%s'", filename);
-		InfoDialog dialog(this, (char *)buf);
+		InfoDialog dialog(this, Common::U32String(buf));
 		runDialog(dialog);
 		error("Cannot find file: '%s'", filename);
 	}
@@ -277,6 +277,9 @@ void ScummEngine::readIndexFile() {
 			case MKTAG('D','S','O','U'):
 				_numSounds = _fileHandle->readUint16LE();
 				itemsize -= 2;
+				break;
+
+			default:
 				break;
 			}
 			_fileHandle->seek(itemsize - 8, SEEK_CUR);
@@ -650,8 +653,14 @@ int ScummEngine::loadResource(ResType type, ResId idx) {
 		if ((_game.version == 3) && !(_game.platform == Common::kPlatformAmiga) && (type == rtSound)) {
 			return readSoundResourceSmallHeader(idx);
 		} else {
-			size = _fileHandle->readUint16LE();
-			_fileHandle->seek(-2, SEEK_CUR);
+			// WORKAROUND: Apple //gs MM has malformed sound resource #68
+			if (_fileHandle->pos() + 2 > _fileHandle->size()) {
+				warning("loadResource(%s,%d): resource is too short", nameOfResType(type), idx);
+				size = 0;
+			} else {
+				size = _fileHandle->readUint16LE();
+				_fileHandle->seek(-2, SEEK_CUR);
+			}
 		}
 	} else if (_game.features & GF_SMALL_HEADER) {
 		if (_game.version == 4)
@@ -748,7 +757,7 @@ byte *ScummEngine::getResourceAddress(ResType type, ResId idx) {
 
 	_res->setResourceCounter(type, idx, 1);
 
-	debugC(DEBUG_RESOURCE, "getResourceAddress(%s,%d) == %p", nameOfResType(type), idx, ptr);
+	debugC(DEBUG_RESOURCE, "getResourceAddress(%s,%d) == %p", nameOfResType(type), idx, (void *)ptr);
 	return ptr;
 }
 
@@ -887,7 +896,7 @@ void ResourceManager::setHeapThreshold(int min, int max) {
 
 bool ResourceManager::validateResource(const char *str, ResType type, ResId idx) const {
 	if (type < rtFirst || type > rtLast || (uint)idx >= (uint)_types[type].size()) {
-		error("%s Illegal Glob type %s (%d) num %d", str, nameOfResType(type), type, idx);
+		warning("%s Illegal Glob type %s (%d) num %d", str, nameOfResType(type), type, idx);
 		return false;
 	}
 	return true;
@@ -1094,11 +1103,29 @@ void ScummEngine::loadPtrToResource(ResType type, ResId idx, const byte *source)
 	byte *alloced;
 	int len;
 
+	bool sourceWasNull = !source;
+	int originalLen;
+
 	_res->nukeResource(type, idx);
 
 	len = resStrLen(source) + 1;
 	if (len <= 0)
 		return;
+
+	originalLen = len;
+
+	// Translate resource text
+	byte translateBuffer[512];
+	if (isScummvmKorTarget()) {
+		if (!source) {
+			refreshScriptPointer();
+			source = _scriptPointer;
+		}
+		translateText(source, translateBuffer);
+
+		source = translateBuffer;
+		len = resStrLen(source) + 1;
+	}
 
 	alloced = _res->createResource(type, idx, len);
 
@@ -1106,8 +1133,12 @@ void ScummEngine::loadPtrToResource(ResType type, ResId idx, const byte *source)
 		// Need to refresh the script pointer, since createResource may
 		// have caused the script resource to expire.
 		refreshScriptPointer();
-		memcpy(alloced, _scriptPointer, len);
-		_scriptPointer += len;
+		memcpy(alloced, _scriptPointer, originalLen);
+		_scriptPointer += originalLen;
+	} else if (sourceWasNull) {
+		refreshScriptPointer();
+		memcpy(alloced, source, len);
+		_scriptPointer += originalLen;
 	} else {
 		memcpy(alloced, source, len);
 	}

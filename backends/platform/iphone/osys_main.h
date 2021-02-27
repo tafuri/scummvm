@@ -24,8 +24,8 @@
 #define BACKENDS_PLATFORM_IPHONE_OSYS_MAIN_H
 
 #include "graphics/surface.h"
-#include "iphone_common.h"
-#include "backends/base-backend.h"
+#include "backends/platform/iphone/iphone_common.h"
+#include "backends/modular-backend.h"
 #include "common/events.h"
 #include "audio/mixer_intern.h"
 #include "backends/fs/posix/posix-fs-factory.h"
@@ -52,9 +52,8 @@ struct AQCallbackStruct {
 	AudioStreamBasicDescription dataFormat;
 };
 
-class OSystem_IPHONE : public EventsBaseBackend, public PaletteManager {
+class OSystem_IPHONE : public EventsBaseBackend, public ModularMutexBackend, public PaletteManager {
 protected:
-	static const OSystem::GraphicsMode s_supportedGraphicsModes[];
 	static AQCallbackStruct s_AudioQueue;
 	static SoundProc s_soundCallback;
 	static void *s_soundParam;
@@ -116,13 +115,12 @@ public:
 
 	virtual void initBackend();
 
+	virtual void engineInit();
+	virtual void engineDone();
+
 	virtual bool hasFeature(Feature f);
 	virtual void setFeatureState(Feature f, bool enable);
 	virtual bool getFeatureState(Feature f);
-	virtual const GraphicsMode *getSupportedGraphicsModes() const;
-	virtual int getDefaultGraphicsMode() const;
-	virtual bool setGraphicsMode(int mode);
-	virtual int getGraphicsMode() const;
 	virtual void initSize(uint width, uint height, const Graphics::PixelFormat *format);
 
 	virtual void beginGFXTransaction();
@@ -140,17 +138,18 @@ public:
 protected:
 	// PaletteManager API
 	virtual void setPalette(const byte *colors, uint start, uint num);
-	virtual void grabPalette(byte *colors, uint start, uint num);
+	virtual void grabPalette(byte *colors, uint start, uint num) const;
 
 public:
 	virtual void copyRectToScreen(const void *buf, int pitch, int x, int y, int w, int h);
 	virtual void updateScreen();
 	virtual Graphics::Surface *lockScreen();
 	virtual void unlockScreen();
-	virtual void setShakePos(int shakeOffset);
+	virtual void setShakePos(int shakeXOffset, int shakeYOffset);
 
 	virtual void showOverlay();
 	virtual void hideOverlay();
+	virtual bool isOverlayVisible() const { return _videoContext->overlayVisible; }
 	virtual void clearOverlay();
 	virtual void grabOverlay(void *buf, int pitch);
 	virtual void copyRectToOverlay(const void *buf, int pitch, int x, int y, int w, int h);
@@ -167,11 +166,6 @@ public:
 	virtual bool pollEvent(Common::Event &event);
 	virtual uint32 getMillis(bool skipRecord = false);
 	virtual void delayMillis(uint msecs);
-
-	virtual MutexRef createMutex(void);
-	virtual void lockMutex(MutexRef mutex);
-	virtual void unlockMutex(MutexRef mutex);
-	virtual void deleteMutex(MutexRef mutex);
 
 	static void mixCallback(void *sys, byte *samples, int len);
 	virtual void setupMixer(void);

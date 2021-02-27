@@ -33,10 +33,17 @@ class File;
 
 namespace AGOS {
 
+enum kMusicMode {
+	kMusicModeDisabled = 0,
+	kMusicModeAccolade = 1,
+	kMusicModeMilesAudio = 2,
+	kMusicModeSimon1 = 3,
+	kMusicModePC98 = 4
+};
+
 struct MusicInfo {
 	MidiParser *parser;
 	byte *data;
-	bool loopTrack;
 	byte num_songs;           // For Type 1 SMF resources
 	byte *songs[16];          // For Type 1 SMF resources
 	uint32 song_sizes[16];    // For Type 1 SMF resources
@@ -47,7 +54,6 @@ struct MusicInfo {
 	MusicInfo() { clear(); }
 	void clear() {
 		parser = 0; data = 0; num_songs = 0;
-		loopTrack = false;
 		memset(songs, 0, sizeof(songs));
 		memset(song_sizes, 0, sizeof(song_sizes));
 		memset(channel, 0, sizeof(channel));
@@ -73,7 +79,7 @@ protected:
 
 	// These are only used for music.
 	byte _currentTrack;
-	bool _loopTrackDefault;
+	bool _loopTrack;
 	byte _queuedTrack;
 	bool _loopQueuedTrack;
 
@@ -84,16 +90,17 @@ protected:
 	void resetVolumeTable();
 
 public:
+	bool _adLibMusic;
 	bool _enable_sfx;
 
 public:
 	MidiPlayer();
-	virtual ~MidiPlayer();
+	~MidiPlayer() override;
 
-	void loadSMF(Common::File *in, int song, bool sfx = false);
-	void loadMultipleSMF(Common::File *in, bool sfx = false);
-	void loadXMIDI(Common::File *in, bool sfx = false);
-	void loadS1D(Common::File *in, bool sfx = false);
+	void loadSMF(Common::SeekableReadStream *in, int song, bool sfx = false);
+	void loadMultipleSMF(Common::SeekableReadStream *in, bool sfx = false);
+	void loadXMIDI(Common::SeekableReadStream *in, bool sfx = false);
+	void loadS1D(Common::SeekableReadStream *in, bool sfx = false);
 
 	bool hasNativeMT32() const { return _nativeMT32; }
 	void setLoop(bool loop);
@@ -109,12 +116,18 @@ public:
 	void setVolume(int musicVol, int sfxVol);
 
 public:
-	int open(int gameType);
+	int open(int gameType, Common::Platform platform, bool isDemo);
 
 	// MidiDriver_BASE interface implementation
-	virtual void send(uint32 b);
-	virtual void metaEvent(byte type, byte *data, uint16 length);
+	void send(uint32 b) override;
+	void metaEvent(byte type, byte *data, uint16 length) override;
 
+private:
+	kMusicMode _musicMode;
+	MusicType musicType;
+
+private:
+	Common::SeekableReadStream *simon2SetupExtractFile(const Common::String &requestedFileName);
 };
 
 } // End of namespace AGOS

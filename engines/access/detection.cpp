@@ -20,62 +20,11 @@
  *
  */
 
-#include "access/access.h"
-#include "access/amazon/amazon_game.h"
-#include "access/martian/martian_game.h"
-
 #include "base/plugins.h"
-#include "common/savefile.h"
-#include "common/str-array.h"
-#include "common/memstream.h"
 #include "engines/advancedDetector.h"
-#include "common/system.h"
-#include "graphics/colormasks.h"
-#include "graphics/surface.h"
-
-#define MAX_SAVES 99
-
-namespace Access {
-
-struct AccessGameDescription {
-	ADGameDescription desc;
-
-	int gameID;
-	uint32 features;
-};
-
-uint32 AccessEngine::getGameID() const {
-	return _gameDescription->gameID;
-}
-
-uint32 AccessEngine::getGameFeatures() const {
-	return _gameDescription->features;
-}
-
-uint32 AccessEngine::getFeatures() const {
-	return _gameDescription->desc.flags;
-}
-
-bool AccessEngine::isCD() const {
-	return (bool)(_gameDescription->desc.flags & ADGF_CD);
-}
-
-bool AccessEngine::isDemo() const {
-	return (bool)(_gameDescription->desc.flags & ADGF_DEMO);
-}
-
-Common::Language AccessEngine::getLanguage() const {
-	return _gameDescription->desc.language;
-}
-
-Common::Platform AccessEngine::getPlatform() const {
-	return _gameDescription->desc.platform;
-}
-
-} // End of namespace Access
+#include "access/detection.h"
 
 static const PlainGameDescriptor AccessGames[] = {
-	{"Access", "Access"},
 	{"amazon", "Amazon: Guardians of Eden"},
 	{"martian", "Martian Memorandum"},
 	{0, 0}
@@ -83,127 +32,24 @@ static const PlainGameDescriptor AccessGames[] = {
 
 #include "access/detection_tables.h"
 
-class AccessMetaEngine : public AdvancedMetaEngine {
+class AccessMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	AccessMetaEngine() : AdvancedMetaEngine(Access::gameDescriptions, sizeof(Access::AccessGameDescription), AccessGames) {
+	AccessMetaEngineDetection() : AdvancedMetaEngineDetection(Access::gameDescriptions, sizeof(Access::AccessGameDescription), AccessGames) {
 		_maxScanDepth = 3;
 	}
 
-	virtual const char *getName() const {
-		return "Access Engine";
+	const char *getEngineId() const override {
+		return "access";
 	}
 
-	virtual const char *getOriginalCopyright() const {
-		return "Access Engine (c) 1989-1994 Access Software";
+	const char *getName() const override {
+		return "Access";
 	}
 
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const;
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const;
-	virtual void removeSaveState(const char *target, int slot) const;
-	SaveStateDescriptor querySaveMetaInfos(const char *target, int slot) const;
+	const char *getOriginalCopyright() const override {
+		return "Access Engine (C) 1989-1994 Access Software";
+	}
 };
 
-bool AccessMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-	    (f == kSupportsListSaves) ||
-		(f == kSupportsLoadingDuringStartup) ||
-		(f == kSupportsDeleteSave) ||
-		(f == kSavesSupportMetaInfo) ||
-		(f == kSavesSupportThumbnail);
-}
 
-bool Access::AccessEngine::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL) ||
-		(f == kSupportsLoadingDuringRuntime) ||
-		(f == kSupportsSavingDuringRuntime);
-}
-
-bool AccessMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	const Access::AccessGameDescription *gd = (const Access::AccessGameDescription *)desc;
-	if (gd) {
-		switch (gd->gameID) {
-		case Access::GType_Amazon:
-			*engine = new Access::Amazon::AmazonEngine(syst, gd);
-			break;
-		case Access::GType_MartianMemorandum:
-			*engine = new Access::Martian::MartianEngine(syst, gd);
-			break;
-		default:
-			error("Unknown game");
-		}
-	}
-	return gd != 0;
-}
-
-SaveStateList AccessMetaEngine::listSaves(const char *target) const {
-	Common::SaveFileManager *saveFileMan = g_system->getSavefileManager();
-	Common::StringArray filenames;
-	Common::String saveDesc;
-	Common::String pattern = Common::String::format("%s.0??", target);
-	Access::AccessSavegameHeader header;
-
-	filenames = saveFileMan->listSavefiles(pattern);
-	sort(filenames.begin(), filenames.end());   // Sort to get the files in numerical order
-
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		const char *ext = strrchr(file->c_str(), '.');
-		int slot = ext ? atoi(ext + 1) : -1;
-
-		if (slot >= 0 && slot < MAX_SAVES) {
-			Common::InSaveFile *in = g_system->getSavefileManager()->openForLoading(*file);
-
-			if (in) {
-				Access::AccessEngine::readSavegameHeader(in, header);
-				saveList.push_back(SaveStateDescriptor(slot, header._saveName));
-
-				header._thumbnail->free();
-				delete header._thumbnail;
-				delete in;
-			}
-		}
-	}
-
-	return saveList;
-}
-
-int AccessMetaEngine::getMaximumSaveSlot() const {
-	return MAX_SAVES;
-}
-
-void AccessMetaEngine::removeSaveState(const char *target, int slot) const {
-	Common::String filename = Common::String::format("%s.%03d", target, slot);
-	g_system->getSavefileManager()->removeSavefile(filename);
-}
-
-SaveStateDescriptor AccessMetaEngine::querySaveMetaInfos(const char *target, int slot) const {
-	Common::String filename = Common::String::format("%s.%03d", target, slot);
-	Common::InSaveFile *f = g_system->getSavefileManager()->openForLoading(filename);
-
-	if (f) {
-		Access::AccessSavegameHeader header;
-		Access::AccessEngine::readSavegameHeader(f, header);
-		delete f;
-
-		// Create the return descriptor
-		SaveStateDescriptor desc(slot, header._saveName);
-		desc.setThumbnail(header._thumbnail);
-		desc.setSaveDate(header._year, header._month, header._day);
-		desc.setSaveTime(header._hour, header._minute);
-		desc.setPlayTime(header._totalFrames * GAME_FRAME_TIME);
-
-		return desc;
-	}
-
-	return SaveStateDescriptor();
-}
-
-
-#if PLUGIN_ENABLED_DYNAMIC(ACCESS)
-	REGISTER_PLUGIN_DYNAMIC(ACCESS, PLUGIN_TYPE_ENGINE, AccessMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(ACCESS, PLUGIN_TYPE_ENGINE, AccessMetaEngine);
-#endif
+REGISTER_PLUGIN_STATIC(ACCESS_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, AccessMetaEngineDetection);

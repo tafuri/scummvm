@@ -31,6 +31,16 @@
 
 namespace Common {
 
+/**
+ * @defgroup common_iff Interchange File Format (IFF)
+ * @ingroup common
+ *
+ * @brief API for operations on IFF container files.
+ *
+ *		
+ * @{
+ */
+
 typedef uint32 IFF_ID;
 
 #define ID_FORM     MKTAG('F','O','R','M')
@@ -172,7 +182,7 @@ class IFFParser {
 		IFF_ID id;
 		uint32 size;
 
-		IFFChunkNav() : _input(0) {
+		IFFChunkNav() : _input(nullptr) {
 		}
 		void setInputStream(ReadStream *input) {
 			_input = input;
@@ -264,6 +274,8 @@ public:
 
 	uint32 read(void *dataPtr, uint32 dataSize);
 };
+
+/** @} */
 
 } // namespace Common
 

@@ -28,10 +28,10 @@
 #include "common/mutex.h"
 #include "scumm/music.h"
 #include "scumm/players/player_mac.h"
-#include "audio/audiostream.h"
-#include "audio/mixer.h"
 
+namespace Audio {
 class Mixer;
+}
 
 namespace Scumm {
 
@@ -44,9 +44,9 @@ class Player_V3M : public Player_Mac {
 public:
 	Player_V3M(ScummEngine *scumm, Audio::Mixer *mixer);
 
-	virtual bool checkMusicAvailable();
-	virtual bool loadMusic(const byte *ptr);
-	virtual bool getNextNote(int ch, uint32 &samples, int &pitchModifier, byte &velocity);
+	bool checkMusicAvailable() override;
+	bool loadMusic(const byte *ptr) override;
+	bool getNextNote(int ch, uint32 &samples, int &pitchModifier, byte &velocity) override;
 };
 
 } // End of namespace Scumm

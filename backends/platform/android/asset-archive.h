@@ -32,22 +32,22 @@
 #include "common/util.h"
 #include "common/archive.h"
 
+#include <android/asset_manager.h>
+
 class AndroidAssetArchive : public Common::Archive {
 public:
 	AndroidAssetArchive(jobject am);
 	virtual ~AndroidAssetArchive();
 
-	virtual bool hasFile(const Common::String &name) const;
-	virtual int listMembers(Common::ArchiveMemberList &list) const;
-	virtual const Common::ArchiveMemberPtr getMember(const Common::String &name) const;
-	virtual Common::SeekableReadStream *createReadStreamForMember(const Common::String &name) const;
+	virtual bool hasFile(const Common::String &name) const override;
+	virtual int listMembers(Common::ArchiveMemberList &list) const override;
+	virtual const Common::ArchiveMemberPtr getMember(const Common::String &name) const override;
+	virtual Common::SeekableReadStream *createReadStreamForMember(const Common::String &name) const override;
 
 private:
-	jmethodID MID_open;
-	jmethodID MID_openFd;
-	jmethodID MID_list;
-
-	jobject _am;
+	AAssetManager *_am;
+	mutable Common::ArchiveMemberList _cachedMembers;
+	mutable bool _hasCached;
 };
 
 #endif

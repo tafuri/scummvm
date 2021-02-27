@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -35,14 +35,14 @@ namespace Pegasus {
 class ReactorGuess : public DisplayElement {
 public:
 	ReactorGuess(const DisplayElementID);
-	virtual ~ReactorGuess() {}
+	~ReactorGuess() override {}
 
 	void initReactorGuess();
 	void disposeReactorGuess();
 
 	void setGuess(int32, int32, int32);
 
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
 protected:
 	int32 _currentGuess[3];
@@ -53,7 +53,7 @@ protected:
 class ReactorChoiceHighlight : public DisplayElement {
 public:
 	ReactorChoiceHighlight(const DisplayElementID);
-	virtual ~ReactorChoiceHighlight() {}
+	~ReactorChoiceHighlight() override {}
 
 	void initReactorChoiceHighlight();
 	void disposeReactorChoiceHighlight();
@@ -65,7 +65,7 @@ public:
 
 	bool choiceHighlighted(uint32 whichChoice) { return _choices.getFlag(whichChoice); }
 
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
 	void highlightChoice(uint32 whichChoice) {
 		_choices.setFlag(whichChoice);
@@ -80,12 +80,12 @@ protected:
 class ReactorHistory : public DisplayElement {
 public:
 	ReactorHistory(const DisplayElementID);
-	virtual ~ReactorHistory() {}
+	~ReactorHistory() override {}
 
 	void initReactorHistory();
 	void disposeReactorHistory();
 
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
 	void addGuess(int32, int32, int32);
 	int32 getNumGuesses() { return _numGuesses; }

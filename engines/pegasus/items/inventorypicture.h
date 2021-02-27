@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -40,7 +40,7 @@ class Transition;
 class InventoryPicture : public InputHandler, public Picture {
 public:
 	InventoryPicture(const DisplayElementID, InputHandler *, Inventory *);
-	virtual ~InventoryPicture() {}
+	~InventoryPicture() override {}
 
 	void initInventoryImage(Transition *);
 	void throwAwayInventoryImage();
@@ -48,8 +48,8 @@ public:
 	void panelUp();
 	void activateInventoryPicture();
 	void deactivateInventoryPicture();
-	void handleInput(const Input &, const Hotspot *);
-	bool wantsCursor() { return false; }
+	void handleInput(const Input &, const Hotspot *) override;
+	bool wantsCursor() override { return false; }
 
 	InventoryResult addInventoryItem(Item *);
 	InventoryResult removeInventoryItem(Item *);
@@ -63,7 +63,7 @@ public:
 
 protected:
 	void getItemXY(uint32, CoordType &, CoordType &);
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 	void drawItemHighlight(const Common::Rect &);
 	virtual void highlightCurrentItem();
 	virtual void unhighlightCurrentItem() {}
@@ -92,7 +92,7 @@ protected:
 class InventoryItemsPicture : public InventoryPicture {
 public:
 	InventoryItemsPicture(const DisplayElementID, InputHandler *, Inventory *);
-	virtual ~InventoryItemsPicture() {}
+	~InventoryItemsPicture() override {}
 
 	void deactivateInventoryPicture();
 
@@ -101,9 +101,9 @@ public:
 	void playEndMessage(DisplayElement *);
 
 protected:
-	virtual void highlightCurrentItem();
-	virtual void unhighlightCurrentItem();
-	virtual TimeValue getItemPanelTime(Item *);
+	void highlightCurrentItem() override;
+	void unhighlightCurrentItem() override;
+	TimeValue getItemPanelTime(Item *) override;
 	void loopCurrentItem();
 
 	bool _isLooping;
@@ -112,11 +112,11 @@ protected:
 class BiochipPicture : public InventoryPicture {
 public:
 	BiochipPicture(const DisplayElementID, InputHandler *, Inventory *);
-	virtual ~BiochipPicture() {}
+	~BiochipPicture() override {}
 
 protected:
-	virtual void unhighlightCurrentItem();
-	virtual TimeValue getItemPanelTime(Item *);
+	void unhighlightCurrentItem() override;
+	TimeValue getItemPanelTime(Item *) override;
 };
 
 } // End of namespace Pegasus

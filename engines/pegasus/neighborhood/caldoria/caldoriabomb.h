@@ -11,12 +11,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -76,12 +76,12 @@ static const VertexType kEdgeOneHalf = 7;
 class BombTimer : public IdlerAnimation {
 public:
 	BombTimer(const DisplayElementID);
-	virtual ~BombTimer() {}
+	~BombTimer() override {}
 
-	void draw(const Common::Rect &);
+	void draw(const Common::Rect &) override;
 
 protected:
-	void timeChanged(const TimeValue);
+	void timeChanged(const TimeValue) override;
 
 	int _middle;
 	Surface _leftImage, _rightImage;
@@ -90,7 +90,7 @@ protected:
 class BombGrid : public Picture {
 public:
 	BombGrid(const DisplayElementID);
-	virtual ~BombGrid() {}
+	~BombGrid() override {}
 
 	void drawEdges(BombEdgeList);
 
@@ -120,25 +120,25 @@ class Hotspot;
 class CaldoriaBomb : public GameInteraction, public NotificationReceiver {
 public:
 	CaldoriaBomb(Neighborhood *, NotificationManager *);
-	virtual ~CaldoriaBomb();
+	~CaldoriaBomb() override;
 
-	void setSoundFXLevel(const uint16);
-	void setAmbienceLevel(const uint16);
+	void setSoundFXLevel(const uint16) override;
+	void setAmbienceLevel(const uint16) override;
 
-	long getNumHints();
-	Common::String getHintMovie(uint);
-	void doSolve();
-	bool canSolve();
+	long getNumHints() override;
+	Common::String getHintMovie(uint) override;
+	void doSolve() override;
+	bool canSolve() override;
 
 protected:
-	void openInteraction();
-	void initInteraction();
-	void closeInteraction();
-	void receiveNotification(Notification *, const NotificationFlags);
-	void activateHotspots();
-	void clickInHotspot(const Input &, const Hotspot *);
-	void handleInput(const Input &, const Hotspot *);
-	InputBits getInputFilter();
+	void openInteraction() override;
+	void initInteraction() override;
+	void closeInteraction() override;
+	void receiveNotification(Notification *, const NotificationFlags) override;
+	void activateHotspots() override;
+	void clickInHotspot(const Input &, const Hotspot *) override;
+	void handleInput(const Input &, const Hotspot *) override;
+	InputBits getInputFilter() override;
 	void startBombAmbient(Common::String);
 
 	Notification *_neighborhoodNotification;

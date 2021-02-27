@@ -94,6 +94,11 @@ CSTimeChar::CSTimeChar(MohawkEngine_CSTime *vm, CSTimeScene *scene, uint id) : _
 	_lastTime2 = 0;
 	_lastTime3 = 0;
 
+	_unknown1 = _unknown2 = _unknown3 = 0;
+	_enabled = false;
+	_nextCue = 0;
+	_waveStatus = 0;
+
 	_playingWaveId = 0;
 }
 
@@ -1024,6 +1029,8 @@ void CSTimeScene::mouseMove(Common::Point &pos) {
 				break;
 			case 11:
 				_vm->getInterface()->cursorSetShape(10);
+				break;
+			default:
 				break;
 		}
 	}

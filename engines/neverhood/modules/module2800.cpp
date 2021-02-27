@@ -23,6 +23,7 @@
 #include "neverhood/diskplayerscene.h"
 #include "neverhood/gamemodule.h"
 #include "neverhood/scene.h"
+#include "neverhood/smackerplayer.h"
 #include "neverhood/modules/module1000_sprites.h"
 #include "neverhood/modules/module1200_sprites.h"
 #include "neverhood/modules/module1700_sprites.h"
@@ -181,6 +182,8 @@ void Module2800::createScene(int sceneNum, int which) {
 		_currentMusicFileHash = 0;
 		createSmackerScene(0x00800801, true, true, false);
 		break;
+	default:
+		break;
 	}
 	SetUpdateHandler(&Module2800::updateScene);
 	_childObject->handleUpdate();
@@ -313,6 +316,8 @@ void Module2800::updateScene() {
 		case 1001:
 			createScene(1, -1);
 			break;
+		default:
+			break;
 		}
 	} else {
 		switch (_sceneNum) {
@@ -321,6 +326,8 @@ void Module2800::updateScene() {
 			break;
 		case 1:
 			updateMusic(false);
+			break;
+		default:
 			break;
 		}
 	}
@@ -457,6 +464,8 @@ uint32 Scene2801::handleMessage(int messageNum, const MessageParam &param, Entit
 		_palette->addBasePalette(_paletteHash, 0, 65, 0);
 		_palette->startFadeToPalette(12);
 		break;
+	default:
+		break;
 	}
 	return messageResult;
 }
@@ -537,7 +546,8 @@ void Scene2802::update() {
 		} else
 			_currTuneStatus = 0;
 		break;
-
+	default:
+		break;
 	}
 
 	if (prevRadioMusicIndex != _currRadioMusicIndex)
@@ -588,6 +598,8 @@ uint32 Scene2802::handleMessage(int messageNum, const MessageParam &param, Entit
 		}
 		if (prevTuneStatus != _currTuneStatus)
 			changeTuneStatus(prevTuneStatus, _currTuneStatus);
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -752,7 +764,7 @@ uint32 Scene2803::handleMessage(int messageNum, const MessageParam &param, Entit
 	switch (messageNum) {
 	case NM_KLAYMEN_LOWER_LEVER:
 		toggleBackground();
-		// NOTE Intentional fall-through
+		// fall through
 	case NM_ANIMATION_START:
 		if (param.asInteger() == 0x84251F82)
 			setMessageList(0x004B7A50);
@@ -775,6 +787,8 @@ uint32 Scene2803::handleMessage(int messageNum, const MessageParam &param, Entit
 	case NM_MOVE_TO_FRONT:
 		klaymenFloor();
 		setPaletteArea0();
+		break;
+	default:
 		break;
 	}
 	return messageResult;
@@ -1033,6 +1047,8 @@ uint32 Scene2803Small::handleMessage(int messageNum, const MessageParam &param, 
 		setSurfacePriority(_sprite5->getSurface(), 900);
 		sendMessage(_klaymen, 0x482C, 0x2086222D);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1199,6 +1215,8 @@ uint32 Scene2804::handleMessage(int messageNum, const MessageParam &param, Entit
 				_isSolved = false;
 		_countdown2 = 48;
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1297,6 +1315,8 @@ uint32 Scene2805::handleMessage(int messageNum, const MessageParam &param, Entit
 			_klaymen->setKlaymenIdleTable1();
 		}
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1386,6 +1406,8 @@ uint32 Scene2806::handleMessage(int messageNum, const MessageParam &param, Entit
 	case NM_ANIMATION_UPDATE:
 		sendMessage(_asSpew, 0x2000, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1463,6 +1485,8 @@ uint32 Scene2807::handleMessage(int messageNum, const MessageParam &param, Entit
 			leaveScene(0);
 		}
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1538,6 +1562,8 @@ uint32 Scene2808::handleMessage(int messageNum, const MessageParam &param, Entit
 		} else {
 			leaveScene(1);
 		}
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -1660,6 +1686,8 @@ uint32 Scene2809::handleMessage(int messageNum, const MessageParam &param, Entit
 		break;
 	case NM_ANIMATION_UPDATE:
 		sendMessage(_asSpew, 0x2000, 0);
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -1907,6 +1935,8 @@ uint32 Scene2810::handleMessage(int messageNum, const MessageParam &param, Entit
 			setMessageList(0x004AE750);
 		}
 		break;
+	default:
+		break;
 	}
 	return messageResult;
 }
@@ -2030,6 +2060,8 @@ uint32 Scene2812::handleMessage(int messageNum, const MessageParam &param, Entit
 		_sprite1->setVisible(false);
 		_klaymen->setClipRect(_sprite4->getDrawRect().x, 0, 640, _sprite3->getDrawRect().y2());
 		break;
+	default:
+		break;
 	}
 	return messageResult;
 }
@@ -2133,6 +2165,8 @@ uint32 Scene2822::handleMessage(int messageNum, const MessageParam &param, Entit
 				_mouseCursor->setVisible(false);
 			}
 		}
+		break;
+	default:
 		break;
 	}
 	return messageResult;

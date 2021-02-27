@@ -63,13 +63,13 @@ protected:
 class MenuZGI: public MenuHandler {
 public:
 	MenuZGI(ZVision *engine);
-	~MenuZGI();
-	void onMouseMove(const Common::Point &Pos);
-	void onMouseUp(const Common::Point &Pos);
-	void process(uint32 deltaTimeInMillis);
+	~MenuZGI() override;
+	void onMouseMove(const Common::Point &Pos) override;
+	void onMouseUp(const Common::Point &Pos) override;
+	void process(uint32 deltaTimeInMillis) override;
 private:
-	Graphics::Surface menuback[3][2];
-	Graphics::Surface menubar[4][2];
+	Graphics::Surface menuBack[3][2];
+	Graphics::Surface menuBar[4][2];
 	Graphics::Surface *items[50][2];
 	uint itemId[50];
 
@@ -77,11 +77,11 @@ private:
 	uint magicId[12];
 
 	int menuMouseFocus;
-	bool inmenu;
+	bool inMenu;
 
 	int mouseOnItem;
 
-	bool   scrolled[3];
+	bool scrolled[3];
 	int16 scrollPos[3];
 
 	bool clean;
@@ -92,19 +92,19 @@ private:
 class MenuNemesis: public MenuHandler {
 public:
 	MenuNemesis(ZVision *engine);
-	~MenuNemesis();
-	void onMouseMove(const Common::Point &Pos);
-	void onMouseUp(const Common::Point &Pos);
-	void process(uint32 deltaTimeInMillis);
+	~MenuNemesis() override;
+	void onMouseMove(const Common::Point &Pos) override;
+	void onMouseUp(const Common::Point &Pos) override;
+	void process(uint32 deltaTimeInMillis) override;
 private:
 	Graphics::Surface but[4][6];
-	Graphics::Surface menubar;
+	Graphics::Surface menuBar;
 
-	bool inmenu;
+	bool inMenu;
 
 	int mouseOnItem;
 
-	bool   scrolled;
+	bool scrolled;
 	int16 scrollPos;
 
 	bool redraw;
@@ -114,6 +114,6 @@ private:
 
 };
 
-}
+} // End of namespace ZVision
 
 #endif

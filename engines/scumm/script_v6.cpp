@@ -707,6 +707,17 @@ void ScummEngine_v6::o6_ifNot() {
 void ScummEngine_v6::o6_jump() {
 	int offset = fetchScriptWordSigned();
 
+	// WORKAROUND bug #6097: Pressing escape at the lake side entrance of
+	// the cave while Putt Putt is not on solid ground and still talking
+	// will cause the raft to disappear. This is a script bug in the
+	// original game and affects several versions.
+	if (_game.id == GID_PUTTZOO) {
+		if (_game.heversion == 73 && vm.slot[_currentScript].number == 206 && offset == 176 && !isScriptRunning(202))
+			_scummVars[244] = 35;
+		if (_game.features & GF_HE_985 && vm.slot[_currentScript].number == 2054 && offset == 178 && !isScriptRunning(2050))
+			_scummVars[202] = 35;
+	}
+
 	// WORKAROUND bug #2826144: Talking to the guard at the bigfoot party, after
 	// he's let you inside, will cause the game to hang, if you end the conversation.
 	// This is a script bug, due to a missing jump in one segment of the script.
@@ -724,6 +735,25 @@ void ScummEngine_v6::o6_startScript() {
 	getStackList(args, ARRAYSIZE(args));
 	script = pop();
 	flags = pop();
+
+	// WORKAROUND for a bug also present in the original EXE: After greasing (or oiling?)
+	// the cannonballs in the Plunder Town Theater, during the juggling show, the game
+	// cuts from room 18 (backstage) to room 19 (stage).
+	//
+	// Usually, when loading a room script 29 handles the change of background music, 
+	// based on which room we've just loaded.
+	// Unfortunately, during this particular cutscene, script 29 is not executing,
+	// therefore the music is unchanged from room 18 to 19 (the muffled backstage 
+	// version is played), and is not coherent with the drums fill played afterwards 
+	// (sequence 2225), which is unmuffled.
+	//
+	// This fix checks for this situation happening (and only this one), and makes a call
+	// to a soundKludge operation like script 29 would have done.
+	if (_game.id == GID_CMI && _currentRoom == 19 &&
+		vm.slot[_currentScript].number == 168 && script == 118) {
+		int list[16] = { 4096, 1278, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+		_sound->soundKludge(list, 2);
+	}
 
 	// WORKAROUND bug #556558: At Dino Bungee National Memorial, the buttons for
 	// the Wally and Rex dinosaurs will always restart their speech, instead of
@@ -1625,6 +1655,9 @@ void ScummEngine_v6::o6_roomOps() {
 		c = pop();
 		b = pop();
 		a = pop();
+		// Prevent assert() error with corner case, fixes bug #9871
+		if (_game.id == GID_FT && _roomResource == 0)
+			break;
 		darkenPalette(a, a, a, b, c);
 		break;
 

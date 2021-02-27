@@ -28,6 +28,15 @@
 namespace Common {
 
 /**
+ * @defgroup common_singleton Singleton
+ * @ingroup common
+ *
+ * @brief API for managing singletons.
+ *
+ * @{
+ */
+
+/**
  * Generic template base class for implementing the singleton design pattern.
  */
 template<class T>
@@ -59,6 +68,10 @@ public:
 
 
 public:
+	static bool hasInstance() {
+		return _singleton != 0;
+	}
+
 	static T& instance() {
 		// TODO: We aren't thread safe. For now we ignore it since the
 		// only thing using this singleton template is the config manager,
@@ -96,6 +109,8 @@ protected:
  */
 #define DECLARE_SINGLETON(T) \
 	template<> T *Singleton<T>::_singleton = 0
+
+/** @} */
 
 } // End of namespace Common
 

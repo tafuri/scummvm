@@ -182,21 +182,23 @@ bool MoviePlayer::load(uint32 id) {
 		filename = Common::String::format("%s.smk", sequenceList[id]);
 		break;
 	case kVideoDecoderPSX:
-		filename = Common::String::format("%s.str", (_vm->_systemVars.isDemo) ? sequenceList[id] : sequenceListPSX[id]);
+		filename = Common::String::format("%s.str", (_vm->_systemVars.isDemo && id == 4) ? "intro" : sequenceListPSX[id]);
 		break;
 	case kVideoDecoderMP2:
 		filename = Common::String::format("%s.mp2", sequenceList[id]);
+		break;
+	default:
 		break;
 	}
 
 	// Need to switch to true color for PSX/MP2 videos
 	if (_decoderType == kVideoDecoderPSX || _decoderType == kVideoDecoderMP2)
-		initGraphics(g_system->getWidth(), g_system->getHeight(), true, 0);
+		initGraphics(g_system->getWidth(), g_system->getHeight(), nullptr);
 
 	if (!_decoder->loadFile(filename)) {
 		// Go back to 8bpp color
 		if (_decoderType == kVideoDecoderPSX || _decoderType == kVideoDecoderMP2)
-			initGraphics(g_system->getWidth(), g_system->getHeight(), true);
+			initGraphics(g_system->getWidth(), g_system->getHeight());
 
 		return false;
 	}
@@ -267,6 +269,8 @@ void MoviePlayer::performPostProcessing(byte *screen) {
 					break;
 				case LETTER_COL:
 					dst[x] = findTextColor();
+					break;
+				default:
 					break;
 				}
 			}
@@ -422,7 +426,7 @@ bool MoviePlayer::playVideo() {
 
 	// Need to jump back to paletted color
 	if (_decoderType == kVideoDecoderPSX || _decoderType == kVideoDecoderMP2)
-		initGraphics(g_system->getWidth(), g_system->getHeight(), true);
+		initGraphics(g_system->getWidth(), g_system->getHeight());
 
 	return !_vm->shouldQuit() && !skipped;
 }
@@ -443,6 +447,8 @@ uint32 MoviePlayer::findTextColor() {
 			return g_system->getScreenFormat().RGBToColor(200, 120, 184);
 		case 4:
 			return g_system->getScreenFormat().RGBToColor(80, 152, 184);
+		default:
+			break;
 		}
 
 		return g_system->getScreenFormat().RGBToColor(0xFF, 0xFF, 0xFF);
@@ -457,6 +463,8 @@ uint32 MoviePlayer::findTextColor() {
 		return _c3Color;
 	case 4:
 		return _c4Color;
+	default:
+		break;
 	}
 	return _c1Color;
 }
@@ -512,8 +520,8 @@ MoviePlayer *makeMoviePlayer(uint32 id, SwordEngine *vm, Text *textMan, ResMan *
 
 	// For the PSX version, we'll try the PlayStation stream files
 	if (vm->isPsx()) {
-		// The demo uses the normal file names
-		filename = ((vm->_systemVars.isDemo) ? Common::String(sequenceList[id]) : Common::String(sequenceListPSX[id])) + ".str";
+		// The demo uses the normal file names for the intro cutscene
+		filename = ((vm->_systemVars.isDemo && id == 4) ? "intro" : Common::String(sequenceListPSX[id])) + ".str";
 
 		if (Common::File::exists(filename)) {
 #ifdef USE_RGB_COLOR
@@ -521,7 +529,7 @@ MoviePlayer *makeMoviePlayer(uint32 id, SwordEngine *vm, Text *textMan, ResMan *
 			Video::VideoDecoder *psxDecoder = new Video::PSXStreamDecoder(Video::PSXStreamDecoder::kCD2x);
 			return new MoviePlayer(vm, textMan, resMan, system, psxDecoder, kVideoDecoderPSX);
 #else
-			GUI::MessageDialog dialog(Common::String::format(_("PSX stream cutscene '%s' cannot be played in paletted mode"), filename.c_str()), _("OK"));
+			GUI::MessageDialog dialog(Common::U32String::format(_("PSX stream cutscene '%s' cannot be played in paletted mode"), filename.c_str()), _("OK"));
 			dialog.runModal();
 			return 0;
 #endif
@@ -565,7 +573,7 @@ MoviePlayer *makeMoviePlayer(uint32 id, SwordEngine *vm, Text *textMan, ResMan *
 	}
 
 	if (!vm->isPsx() || scumm_stricmp(sequenceList[id], "enddemo") != 0) {
-		Common::String buf = Common::String::format(_("Cutscene '%s' not found"), sequenceList[id]);
+		Common::U32String buf = Common::U32String::format(_("Cutscene '%s' not found"), sequenceList[id]);
 		GUI::MessageDialog dialog(buf, _("OK"));
 		dialog.runModal();
 	}

@@ -25,9 +25,19 @@
 
 #include "common/scummsys.h"
 #include "common/str.h"
+#include "common/stream.h"
 #include "common/timer.h"
+#include "common/array.h"
 
 class MidiChannel;
+
+/**
+ * @defgroup audio_mididrv MIDI drivers
+ * @ingroup audio
+ *
+ * @brief API for managing MIDI drivers.
+ * @{
+ */
 
 /**
  * Music types that music drivers can implement and engines can rely on.
@@ -45,6 +55,7 @@ enum MusicType {
 	MT_APPLEIIGS,		// Apple IIGS
 	MT_TOWNS,			// FM-TOWNS
 	MT_PC98,			// PC98
+	MT_SEGACD,			// SegaCD
 	MT_GM,				// General MIDI
 	MT_MT32,			// MT-32
 	MT_GS				// Roland GS
@@ -75,10 +86,12 @@ enum MidiDriverFlags {
 	MDT_AMIGA       = 1 << 5,
 	MDT_APPLEIIGS   = 1 << 6,
 	MDT_TOWNS       = 1 << 7,		// FM-TOWNS: Maps to MT_TOWNS
-	MDT_PC98        = 1 << 8,		// FM-TOWNS: Maps to MT_PC98
-	MDT_MIDI        = 1 << 9,		// Real MIDI
-	MDT_PREFER_MT32 = 1 << 10,		// MT-32 output is preferred
-	MDT_PREFER_GM   = 1 << 11		// GM output is preferred
+	MDT_PC98        = 1 << 8,		// PC-98: Maps to MT_PC98
+	MDT_SEGACD		= 1 << 9,
+	MDT_MIDI        = 1 << 10,		// Real MIDI
+	MDT_PREFER_MT32 = 1 << 11,		// MT-32 output is preferred
+	MDT_PREFER_GM   = 1 << 12,		// GM output is preferred
+	MDT_PREFER_FLUID= 1 << 13		// FluidSynth driver is preferred
 };
 
 /**
@@ -86,7 +99,47 @@ enum MidiDriverFlags {
  */
 class MidiDriver_BASE {
 public:
-	virtual ~MidiDriver_BASE() { }
+	static const uint8 MIDI_CHANNEL_COUNT = 16;
+	static const uint8 MIDI_RHYTHM_CHANNEL = 9;
+
+	static const byte MIDI_COMMAND_NOTE_OFF = 0x80;
+	static const byte MIDI_COMMAND_NOTE_ON = 0x90;
+	static const byte MIDI_COMMAND_POLYPHONIC_AFTERTOUCH = 0xA0;
+	static const byte MIDI_COMMAND_CONTROL_CHANGE = 0xB0;
+	static const byte MIDI_COMMAND_PROGRAM_CHANGE = 0xC0;
+	static const byte MIDI_COMMAND_CHANNEL_AFTERTOUCH = 0xD0;
+	static const byte MIDI_COMMAND_PITCH_BEND = 0xE0;
+	static const byte MIDI_COMMAND_SYSTEM = 0xF0;
+
+	static const byte MIDI_CONTROLLER_BANK_SELECT_MSB = 0x00;
+	static const byte MIDI_CONTROLLER_MODULATION = 0x01;
+	static const byte MIDI_CONTROLLER_DATA_ENTRY_MSB = 0x06;
+	static const byte MIDI_CONTROLLER_VOLUME = 0x07;
+	static const byte MIDI_CONTROLLER_PANNING = 0x0A;
+	static const byte MIDI_CONTROLLER_EXPRESSION = 0x0B;
+	static const byte MIDI_CONTROLLER_BANK_SELECT_LSB = 0x20;
+	static const byte MIDI_CONTROLLER_DATA_ENTRY_LSB = 0x26;
+	static const byte MIDI_CONTROLLER_SUSTAIN = 0x40;
+	static const byte MIDI_CONTROLLER_REVERB = 0x5B;
+	static const byte MIDI_CONTROLLER_CHORUS = 0x5D;
+	static const byte MIDI_CONTROLLER_RPN_LSB = 0x64;
+	static const byte MIDI_CONTROLLER_RPN_MSB = 0x65;
+	static const byte MIDI_CONTROLLER_RESET_ALL_CONTROLLERS = 0x79;
+	static const byte MIDI_CONTROLLER_ALL_NOTES_OFF = 0x7B;
+	static const byte MIDI_CONTROLLER_OMNI_ON = 0x7C;
+	static const byte MIDI_CONTROLLER_OMNI_OFF = 0x7D;
+	static const byte MIDI_CONTROLLER_MONO_ON = 0x7E;
+	static const byte MIDI_CONTROLLER_POLY_ON = 0x7F;
+
+	static const byte MIDI_RPN_PITCH_BEND_SENSITIVITY_MSB = 0x00;
+	static const byte MIDI_RPN_PITCH_BEND_SENSITIVITY_LSB = 0x00;
+	static const byte MIDI_RPN_NULL = 0x7F;
+
+	static const uint16 MIDI_PITCH_BEND_DEFAULT = 0x2000;
+
+	MidiDriver_BASE();
+
+	virtual ~MidiDriver_BASE();
 
 	/**
 	 * Output a packed midi command to the midi stream.
@@ -97,18 +150,30 @@ public:
 	virtual void send(uint32 b) = 0;
 
 	/**
+	 * Send a MIDI command from a specific source. If the MIDI driver
+	 * does not support multiple sources, the source parameter is
+	 * ignored.
+	 */
+	virtual void send(int8 source, uint32 b) { send(b); }
+
+	/**
 	 * Output a midi command to the midi stream. Convenience wrapper
 	 * around the usual 'packed' send method.
 	 *
 	 * Do NOT use this for sysEx transmission; instead, use the sysEx()
 	 * method below.
 	 */
-	void send(byte status, byte firstOp, byte secondOp) {
-		send(status | ((uint32)firstOp << 8) | ((uint32)secondOp << 16));
-	}
+	void send(byte status, byte firstOp, byte secondOp);
+	
+	/**
+	 * Send a MIDI command from a specific source. If the MIDI driver
+	 * does not support multiple sources, the source parameter is
+	 * ignored.
+	 */
+	void send(int8 source, byte status, byte firstOp, byte secondOp);
 
 	/**
-	 * Transmit a sysEx to the midi device.
+	 * Transmit a SysEx to the MIDI device.
 	 *
 	 * The given msg MUST NOT contain the usual SysEx frame, i.e.
 	 * do NOT include the leading 0xF0 and the trailing 0xF7.
@@ -119,8 +184,87 @@ public:
 	 */
 	virtual void sysEx(const byte *msg, uint16 length) { }
 
+	/**
+	 * Transmit a SysEx to the MIDI device and return the necessary
+	 * delay until the next SysEx event in milliseconds.
+	 *
+	 * This can be used to implement an alternate delay method than the
+	 * OSystem::delayMillis function used by most sysEx implementations.
+	 * Note that not every driver needs a delay, or supports this method.
+	 * In this case, 0 is returned and the driver itself will do a delay 
+	 * if necessary.
+	 *
+	 * For information on the SysEx data requirements, see the sysEx method.
+	 */
+	virtual uint16 sysExNoDelay(const byte *msg, uint16 length) { sysEx(msg, length); return 0; }
+
 	// TODO: Document this.
 	virtual void metaEvent(byte type, byte *data, uint16 length) { }
+
+	/**
+	 * Send a meta event from a specific source. If the MIDI driver
+	 * does not support multiple sources, the source parameter is
+	 * ignored.
+	 */
+	virtual void metaEvent(int8 source, byte type, byte *data, uint16 length) { metaEvent(type, data, length); }
+
+	/**
+	 * Stops all currently active notes. Specify stopSustainedNotes if
+	 * the MIDI data makes use of the sustain controller to also stop
+	 * sustained notes.
+	 *
+	 * Usually, the MIDI parser tracks active notes and terminates them
+	 * when playback is stopped. This method should be used as a backup
+	 * to silence the MIDI output in case the MIDI parser makes a
+	 * mistake when tracking acive notes. It can also be used when
+	 * quitting or pausing a game.
+	 *
+	 * By default, this method sends an All Notes Off message and, if
+	 * stopSustainedNotes is true, a Sustain off message on all MIDI
+	 * channels. Driver implementations can override this if they want
+	 * to implement this functionality in a different way.
+	 */
+	virtual void stopAllNotes(bool stopSustainedNotes = false);
+
+	/**
+	 * A driver implementation might need time to prepare playback of
+	 * a track. Use this function to check if the driver is ready to
+	 * receive MIDI events.
+	 */
+	virtual bool isReady() { return true; }
+
+protected:
+
+	/**
+	 * Enables midi dumping to a 'dump.mid' file and to debug messages on screen
+	 * It's set by '--dump-midi' command line parameter
+	 */
+	bool _midiDumpEnable;
+
+	/** Used for MIDI dumping delta calculation */
+	uint32 _prevMillis;
+
+	/** Stores all MIDI events, will be written to disk after an engine quits */
+	Common::Array<byte> _midiDumpCache;
+
+	/** Initialize midi dumping mechanism, called only if enabled */
+	void midiDumpInit();
+
+	/** Handles MIDI file variable length dumping */
+	int midiDumpVarLength(const uint32 &delta);
+
+	/** Handles MIDI file time delta dumping */
+	void midiDumpDelta();
+
+	/** Performs dumping of MIDI commands, called only if enabled */
+	void midiDumpDo(uint32 b);
+
+	/** Performs dumping of MIDI SysEx commands, called only if enabled */
+	void midiDumpSysEx(const byte *msg, uint16 length);
+
+	/** Writes the captured MIDI events to disk, called only if enabled */
+	void midiDumpFinish();
+
 };
 
 /**
@@ -166,6 +310,12 @@ public:
 	/** Get the device description string matching the given device handle and the given type. */
 	static Common::String getDeviceString(DeviceHandle handle, DeviceStringType type);
 
+	/** Common operations to be done by all drivers on start of send */
+	void midiDriverCommonSend(uint32 b);
+
+	/** Common operations to be done by all drivers on start of sysEx */
+	void midiDriverCommonSysEx(const byte *msg, uint16 length);
+
 private:
 	// If detectDevice() detects MT32 and we have a preferred MT32 device
 	// we use this to force getMusicType() to return MT_MT32 so that we don't
@@ -196,7 +346,36 @@ public:
 		PROP_OLD_ADLIB = 2,
 		PROP_CHANNEL_MASK = 3,
 		// HACK: Not so nice, but our SCUMM AdLib code is in audio/
-		PROP_SCUMM_OPL3 = 4
+		PROP_SCUMM_OPL3 = 4,
+		/**
+		 * Set this to enable or disable scaling of the MIDI channel
+		 * volume with the user volume settings (including setting it
+		 * to 0 when Mute All is selected). This is currently
+		 * implemented in the MT-32/GM drivers (regular and Miles AIL).
+		 *
+		 * Default is enabled for the regular driver, and disabled for
+		 * the Miles AIL driver.
+		 */
+		PROP_USER_VOLUME_SCALING = 5,
+		/**
+		 * Set this property to indicate that the MIDI data used by the
+		 * game has reversed stereo panning compared to its intended
+		 * device. The MT-32 has reversed stereo panning compared to
+		 * the MIDI specification and some game developers chose to
+		 * stick to the MIDI specification.
+		 *
+		 * Do not confuse this with the _midiDeviceReversePanning flag,
+		 * which indicates that the output MIDI device has reversed
+		 * stereo panning compared to the intended MIDI device targeted
+		 * by the MIDI data. This is set by the MT-32/GM driver when
+		 * MT-32 data is played on a GM device or the other way around.
+		 * Both flags can be set, which results in no change to the
+		 * panning.
+		 *
+		 * Set this property before opening the driver, to make sure
+		 * that the default panning is set correctly.
+		 */
+		 PROP_MIDI_DATA_REVERSE_PANNING = 6
 	};
 
 	/**
@@ -221,12 +400,12 @@ public:
 
 	// HIGH-LEVEL SEMANTIC METHODS
 	virtual void setPitchBendRange(byte channel, uint range) {
-		send(0xB0 | channel, 101, 0);
-		send(0xB0 | channel, 100, 0);
-		send(0xB0 | channel,   6, range);
-		send(0xB0 | channel,  38, 0);
-		send(0xB0 | channel, 101, 127);
-		send(0xB0 | channel, 100, 127);
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_RPN_MSB, MIDI_RPN_PITCH_BEND_SENSITIVITY_MSB);
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_RPN_LSB, MIDI_RPN_PITCH_BEND_SENSITIVITY_LSB);
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_DATA_ENTRY_MSB, range); // Semi-tones
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_DATA_ENTRY_LSB, 0); // Cents
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_RPN_MSB, MIDI_RPN_NULL);
+		send(MIDI_COMMAND_CONTROL_CHANGE | channel, MIDI_CONTROLLER_RPN_LSB, MIDI_RPN_NULL);
 	}
 
 	/**
@@ -250,6 +429,12 @@ public:
 	// Channel allocation functions
 	virtual MidiChannel *allocateChannel() = 0;
 	virtual MidiChannel *getPercussionChannel() = 0;
+
+	// Allow an engine to supply its own soundFont data. This stream will be destroyed after use.
+	virtual void setEngineSoundFont(Common::SeekableReadStream *soundFontData) { }
+
+	// Does this driver accept soundFont data?
+	virtual bool acceptsSoundFontData() { return false; }
 };
 
 class MidiChannel {
@@ -270,19 +455,20 @@ public:
 
 	// Control Change messages
 	virtual void controlChange(byte control, byte value) = 0;
-	virtual void modulationWheel(byte value) { controlChange(1, value); }
-	virtual void volume(byte value) { controlChange(7, value); }
-	virtual void panPosition(byte value) { controlChange(10, value); }
+	virtual void modulationWheel(byte value) { controlChange(MidiDriver::MIDI_CONTROLLER_MODULATION, value); }
+	virtual void volume(byte value) { controlChange(MidiDriver::MIDI_CONTROLLER_VOLUME, value); }
+	virtual void panPosition(byte value) { controlChange(MidiDriver::MIDI_CONTROLLER_PANNING, value); }
 	virtual void pitchBendFactor(byte value) = 0;
+	virtual void transpose(int8 value) {}
 	virtual void detune(byte value) { controlChange(17, value); }
 	virtual void priority(byte value) { }
-	virtual void sustain(bool value) { controlChange(64, value ? 1 : 0); }
-	virtual void effectLevel(byte value) { controlChange(91, value); }
-	virtual void chorusLevel(byte value) { controlChange(93, value); }
-	virtual void allNotesOff() { controlChange(123, 0); }
+	virtual void sustain(bool value) { controlChange(MidiDriver::MIDI_CONTROLLER_SUSTAIN, value ? 1 : 0); }
+	virtual void effectLevel(byte value) { controlChange(MidiDriver::MIDI_CONTROLLER_REVERB, value); }
+	virtual void chorusLevel(byte value) { controlChange(MidiDriver::MIDI_CONTROLLER_CHORUS, value); }
+	virtual void allNotesOff() { controlChange(MidiDriver::MIDI_CONTROLLER_ALL_NOTES_OFF, 0); }
 
 	// SysEx messages
 	virtual void sysEx_customInstrument(uint32 type, const byte *instr) = 0;
 };
-
+/** @} */
 #endif

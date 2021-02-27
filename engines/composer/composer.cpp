@@ -23,11 +23,8 @@
 
 #include "common/config-manager.h"
 #include "common/events.h"
-#include "common/file.h"
 #include "common/random.h"
-#include "common/fs.h"
 #include "common/keyboard.h"
-#include "common/substream.h"
 
 #include "graphics/cursorman.h"
 #include "graphics/surface.h"
@@ -35,9 +32,6 @@
 #include "graphics/wincursor.h"
 
 #include "engines/util.h"
-#include "engines/advancedDetector.h"
-
-#include "audio/audiostream.h"
 
 #include "composer/composer.h"
 #include "composer/graphics.h"
@@ -58,7 +52,6 @@ ComposerEngine::ComposerEngine(OSystem *syst, const ComposerGameDescription *gam
 	_mouseEnabled = false;
 	_mouseSpriteId = 0;
 	_lastButton = NULL;
-	_console = NULL;
 }
 
 ComposerEngine::~ComposerEngine() {
@@ -75,7 +68,6 @@ ComposerEngine::~ComposerEngine() {
 		i->_surface.free();
 
 	delete _rnd;
-	delete _console;
 }
 
 Common::Error ComposerEngine::run() {
@@ -91,14 +83,17 @@ Common::Error ComposerEngine::run() {
 		_queuedScripts[i]._scriptId = 0;
 	}
 
-	if (!_bookIni.loadFromFile("book.ini")) {
+	if (!loadDetectedConfigFile(_bookIni)) {
+		// Config files for Darby the Dragon are located in subdirectory
 		_directoriesToStrip = 0;
 		if (!_bookIni.loadFromFile("programs/book.ini")) {
-			// mac version?
-			if (!_bookIni.loadFromFile("Darby the Dragon.ini"))
-				if (!_bookIni.loadFromFile("Gregory.ini"))
-					error("failed to find book.ini");
+			error("failed to find book.ini");
 		}
+	}
+
+	Common::String gameId(getGameId());
+	if (getPlatform() == Common::kPlatformMacintosh && (gameId == "darby" || gameId == "gregory")) {
+		_directoriesToStrip = 0;
 	}
 
 	uint width = 640;
@@ -107,26 +102,34 @@ Common::Error ComposerEngine::run() {
 	uint height = 480;
 	if (_bookIni.hasKey("Height", "Common"))
 		height = atoi(getStringFromConfig("Common", "Height").c_str());
-	initGraphics(width, height, true);
+	initGraphics(width, height);
 	_screen.create(width, height, Graphics::PixelFormat::createFormatCLUT8());
 
 	Graphics::Cursor *cursor = Graphics::makeDefaultWinCursor();
-	CursorMan.replaceCursor(cursor->getSurface(), cursor->getWidth(), cursor->getHeight(), cursor->getHotspotX(),
-		cursor->getHotspotY(), cursor->getKeyColor());
-	CursorMan.replaceCursorPalette(cursor->getPalette(), cursor->getPaletteStartIndex(), cursor->getPaletteCount());
+	CursorMan.replaceCursor(cursor);
 	delete cursor;
 
-	_console = new Console(this);
+	setDebugger(new Console(this));
 
 	loadLibrary(0);
 
-	uint fps = atoi(getStringFromConfig("Common", "FPS").c_str());
+	uint fps;
+	if (_bookIni.hasKey("FPS", "Common"))
+		fps = atoi(getStringFromConfig("Common", "FPS").c_str());
+	else {
+		// On Macintosh version there is no FPS key
+		if (getPlatform() != Common::kPlatformMacintosh)
+			warning("there is no FPS key in book.ini. Defaulting to 8...");
+		fps = 8;
+	}
 	uint frameTime = 125; // Default to 125ms (1000/8)
 	if (fps != 0)
 		frameTime = 1000 / fps;
 	else
 		warning("FPS in book.ini is zero. Defaulting to 8...");
 	uint32 lastDrawTime = 0;
+
+	bool loadFromLauncher = ConfMan.hasKey("save_slot");
 
 	while (!shouldQuit()) {
 		for (uint i = 0; i < _pendingPageChanges.size(); i++) {
@@ -176,6 +179,10 @@ Common::Error ComposerEngine::run() {
 		} else if (_needsUpdate) {
 			redraw();
 		}
+		if (loadFromLauncher) {
+			loadGameState(ConfMan.getInt("save_slot"));
+			loadFromLauncher = false;
+		}
 
 		while (_eventMan->pollEvent(event)) {
 			switch (event.type) {
@@ -195,14 +202,6 @@ Common::Error ComposerEngine::run() {
 
 			case Common::EVENT_KEYDOWN:
 				switch (event.kbd.keycode) {
-				case Common::KEYCODE_d:
-					if (event.kbd.hasFlags(Common::KBD_CTRL)) {
-						// Start the debugger
-						getDebugger()->attach();
-						getDebugger()->onFrame();
-					}
-					break;
-
 				case Common::KEYCODE_q:
 					if (event.kbd.hasFlags(Common::KBD_CTRL))
 						quitGame();
@@ -353,6 +352,10 @@ Common::String ComposerEngine::mangleFilename(Common::String filename) {
 		filename = filename.c_str() + 1;
 
 	uint slashesToStrip = _directoriesToStrip;
+
+	if (filename.hasPrefix(".."))
+		slashesToStrip = 1;
+
 	while (slashesToStrip--) {
 		for (uint i = 0; i < filename.size(); i++) {
 			if (filename[i] != '\\' && filename[i] != ':')
@@ -385,12 +388,20 @@ void ComposerEngine::loadLibrary(uint id) {
 	}
 
 	Common::String filename;
-
+	Common::String oldGroup = _bookGroup;
 	if (getGameType() == GType_ComposerV1) {
-		if (!id || _bookGroup.empty())
-			filename = getStringFromConfig("Common", "StartPage");
-		else
-			filename = getStringFromConfig(_bookGroup, Common::String::format("%d", id));
+		if (getPlatform() == Common::kPlatformMacintosh) {
+			if (!id || _bookGroup.empty())
+				filename = getStringFromConfig("splash.rsc", "100");
+			else
+				filename = getStringFromConfig(_bookGroup + ".rsc", Common::String::format("%d", id));
+		}
+		else {
+			if (!id || _bookGroup.empty())
+				filename = getStringFromConfig("Common", "StartPage");
+			else
+				filename = getStringFromConfig(_bookGroup, Common::String::format("%d", id));
+		}
 		filename = mangleFilename(filename);
 
 		// bookGroup is the basename of the path.
@@ -419,6 +430,7 @@ void ComposerEngine::loadLibrary(uint id) {
 	Library library;
 
 	library._id = id;
+	library._group = oldGroup;
 	library._archive = new ComposerArchive();
 	if (!library._archive->openFile(filename))
 		error("failed to open '%s'", filename.c_str());
@@ -528,7 +540,8 @@ void ComposerEngine::unloadLibrary(uint id) {
 		return;
 	}
 
-	error("tried to unload library %d, which isn't loaded", id);
+	warning("tried to unload library %d, which isn't loaded", id);
+	return;
 }
 
 bool ComposerEngine::hasResource(uint32 tag, uint16 id) {

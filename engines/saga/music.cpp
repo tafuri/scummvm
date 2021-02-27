@@ -31,7 +31,12 @@
 #include "audio/mididrv.h"
 #include "audio/midiparser.h"
 #include "audio/midiparser_qt.h"
+#include "audio/miles.h"
+#include "audio/decoders/flac.h"
+#include "audio/decoders/mp3.h"
 #include "audio/decoders/raw.h"
+#include "audio/decoders/vorbis.h"
+#include "audio/softsynth/fmtowns_pc98/towns_pc98_driver.h"
 #include "common/config-manager.h"
 #include "common/file.h"
 #include "common/substream.h"
@@ -42,24 +47,51 @@ namespace Saga {
 #define MUSIC_SUNSPOT 26
 
 MusicDriver::MusicDriver() : _isGM(false) {
-
-	MidiPlayer::createDriver();
-
 	MidiDriver::DeviceHandle dev = MidiDriver::detectDevice(MDT_MIDI | MDT_ADLIB | MDT_PREFER_GM);
 	_driverType = MidiDriver::getMusicType(dev);
 
+	switch (_driverType) {
+	case MT_ADLIB:
+		if (Common::File::exists("INSTR.AD") && Common::File::exists("INSTR.OPL")) {
+			_milesAudioMode = true;
+			_driver = Audio::MidiDriver_Miles_AdLib_create("INSTR.AD", "INSTR.OPL");
+		} else if (Common::File::exists("SAMPLE.AD") && Common::File::exists("SAMPLE.OPL")) {
+			_milesAudioMode = true;
+			_driver = Audio::MidiDriver_Miles_AdLib_create("SAMPLE.AD", "SAMPLE.OPL");
+		} else {
+			_milesAudioMode = false;
+			MidiPlayer::createDriver();
+		}
+		break;
+	case MT_MT32:
+		_milesAudioMode = true;
+		_driver = Audio::MidiDriver_Miles_MT32_create("");
+		break;
+	default:
+		_milesAudioMode = false;
+		MidiPlayer::createDriver();
+		break;
+	}
+
 	int retValue = _driver->open();
 	if (retValue == 0) {
-		if (_nativeMT32)
-			_driver->sendMT32Reset();
-		else
-			_driver->sendGMReset();
+		if (_driverType != MT_ADLIB) {
+			if (_driverType == MT_MT32 || _nativeMT32)
+				_driver->sendMT32Reset();
+			else
+				_driver->sendGMReset();
+		}
 
 		_driver->setTimerCallback(this, &timerCallback);
 	}
 }
 
 void MusicDriver::send(uint32 b) {
+	if (_milesAudioMode) {
+		_driver->send(b);
+		return;
+	}
+
 	if ((b & 0xF0) == 0xC0 && !_isGM && !_nativeMT32) {
 		// Remap MT32 instruments to General Midi
 		b = (b & 0xFFFF00FF) | MidiDriver::_mt32ToGm[(b >> 8) & 0xFF] << 8;
@@ -98,7 +130,6 @@ void MusicDriver::play(SagaEngine *vm, ByteArray *buffer, bool loop) {
 
 	// Handle music looping
 	_parser->property(MidiParser::mpAutoLoop, loop);
-//	_isLooping = loop;
 
 	_isPlaying = true;
 }
@@ -119,7 +150,6 @@ void MusicDriver::playQuickTime(const Common::String &musicName, bool loop) {
 
 	// Handle music looping
 	_parser->property(MidiParser::mpAutoLoop, loop);
-//	_isLooping = loop;
 
 	_isPlaying = true;
 }
@@ -133,15 +163,24 @@ void MusicDriver::resume() {
 }
 
 
-Music::Music(SagaEngine *vm, Audio::Mixer *mixer) : _vm(vm), _mixer(mixer) {
+Music::Music(SagaEngine *vm, Audio::Mixer *mixer) : _vm(vm), _mixer(mixer), _player(0), _playerPC98(0), _musicContext(0) {
 	_currentVolume = 0;
 	_currentMusicBuffer = NULL;
-	_player = new MusicDriver();
+
+	if (_vm->getPlatform() == Common::kPlatformPC98) {
+		_playerPC98 = new TownsPC98_AudioDriver(mixer, PC98AudioPluginDriver::kType86);
+		_playerPC98->init();
+	} else {
+		_player = new MusicDriver();
+	}
 
 	_digitalMusicContext = _vm->_resource->getContext(GAME_DIGITALMUSICFILE);
-	if (!_player->isAdlib())
-		_musicContext = _vm->_resource->getContext(GAME_MUSICFILE_GM);
-	else
+	if (_player) {
+		if (!_player->isAdlib())
+			_musicContext = _vm->_resource->getContext(GAME_MUSICFILE_GM);
+	}
+
+	if (!_musicContext)
 		_musicContext = _vm->_resource->getContext(GAME_MUSICFILE_FM);
 
 	if (!_musicContext) {
@@ -189,6 +228,7 @@ Music::~Music() {
 	_vm->getTimerManager()->removeTimerProc(&musicVolumeGaugeCallback);
 	_mixer->stopHandle(_musicHandle);
 	delete _player;
+	delete _playerPC98;
 }
 
 void Music::musicVolumeGaugeCallback(void *refCon) {
@@ -196,6 +236,9 @@ void Music::musicVolumeGaugeCallback(void *refCon) {
 }
 
 void Music::musicVolumeGauge() {
+	// CHECKME: This is potentially called from a different thread because it is
+	// called from a timer callback. However, it does not seem to take any
+	// precautions to avoid race conditions.
 	int volume;
 
 	_currentVolumePercent += 10;
@@ -210,7 +253,10 @@ void Music::musicVolumeGauge() {
 		volume = 1;
 
 	_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, volume);
-	_player->setVolume(volume);
+	if (_player)
+		_player->setVolume(volume);
+	if (_playerPC98)
+		_playerPC98->setMusicVolume(volume);
 
 	if (_currentVolumePercent == 100) {
 		_vm->getTimerManager()->removeTimerProc(&musicVolumeGaugeCallback);
@@ -230,7 +276,11 @@ void Music::setVolume(int volume, int time) {
 			volume = 0;
 
 		_mixer->setVolumeForSoundType(Audio::Mixer::kMusicSoundType, volume);
-		_player->setVolume(volume);
+		if (_player)
+			_player->setVolume(volume);
+		if (_playerPC98)
+			_playerPC98->setMusicVolume(volume);
+
 		_vm->getTimerManager()->removeTimerProc(&musicVolumeGaugeCallback);
 		_currentVolume = volume;
 		return;
@@ -240,7 +290,8 @@ void Music::setVolume(int volume, int time) {
 }
 
 bool Music::isPlaying() {
-	return _mixer->isSoundHandleActive(_musicHandle) || _player->isPlaying();
+
+	return _mixer->isSoundHandleActive(_musicHandle) || (_player ? _player->isPlaying() : false) || (_playerPC98 ? _playerPC98->musicPlaying() : false);
 }
 
 void Music::play(uint32 resourceId, MusicFlags flags) {
@@ -249,13 +300,20 @@ void Music::play(uint32 resourceId, MusicFlags flags) {
 
 	debug(2, "Music::play %d, %d", resourceId, flags);
 
-	if (isPlaying() && _trackNumber == resourceId) {
+	if (isPlaying() && _trackNumber == resourceId)
+		return;
+
+	if (_vm->getFeatures() & GF_ITE_DOS_DEMO) {
+		warning("TODO: Music::play %d, %d for ITE DOS demo", resourceId, flags);
 		return;
 	}
 
 	_trackNumber = resourceId;
 	_mixer->stopHandle(_musicHandle);
-	_player->stop();
+	if (_player)
+		_player->stop();
+	if (_playerPC98)
+		_playerPC98->reset();
 
 	int realTrackNumber = 0;
 
@@ -306,7 +364,7 @@ void Music::play(uint32 resourceId, MusicFlags flags) {
 					byte musicFlags = Audio::FLAG_STEREO |
 										Audio::FLAG_16BITS | Audio::FLAG_LITTLE_ENDIAN;
 
-					if (_vm->isBigEndian())
+					if (_vm->isBigEndian() || (_vm->getFeatures() & GF_SOME_MAC_RESOURCES))
 						musicFlags &= ~Audio::FLAG_LITTLE_ENDIAN;
 
 					// The newer ITE Mac demo version contains a music file, but it has mono music.
@@ -372,24 +430,38 @@ void Music::play(uint32 resourceId, MusicFlags flags) {
 		}
 
 		_vm->_resource->loadResource(_musicContext, resourceId, *_currentMusicBuffer);
-		_player->play(_vm, _currentMusicBuffer, (flags & MUSIC_LOOP));
+		if (_player)
+			_player->play(_vm, _currentMusicBuffer, (flags & MUSIC_LOOP));
+		else if (_playerPC98)
+			_playerPC98->loadMusicData(_currentMusicBuffer->data() + 4);
 	}
 
 	setVolume(_vm->_musicVolume);
 }
 
 void Music::pause() {
-	_player->pause();
-	_player->setVolume(0);
+	if (_player) {
+		_player->pause();
+		_player->setVolume(0);
+	} else if (_playerPC98) {
+		_playerPC98->pause();
+	}
 }
 
 void Music::resume() {
-	_player->resume();
-	_player->setVolume(_vm->_musicVolume);
+	if (_player) {
+		_player->resume();
+		_player->setVolume(_vm->_musicVolume);
+	} else if (_playerPC98) {
+		_playerPC98->cont();
+	}
 }
 
 void Music::stop() {
-	_player->stop();
+	if (_player)
+		_player->stop();
+	else if (_playerPC98)
+		_playerPC98->reset();
 }
 
 } // End of namespace Saga

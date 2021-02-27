@@ -107,12 +107,19 @@ byte ClassicCostumeRenderer::mainRoutine(int xmoveCur, int ymoveCur) {
 			ex1 = READ_LE_UINT16(_loaded._frameOffsets + ex1 * 2);
 			_srcptr = _loaded._baseptr + READ_LE_UINT16(_loaded._baseptr + ex1 + ex2 * 2) + 14;
 		}
+		break;
+	default:
+		break;
 	}
 
 	use_scaling = (_scaleX != 0xFF) || (_scaleY != 0xFF);
 
 	v1.x = _actorX;
 	v1.y = _actorY;
+
+	// V0/V1 games are off by 1
+	if (_vm->_game.version <= 1)
+		v1.y += 1;
 
 	if (use_scaling) {
 
@@ -750,7 +757,7 @@ void ClassicCostumeLoader::loadCostume(int id) {
 }
 
 byte NESCostumeRenderer::drawLimb(const Actor *a, int limb) {
-	const byte darkpalette[16] = {0x00,0x00,0x2D,0x3D,0x00,0x00,0x2D,0x3D,0x00,0x00,0x2D,0x3D,0x00,0x00,0x2D,0x3D};
+	const byte darkpalette[16] = { 0x2d,0x1d,0x2d,0x3d, 0x2d,0x1d,0x2d,0x3d, 0x2d,0x1d,0x2d,0x3d, 0x2d,0x1d,0x2d,0x3d };
 	const CostumeData &cost = a->_cost;
 	const byte *palette, *src, *sprdata;
 	int anim, frameNum, frame, offset, numSprites;
@@ -1209,7 +1216,7 @@ byte V0CostumeRenderer::drawLimb(const Actor *a, int limb) {
 		palette[1] = 10;
 		palette[2] = actorV0Colors[_actorID];
 	} else {
-		palette[2] = 11;
+		palette[2] = (_vm->getCurrentLights() & LIGHTMODE_flashlight_on) ?  actorV0Colors[_actorID] : 11;
 		palette[3] = 11;
 	}
 
@@ -1374,7 +1381,7 @@ byte V0CostumeLoader::increaseAnim(Actor *a, int limb) {
 			// Use the previous frame
 			--a0->_cost.curpos[limb];
 
-			// Reset the comstume command
+			// Reset the costume command
 			a0->_costCommandNew = 0xFF;
 			a0->_costCommand = 0xFF;
 

@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -32,41 +32,42 @@ namespace Martian {
 class MartianEngine : public AccessEngine {
 private:
 	bool _skipStart;
-
+	SpriteResource *_introObjects;
+	Common::MemoryReadStream *_creditsStream;
 	/**
 	 * Do the game introduction
 	 */
-	void doIntroduction();
+	void doCredits();
 
-	/**
-	 * Do title sequence
-	 */
-	void doTitle();
-
-	/**
-	 * Do opening sequence
-	 */
-	void doOpening();
+	bool showCredits();
 
 	/**
 	 * Setup variables for the game
 	 */
 	void setupGame();
 
+	void initObjects();
+	void configSelect();
+	void initVariables();
 protected:
 	/**
 	 * Play the game
 	 */
-	virtual void playGame();
+	void playGame() override;
 
-	virtual void dead(int deathId) {}
+	void dead(int deathId) override;
+
+	void setNoteParams();
+	void displayNote(const Common::String &msg);
 public:
+	SpriteResource *_spec7Objects;
+
 	MartianEngine(OSystem *syst, const AccessGameDescription *gameDesc);
+	~MartianEngine() override;
 
-	virtual ~MartianEngine();
-
-	void drawHelp();
-	virtual void establish(int esatabIndex, int sub) {};
+	void doSpecial5(int param1);
+	void showDeathText(Common::String msg);
+	void establish(int esatabIndex, int sub) override {};
 };
 
 } // End of namespace Martian

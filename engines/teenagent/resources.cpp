@@ -22,6 +22,7 @@
 
 #include "teenagent/resources.h"
 #include "teenagent/teenagent.h"
+#include "common/debug.h"
 #include "common/textconsole.h"
 #include "common/translation.h"
 #include "common/zlib.h"
@@ -90,10 +91,13 @@ void Resources::precomputeDialogOffsets() {
 
 bool Resources::loadArchives(const ADGameDescription *gd) {
 	Common::File *dat_file = new Common::File();
-	if (!dat_file->open("teenagent.dat")) {
+	Common::String filename = "teenagent.dat";
+	if (!dat_file->open(filename.c_str())) {
 		delete dat_file;
-		Common::String errorMessage = _("You're missing the 'teenagent.dat' file. Get it from the ScummVM website");
-		warning("%s", errorMessage.c_str());
+
+		const char *msg = _s("Unable to locate the '%s' engine data file.");
+		Common::U32String errorMessage = Common::U32String::format(_(msg), filename.c_str());
+		warning(msg, filename.c_str());
 		GUIErrorMessage(errorMessage);
 		return false;
 	}
@@ -113,8 +117,10 @@ bool Resources::loadArchives(const ADGameDescription *gd) {
 	if (isCompressed) {
 		// teenagent.dat is compressed, but zlib hasn't been compiled in
 		delete dat;
-		Common::String errorMessage = _("The teenagent.dat file is compressed and zlib hasn't been included in this executable. Please decompress it");
-		warning("%s", errorMessage.c_str());
+
+		const char *msg = _s("The teenagent.dat file is compressed and zlib hasn't been included in this executable. Please decompress it");
+		Common::U32String errorMessage = _(msg);
+		warning(msg);
 		GUIErrorMessage(errorMessage);
 		return false;
 	}
@@ -174,7 +180,6 @@ Common::SeekableReadStream *Resources::loadLan(uint32 id) const {
 
 Common::SeekableReadStream *Resources::loadLan000(uint32 id) const {
 	switch (id) {
-
 	case 81:
 		if (dseg.get_byte(dsAddr_dogHasBoneFlag))
 			return lan500.getStream(160);
@@ -219,6 +224,9 @@ Common::SeekableReadStream *Resources::loadLan000(uint32 id) const {
 		if (dseg.get_byte(dsAddr_johnNotyOutsideMansionDoorFlag) == 1) {
 			return lan500.getStream(400);
 		}
+		break;
+
+	default:
 		break;
 	}
 	return lan000.getStream(id);

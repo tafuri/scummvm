@@ -8,12 +8,12 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
-
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
@@ -82,7 +82,7 @@ bool BbvsEngine::evalCondition(Conditions &conditions) {
 			break;
 		case kCondIsButtheadAtBgObject:
 			result = _buttheadObject &&
-				_gameModule->getBgObject(condition.value2)->rect.contains(_buttheadObject->x >> 16, _buttheadObject->y >> 16);
+				_gameModule->getBgObject(condition.value2)->rect.contains(_buttheadObject->x / 65536, _buttheadObject->y / 65536);
 			break;
 		case kCondIsNotSceneVisited:
 			result = _sceneVisited[_currSceneNum] == 0;
@@ -94,6 +94,8 @@ bool BbvsEngine::evalCondition(Conditions &conditions) {
 		case kCondDialogItem0:
 		case kCondIsCameraNumTransition:
 			result = false;
+			break;
+		default:
 			break;
 		}
 	}
@@ -209,7 +211,7 @@ int BbvsEngine::evalDialogCondition(Conditions &conditions) {
 			break;
 		case kCondIsButtheadAtBgObject:
 			success = _buttheadObject &&
-				_gameModule->getBgObject(condition.value2)->rect.contains(_buttheadObject->x >> 16, _buttheadObject->y >> 16);
+				_gameModule->getBgObject(condition.value2)->rect.contains(_buttheadObject->x / 65536, _buttheadObject->y / 65536);
 			break;
 		case kCondIsNotSceneVisited:
 			success = _sceneVisited[_currSceneNum] == 0;
@@ -222,6 +224,8 @@ int BbvsEngine::evalDialogCondition(Conditions &conditions) {
 		case kCondUnused:
 		case kCondIsCameraNumTransition:
 			success = false;
+			break;
+		default:
 			break;
 		}
 		if (!success)
@@ -257,6 +261,8 @@ void BbvsEngine::evalActionResults(ActionResults &results) {
 			break;
 		case kActResChangeScene:
 			_newSceneNum = result.value2;
+			break;
+		default:
 			break;
 		}
 	}

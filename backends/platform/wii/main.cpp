@@ -33,6 +33,7 @@
 #include "backends/plugins/wii/wii-provider.h"
 
 #include <ogc/machine/processor.h>
+#include <ogc/libversion.h>
 #include <fat.h>
 #ifndef GAMECUBE
 #include <wiiuse/wpad.h>
@@ -52,7 +53,13 @@ extern "C" {
 bool reset_btn_pressed = false;
 bool power_btn_pressed = false;
 
+#if ((_V_MAJOR_ > 1) || \
+        (_V_MAJOR_ == 1 && _V_MINOR_ > 8 ) || \
+        (_V_MAJOR_ == 1 && _V_MINOR_ == 8 && _V_PATCH_ >= 18))
+void reset_cb(u32, void *) {
+#else
 void reset_cb(void) {
+#endif
 #ifdef DEBUG_WII_GDB
 	printf("attach gdb now\n");
 	_break();
@@ -223,6 +230,9 @@ int main(int argc, char *argv[]) {
 	res = scummvm_main(argc, argv);
 	g_system->quit();
 
+	g_system->destroy();
+	g_system = nullptr;
+
 	printf("shutdown\n");
 
 	SYS_UnregisterResetFunc(&resetinfo);
@@ -242,6 +252,8 @@ int main(int argc, char *argv[]) {
 	gfx_con_deinit();
 	gfx_deinit();
 	gfx_video_deinit();
+
+	SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
 
 	return res;
 }

@@ -33,11 +33,15 @@ enum ZVisionGameId {
 	GID_GRANDINQUISITOR = 2
 };
 
+enum ZVisionFeatures {
+	GF_DVD = (1 << 0) // ZGI DVD version
+};
+
 struct ZVisionGameDescription {
 	ADGameDescription desc;
 	ZVisionGameId gameId;
 };
 
-}
+} // End of namespace ZVision
 
-#endif
+#endif // ZVISION_DETECTION_H

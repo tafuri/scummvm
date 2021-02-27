@@ -25,6 +25,8 @@
 
 #include "testbed/testsuite.h"
 
+#include "common/mutex.h"
+
 
 namespace Testbed {
 
@@ -33,7 +35,7 @@ struct SharedVars {
 	int first;
 	int second;
 	bool resultSoFar;
-	OSystem::MutexRef mutex;
+	Common::Mutex *mutex;
 };
 
 namespace MiscTests {
@@ -49,6 +51,7 @@ void criticalSection(void *arg);
 TestExitStatus testDateTime();
 TestExitStatus testTimers();
 TestExitStatus testMutexes();
+TestExitStatus testOpenUrl();
 // add more here
 
 } // End of namespace MiscTests
@@ -64,12 +67,12 @@ public:
 	 * @see addTest()
 	 */
 	MiscTestSuite();
-	~MiscTestSuite() {}
-	const char *getName() const {
+	~MiscTestSuite() override {}
+	const char *getName() const override {
 		return "Misc";
 	}
-	const char *getDescription() const {
-		return "Miscellaneous: Timers/Mutexes/Datetime";
+	const char *getDescription() const override {
+		return "Miscellaneous: Timers/Mutexes/Datetime/openUrl";
 	}
 };
 

@@ -20,14 +20,9 @@
  *
  */
 
-#include "common/config-manager.h"
 #include "engines/advancedDetector.h"
-#include "common/savefile.h"
-#include "common/system.h"
 
 #include "base/plugins.h"
-
-#include "touche/touche.h"
 
 static const PlainGameDescriptor toucheGames[] = {
 	{ "touche", "Touche: The Adventures of the Fifth Musketeer" },
@@ -124,103 +119,29 @@ static const char *directoryGlobs[] = {
 	0
 };
 
-class ToucheMetaEngine : public AdvancedMetaEngine {
+class ToucheMetaEngineDetection : public AdvancedMetaEngineDetection {
 public:
-	ToucheMetaEngine() : AdvancedMetaEngine(Touche::gameDescriptions, sizeof(ADGameDescription), toucheGames) {
+	ToucheMetaEngineDetection() : AdvancedMetaEngineDetection(Touche::gameDescriptions, sizeof(ADGameDescription), toucheGames) {
 		_md5Bytes = 4096;
-		_singleid = "touche";
 		_maxScanDepth = 2;
 		_directoryGlobs = directoryGlobs;
 	}
 
-	virtual const ADGameDescription *fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const {
-		ADFilePropertiesMap filesProps;
-
-		const ADGameDescription *matchedDesc = detectGameFilebased(allFiles, fslist, Touche::fileBasedFallback, &filesProps);
-		if (!matchedDesc)
-			return 0;
-
-		reportUnknown(fslist.begin()->getParent(), filesProps);
-		return matchedDesc;
+	ADDetectedGame fallbackDetect(const FileMap &allFiles, const Common::FSList &fslist) const override {
+		return detectGameFilebased(allFiles, Touche::fileBasedFallback);
 	}
 
-	virtual const char *getName() const {
-		return "Touche";
+	const char *getEngineId() const override {
+		return "touche";
 	}
 
-	virtual const char *getOriginalCopyright() const {
-		return "Touche: The Adventures of the 5th Musketeer (C) Clipper Software";
+	const char *getName() const override {
+		return "Touche: The Adventures of the Fifth Musketeer";
 	}
 
-	virtual bool hasFeature(MetaEngineFeature f) const;
-	virtual bool createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const;
-	virtual SaveStateList listSaves(const char *target) const;
-	virtual int getMaximumSaveSlot() const;
-	virtual void removeSaveState(const char *target, int slot) const;
+	const char *getOriginalCopyright() const override {
+		return "Touche: The Adventures of the Fifth Musketeer (C) Clipper Software";
+	}
 };
 
-bool ToucheMetaEngine::hasFeature(MetaEngineFeature f) const {
-	return
-		(f == kSupportsListSaves) ||
-		(f == kSupportsLoadingDuringStartup) ||
-		(f == kSupportsDeleteSave);
-}
-
-bool Touche::ToucheEngine::hasFeature(EngineFeature f) const {
-	return
-		(f == kSupportsRTL) ||
-		(f == kSupportsLoadingDuringRuntime) ||
-		(f == kSupportsSavingDuringRuntime) ||
-		(f == kSupportsSubtitleOptions);
-}
-
-bool ToucheMetaEngine::createInstance(OSystem *syst, Engine **engine, const ADGameDescription *desc) const {
-	if (desc) {
-		*engine = new Touche::ToucheEngine(syst, desc->language);
-	}
-	return desc != 0;
-}
-
-SaveStateList ToucheMetaEngine::listSaves(const char *target) const {
-	Common::String pattern = Touche::generateGameStateFileName(target, 0, true);
-	Common::StringArray filenames = g_system->getSavefileManager()->listSavefiles(pattern);
-	bool slotsTable[Touche::kMaxSaveStates];
-	memset(slotsTable, 0, sizeof(slotsTable));
-	SaveStateList saveList;
-	for (Common::StringArray::const_iterator file = filenames.begin(); file != filenames.end(); ++file) {
-		int slot = Touche::getGameStateFileSlot(file->c_str());
-		if (slot >= 0 && slot < Touche::kMaxSaveStates) {
-			slotsTable[slot] = true;
-		}
-	}
-	for (int slot = 0; slot < Touche::kMaxSaveStates; ++slot) {
-		if (slotsTable[slot]) {
-			Common::String file = Touche::generateGameStateFileName(target, slot);
-			Common::InSaveFile *in = g_system->getSavefileManager()->openForLoading(file);
-			if (in) {
-				char description[64];
-				Touche::readGameStateDescription(in, description, sizeof(description) - 1);
-				if (description[0]) {
-					saveList.push_back(SaveStateDescriptor(slot, description));
-				}
-				delete in;
-			}
-		}
-	}
-	return saveList;
-}
-
-int ToucheMetaEngine::getMaximumSaveSlot() const {
-	return Touche::kMaxSaveStates - 1;
-}
-
-void ToucheMetaEngine::removeSaveState(const char *target, int slot) const {
-	Common::String filename = Touche::generateGameStateFileName(target, slot);
-	g_system->getSavefileManager()->removeSavefile(filename);
-}
-
-#if PLUGIN_ENABLED_DYNAMIC(TOUCHE)
-	REGISTER_PLUGIN_DYNAMIC(TOUCHE, PLUGIN_TYPE_ENGINE, ToucheMetaEngine);
-#else
-	REGISTER_PLUGIN_STATIC(TOUCHE, PLUGIN_TYPE_ENGINE, ToucheMetaEngine);
-#endif
+REGISTER_PLUGIN_STATIC(TOUCHE_DETECTION, PLUGIN_TYPE_ENGINE_DETECTION, ToucheMetaEngineDetection);

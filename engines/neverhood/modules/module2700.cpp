@@ -322,6 +322,8 @@ void Module2700::createScene(int sceneNum, int which) {
 		_vm->gameState().sceneNum = 31;
 		_childObject = new Scene2732(_vm, this);
 		break;
+	default:
+		break;
 	}
 	SetUpdateHandler(&Module2700::updateScene);
 	_childObject->handleUpdate();
@@ -498,6 +500,8 @@ void Module2700::updateScene() {
 		case 31:
 			createScene(28, 1);
 			break;
+		default:
+			break;
 		}
 	} else {
 		switch (_sceneNum) {
@@ -513,6 +517,8 @@ void Module2700::updateScene() {
 				_radioMusicInitialized = true;
 			}
 			break;
+		default:
+			break;
 		}
 	}
 }
@@ -525,6 +531,8 @@ uint32 Module2700::handleMessage(int messageNum, const MessageParam &param, Enti
 		_soundIndex++;
 		if (_soundIndex >= 4)
 			_soundIndex = 0;
+		break;
+	default:
 		break;
 	}
 	return messageResult;
@@ -616,6 +624,8 @@ uint32 Scene2701::hmRidingCar(int messageNum, const MessageParam &param, Entity 
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -633,6 +643,8 @@ uint32 Scene2701::hmCarAtHome(int messageNum, const MessageParam &param, Entity 
 		break;
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
+		break;
+	default:
 		break;
 	}
 	return 0;
@@ -752,6 +764,8 @@ uint32 Scene2702::handleMessage(int messageNum, const MessageParam &param, Entit
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -761,7 +775,7 @@ void Scene2702::moveCarToPoint(NPoint pt) {
 	_tracks.findTrackPoint(pt, minMatchTrackIndex, minMatchDistance, _dataResource);
 	if (minMatchTrackIndex >= 0 && minMatchTrackIndex != _currTrackIndex) {
 		_newTrackIndex = minMatchTrackIndex;
-		_newTrackDestX = pt.x;
+		_newTrackDest = pt;
 		if (_isUpperTrack) {
 			if (_currTrackIndex == 0)
 				sendMessage(_asCar, 0x2003, _trackPoints->size() - 1);
@@ -773,7 +787,7 @@ void Scene2702::moveCarToPoint(NPoint pt) {
 			sendMessage(_asCar, 0x2003, _trackPoints->size() - 1);
 	} else {
 		_newTrackIndex = -1;
-		sendMessage(_asCar, 0x2004, pt.x);
+		sendMessage(_asCar, 0x2004, pt);
 	}
 }
 
@@ -790,7 +804,7 @@ void Scene2702::changeTrack() {
 		sendMessage(_asCar, NM_POSITION_CHANGE, 0);
 	else
 		sendMessage(_asCar, NM_POSITION_CHANGE, _trackPoints->size() - 1);
-	sendMessage(_asCar, 0x2004, _newTrackDestX);
+	sendMessage(_asCar, 0x2004, _newTrackDest);
 	_newTrackIndex = -1;
 }
 
@@ -903,6 +917,8 @@ uint32 Scene2703::handleMessage(int messageNum, const MessageParam &param, Entit
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1002,6 +1018,8 @@ uint32 Scene2704::handleMessage(int messageNum, const MessageParam &param, Entit
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1083,6 +1101,8 @@ uint32 Scene2706::handleMessage(int messageNum, const MessageParam &param, Entit
 	case 0x200D:
 		sendMessage(_parentModule, 0x200D, 0);
 		break;
+	default:
+		break;
 	}
 	return 0;
 }
@@ -1092,14 +1112,14 @@ void Scene2706::moveCarToPoint(NPoint pt) {
 	_tracks.findTrackPoint(pt, minMatchTrackIndex, minMatchDistance, _dataResource);
 	if (minMatchTrackIndex >= 0 && minMatchTrackIndex != _currTrackIndex) {
 		_newTrackIndex = minMatchTrackIndex;
-		_newTrackDestX = pt.x;
+		_newTrackDest = pt;
 		if (_currTrackIndex == 0)
 			sendMessage(_asCar, 0x2003, _trackPoints->size() - 1);
 		else
 			sendMessage(_asCar, 0x2003, 0);
 	} else {
 		_newTrackIndex = -1;
-		sendMessage(_asCar, 0x2004, pt.x);
+		sendMessage(_asCar, 0x2004, pt);
 	}
 }
 
@@ -1111,7 +1131,7 @@ void Scene2706::changeTrack() {
 		sendMessage(_asCar, NM_POSITION_CHANGE, _trackPoints->size() - 1);
 	else
 		sendMessage(_asCar, NM_POSITION_CHANGE, 0);
-	sendMessage(_asCar, 0x2004, _newTrackDestX);
+	sendMessage(_asCar, 0x2004, _newTrackDest);
 	_newTrackIndex = -1;
 }
 

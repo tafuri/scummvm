@@ -25,48 +25,39 @@
 
 #include "gui/dialog.h"
 #include "common/fs.h"
+#include "common/str.h"
 
 namespace GUI {
 
 class ListWidget;
-class StaticTextWidget;
+class EditTextWidget;
 class CheckboxWidget;
 class CommandSender;
 
 class BrowserDialog : public Dialog {
 public:
-	BrowserDialog(const char *title, bool dirBrowser);
+	BrowserDialog(const Common::U32String &title, bool dirBrowser);
 
-#ifdef MACOSX
-	~BrowserDialog();
-	virtual int runModal();
-#else
-	virtual void open();
-
-	virtual void handleCommand(CommandSender *sender, uint32 cmd, uint32 data);
-#endif
+	int runModal() override;
+	void open() override;
+	void handleCommand(CommandSender *sender, uint32 cmd, uint32 data) override;
 
 	const Common::FSNode	&getResult() { return _choice; }
 
 protected:
-#ifdef MACOSX
-	const void *_titleRef;
-	const void *_chooseRef;
-	const void *_hiddenFilesRef;
-#else
 	ListWidget		*_fileList;
-	StaticTextWidget	*_currentPath;
+	EditTextWidget	*_currentPath;
 	Common::FSNode	_node;
-	Common::FSList			_nodeContent;
+	Common::FSList	_nodeContent;
+
 	bool _showHidden;
 	CheckboxWidget *_showHiddenWidget;
-#endif
-	Common::FSNode	_choice;
-	bool			_isDirBrowser;
 
-#ifndef MACOSX
+	Common::FSNode		_choice;
+	Common::U32String	_title;
+	bool				_isDirBrowser;
+
 	void updateListing();
-#endif
 };
 
 } // End of namespace GUI
